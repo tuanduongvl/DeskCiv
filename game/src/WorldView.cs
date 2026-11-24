@@ -1002,6 +1002,7 @@ void fragment() {
     {
         var counts = new int[_buildings.Length];
         foreach (BuildingView b in s.Buildings) counts[(int)b.Type]++;
+        _wildlife.SetVillage(counts[(int)BType.Field], counts[(int)BType.Fisher], counts[(int)BType.Hut]);
         for (int i = 0; i < counts.Length; i++)
         {
             Ensure(_buildings[i], counts[i]);

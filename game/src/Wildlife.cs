@@ -113,12 +113,30 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         }
     }
 
+    private int _era, _fields, _fishers, _huts;
+
     /// <summary>Farm animals appear with farming and sailing boats with the Bronze Age. Deer and gulls are always wild.</summary>
     public void SetEra(int era)
     {
+        _era = era;
+        ApplyCounts();
+    }
+
+    /// <summary>Herds grow with the fields and homes, and the fishing fleet with the fishers' huts.</summary>
+    public void SetVillage(int fields, int fishers, int huts)
+    {
+        if (fields == _fields && fishers == _fishers && huts == _huts) return;
+        (_fields, _fishers, _huts) = (fields, fishers, huts);
+        ApplyCounts();
+    }
+
+    private void ApplyCounts()
+    {
         if (_gulls == null) return;
-        for (int i = 0; i < 3; i++) _herds[i].Mesh.VisibleInstanceCount = era >= 1 ? _herds[i].Agents.Length : 0;
-        _boats.Mesh.VisibleInstanceCount = era >= 2 ? _boats.Agents.Length : 0;
+        bool farming = _era >= 1;
+        int[] wanted = { 4 + 3 * _fields, 1 + _fields, 4 + _huts / 2 };
+        for (int i = 0; i < 3; i++) _herds[i].Mesh.VisibleInstanceCount = farming ? Math.Clamp(wanted[i], 0, _herds[i].Agents.Length) : 0;
+        _boats.Mesh.VisibleInstanceCount = _era >= 2 ? Math.Clamp(_fishers, 1, _boats.Agents.Length) : 0;
     }
 
     /// <summary>Texture and leg layout of a herd or boat model.</summary>
