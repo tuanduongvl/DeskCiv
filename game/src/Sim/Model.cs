@@ -162,7 +162,7 @@ public static class Rules
         _ => 40f,
     };
 
-    public static string SeasonName(int season) => season switch { 0 => "Xuân", 1 => "Hạ", 2 => "Thu", _ => "Đông" };
+    public static string SeasonName(int season) => season switch { 0 => "Spring", 1 => "Summer", 2 => "Autumn", _ => "Winter" };
 
 }
 
@@ -173,7 +173,7 @@ public static class Eras
 
     public static readonly string[] Names =
     {
-        "Đồ đá cũ", "Đồ đá mới", "Đồ đồng", "Đồ sắt và Cổ đại", "Trung đại", "Phục hưng và Thuyền buồm", "Công nghiệp", "Thế kỷ 20",
+        "Old Stone Age", "New Stone Age", "Bronze Age", "Iron Age and Antiquity", "Middle Ages", "Renaissance and Age of Sail", "Industrial Age", "20th Century",
     };
 
     /// <summary>Calendar year at each era boundary. Negative years are BCE.</summary>
@@ -196,7 +196,7 @@ public static class Eras
     }
 
     public static string FormatCalendar(int calendar, System.IFormatProvider culture) =>
-        calendar < 0 ? $"{(-calendar).ToString("N0", culture)} TCN" : $"Năm {calendar}";
+        calendar < 0 ? $"{(-calendar).ToString("N0", culture)} BC" : $"AD {calendar}";
 
     /// <summary>First era in which the village may raise this building.</summary>
     public static int UnlockEra(BType type) => type switch

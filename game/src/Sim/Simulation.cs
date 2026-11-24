@@ -301,7 +301,7 @@ public sealed class Simulation
             float age = i < 14 ? Random.R(17, 38) : Random.R(2, 13);
             Spawn(x, z, age, i % 2 == 0, -1);
         }
-        Log("Một bộ lạc dừng chân bên cửa sông và dựng kho lương đầu tiên", CenterX, CenterZ, 3);
+        Log("A tribe settles by the estuary and builds its first food store", CenterX, CenterZ, 3);
     }
 
     private void Seed(Building b, Res r, int n)
@@ -703,19 +703,19 @@ public sealed class Simulation
         MilestoneMask |= bit;
         string text = b.Type switch
         {
-            BType.Hut => "Những ngôi nhà đầu tiên được dựng lên",
-            BType.Field => "Thửa ruộng đầu tiên được khai phá",
-            BType.Fisher => "Dân làng bắt đầu đánh cá trên sông",
-            BType.Quarry => "Mỏ đá đầu tiên được khai thác",
-            BType.Mill => "Cối xay đá đầu tiên nghiền hạt thành bột",
-            BType.Bakery => "Lò nướng đầu tiên cho ra mẻ bánh",
-            BType.Windmill => "Cối xay gió đầu tiên đón gió biển",
-            BType.Watermill => "Bánh xe nước đầu tiên quay bên bờ sông",
-            BType.Vineyard => "Vườn nho đầu tiên được trồng",
-            BType.Winery => "Nhà làm rượu đầu tiên ủ mẻ rượu nho",
-            BType.Smithy => "Lò rèn đầu tiên đỏ lửa",
-            BType.Dike => "Dân làng đắp đoạn đê đầu tiên chắn nước",
-            BType.TideGate => "Cửa ngăn sóng đầu tiên được dựng ở cửa sông",
+            BType.Hut => "The first homes go up",
+            BType.Field => "The first field is cleared",
+            BType.Fisher => "Villagers start fishing on the river",
+            BType.Quarry => "The first quarry is opened",
+            BType.Mill => "The first millstone grinds grain into flour",
+            BType.Bakery => "The first oven bakes its first loaves",
+            BType.Windmill => "The first windmill catches the sea wind",
+            BType.Watermill => "The first water wheel turns by the river",
+            BType.Vineyard => "The first vineyard is planted",
+            BType.Winery => "The first winery presses its first wine",
+            BType.Smithy => "The first forge is lit",
+            BType.Dike => "Villagers raise the first stretch of dike",
+            BType.TideGate => "The first tide gate is built at the river mouth",
             _ => null,
         };
         if (text != null) Log(text, b.X, b.Z, 2);
@@ -1722,26 +1722,26 @@ public sealed class Simulation
             {
                 HarvestFactor = 0.55f;
                 ActiveEvent = 1;
-                Log("Hạn hán khiến mùa màng năm nay thất bát", CenterX, CenterZ, 3);
+                Log("Drought ruins this year's harvest", CenterX, CenterZ, 3);
             }
             else if (roll < 0.28f)
             {
                 ColdFactor = 1.5f;
                 ActiveEvent = 2;
-                Log("Một mùa đông khắc nghiệt đang đến", CenterX, CenterZ, 3);
+                Log("A harsh winter is coming", CenterX, CenterZ, 3);
             }
             else if (roll < 0.36f)
             {
                 ActiveEvent = 3;
                 foreach (Person p in People)
                     if (Random.F() < 0.18f) p.Health = Math.Max(0.08f, p.Health - 0.42f);
-                Log("Dịch bệnh lan trong làng", CenterX, CenterZ, 3);
+                Log("Sickness spreads through the village", CenterX, CenterZ, 3);
             }
             else if (roll < 0.52f)
             {
                 HarvestFactor = 1.35f;
                 ActiveEvent = 4;
-                Log("Năm nay được mùa bội thu", CenterX, CenterZ, 2);
+                Log("A bumper harvest this year", CenterX, CenterZ, 2);
             }
         }
         HarvestFactor *= 1 + Support;
@@ -1771,9 +1771,9 @@ public sealed class Simulation
         if (lost == 0)
         {
             FloodsHeld++;
-            Log(Count(BType.Dike, true) > 0 ? "Triều cường dâng cao nhưng đê điều đã giữ được ruộng đồng" : "Triều cường dâng cao rồi rút đi", CenterX, CenterZ, 3);
+            Log(Count(BType.Dike, true) > 0 ? "A storm surge rises, but the dikes hold the fields" : "A storm surge rises and falls back", CenterX, CenterZ, 3);
         }
-        else Log($"Triều cường tràn bờ, {lost} thửa ruộng bị ngập", CenterX, CenterZ, 3);
+        else Log($"A storm surge breaks through and floods {lost} fields", CenterX, CenterZ, 3);
     }
 
     /// <summary>Tools and wine are used up each year and pay back in faster work and more births.</summary>
@@ -1821,13 +1821,13 @@ public sealed class Simulation
         {
             RecordEra();
             Era = era;
-            Log($"Văn minh bước vào thời đại {Eras.Names[Era]}", CenterX, CenterZ, 3);
+            Log($"The village enters the {Eras.Names[Era]}", CenterX, CenterZ, 3);
         }
         if (!RunComplete && Year >= Eras.TotalYears)
         {
             RunComplete = true;
             RecordEra();
-            Log("Hành trình của nền văn minh đã đi đến năm 2000", CenterX, CenterZ, 3);
+            Log("The civilisation's journey has reached the year 2000", CenterX, CenterZ, 3);
         }
     }
 
@@ -1899,7 +1899,7 @@ public sealed class Simulation
             if (!ConnectRing(polder)) continue;
             Polders.Add(polder);
             (float cx, float cz) = TileCenter((x0 + x1) / 2 + (z0 + z1) / 2 * Rules.TileNx);
-            Log(Polders.Count == 1 ? "Dân làng bắt đầu đắp đê lấn biển" : "Một vùng biển mới được quây đê để lấn ra", cx, cz, 3);
+            Log(Polders.Count == 1 ? "Villagers begin diking land from the sea" : "A new stretch of sea is ringed with dikes", cx, cz, 3);
             return;
         }
     }
@@ -1984,7 +1984,7 @@ public sealed class Simulation
         polder.MillB = AddPump(polder, midX - 1, polder.Z1 - 4, 0);
         ShapePolder(polder);
         (float x, float z) = TileCenter(midX + midZ * Rules.TileNx);
-        Log("Vòng đê đã khép kín, cối xay gió bắt đầu bơm nước ra biển", x, z, 3);
+        Log("The dike ring is closed; windmills start pumping water out", x, z, 3);
     }
 
     private int AddPump(Polder polder, int tileX, int tileZ, int direction)
@@ -2037,7 +2037,7 @@ public sealed class Simulation
         for (int x = p.X0; x < p.X1 - 1; x++) PlanRoad(x + midZ * Rules.TileNx);
         RoadVersion++;
         (float cx, float cz) = TileCenter((p.X0 + p.X1) / 2 + midZ * Rules.TileNx);
-        Log("Biển đã rút, một vùng đất mới sẵn sàng cho ruộng đồng", cx, cz, 3);
+        Log("The sea has drained away, leaving new land for fields", cx, cz, 3);
     }
 
     private void ShapePolder(Polder p)
@@ -2101,7 +2101,7 @@ public sealed class Simulation
             Spawn(x, z, Random.R(16, 34), i % 2 == 0, -1);
             Migrants++;
         }
-        Log("Một nhóm người di cư tìm đến vùng cửa sông", edgeX, edgeZ, 2);
+        Log("A group of newcomers arrives at the estuary", edgeX, edgeZ, 2);
     }
 
     public long TotalGoods(Res r)

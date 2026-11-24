@@ -111,10 +111,10 @@ internal sealed class TrayIcon
 
     private void CreatePopup(IntPtr inst)
     {
-        _popup = CreateWindowExW((uint)(WS_EX_TOOLWINDOW | WS_EX_TOPMOST), "DeskCivTray", "Âm lượng DeskCiv",
+        _popup = CreateWindowExW((uint)(WS_EX_TOOLWINDOW | WS_EX_TOPMOST), "DeskCivTray", "DeskCiv volume",
             unchecked((uint)(WS_POPUP | WS_BORDER)), 0, 0, PopupWidth, PopupHeight, IntPtr.Zero, IntPtr.Zero, inst, IntPtr.Zero);
         IntPtr font = GetStockObject(17);
-        string[] labels = { "Tổng", "Môi trường", "Nhạc" };
+        string[] labels = { "Master", "Ambience", "Music" };
         int[] values = { _audio.Master, _audio.Ambient, _audio.Music };
         for (int i = 0; i < 3; i++)
         {
@@ -125,12 +125,12 @@ internal sealed class TrayIcon
             SendMessageW(_sliders[i], TBM_SETRANGE, 1, 100 << 16);
             SendMessageW(_sliders[i], TBM_SETPOS, 1, values[i]);
         }
-        _speedLabel = CreateWindowExW(0, "STATIC", "Tốc độ x1", (uint)(WS_CHILD | WS_VISIBLE), 12, 138, 78, 20, _popup, IntPtr.Zero, inst, IntPtr.Zero);
+        _speedLabel = CreateWindowExW(0, "STATIC", "Speed x1", (uint)(WS_CHILD | WS_VISIBLE), 12, 138, 78, 20, _popup, IntPtr.Zero, inst, IntPtr.Zero);
         SendMessageW(_speedLabel, WM_SETFONT, font, 1);
         _speedSlider = CreateWindowExW(0, "msctls_trackbar32", "", (uint)(WS_CHILD | WS_VISIBLE), 92, 132, 204, 32, _popup, IdSpeed, inst, IntPtr.Zero);
         SendMessageW(_speedSlider, TBM_SETRANGE, 1, (Speeds.Length - 1) << 16);
         SendMessageW(_speedSlider, TBM_SETPOS, 1, 0);
-        _mute = CreateWindowExW(0, "BUTTON", "Tắt tiếng", (uint)(WS_CHILD | WS_VISIBLE | 3), 12, 178, 120, 22, _popup, IdMute, inst, IntPtr.Zero);
+        _mute = CreateWindowExW(0, "BUTTON", "Mute", (uint)(WS_CHILD | WS_VISIBLE | 3), 12, 178, 120, 22, _popup, IdMute, inst, IntPtr.Zero);
         SendMessageW(_mute, WM_SETFONT, font, 1);
         SendMessageW(_mute, BM_SETCHECK, _audio.Muted ? 1 : 0, 0);
     }
@@ -147,7 +147,7 @@ internal sealed class TrayIcon
                 return 0;
             case WM_HSCROLL when hwnd == _popup && lParam == _speedSlider:
                 _speedIndex = Math.Clamp((int)SendMessageW(_speedSlider, TBM_GETPOS, 0, 0), 0, Speeds.Length - 1);
-                SetWindowTextW(_speedLabel, $"Tốc độ x{Speed}");
+                SetWindowTextW(_speedLabel, $"Speed x{Speed}");
                 return 0;
             case WM_HSCROLL when hwnd == _popup:
                 ReadSliders((int)wParam & 0xFFFF);
@@ -231,11 +231,11 @@ internal sealed class TrayIcon
     private void ShowMenu()
     {
         IntPtr menu = CreatePopupMenu();
-        AppendMenuW(menu, MF_STRING | (_paused ? MF_CHECKED : 0), MenuPause, "Tạm dừng");
-        AppendMenuW(menu, MF_STRING | (_audio.ShowOverlay ? MF_CHECKED : 0), MenuOverlay, "Hiện thông tin");
-        AppendMenuW(menu, MF_STRING | (StartsWithWindows() ? MF_CHECKED : 0), MenuStartup, "Chạy cùng Windows");
+        AppendMenuW(menu, MF_STRING | (_paused ? MF_CHECKED : 0), MenuPause, "Pause");
+        AppendMenuW(menu, MF_STRING | (_audio.ShowOverlay ? MF_CHECKED : 0), MenuOverlay, "Show info");
+        AppendMenuW(menu, MF_STRING | (StartsWithWindows() ? MF_CHECKED : 0), MenuStartup, "Start with Windows");
         AppendMenuW(menu, MF_SEPARATOR, 0, null);
-        AppendMenuW(menu, MF_STRING, MenuQuit, "Thoát");
+        AppendMenuW(menu, MF_STRING, MenuQuit, "Quit");
         GetCursorPos(out POINT p);
         SetForegroundWindow(_hwnd);
         int command = TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_RETURNCMD, p.X, p.Y, 0, _hwnd, IntPtr.Zero);

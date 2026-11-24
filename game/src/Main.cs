@@ -26,6 +26,7 @@ public partial class Main : Node3D
     private Godot.Environment _environment;
     private GpuParticles3D _rain;
     private StreamOutput _stream;
+    private AudioEffectCapture _soundCapture;
     private static bool _weatherGlobals;
     private string _forcedWeather;
     private Label _overlay, _replayLabel;
@@ -137,7 +138,15 @@ public partial class Main : Node3D
         if (streamKey != null || streamTest != null)
         {
             Vector2I size = GetViewport().GetVisibleRect().Size is var v ? new Vector2I((int)v.X, (int)v.Y) : new Vector2I(1280, 720);
-            _stream = StreamOutput.Start(streamKey, streamTest, Option(args, "--ffmpeg", "ffmpeg"), size.X & ~1, size.Y & ~1, 30);
+            _stream = StreamOutput.Start(streamKey, streamTest, Option(args, "--ffmpeg", "ffmpeg"), size.X & ~1, size.Y & ~1, 30, (int)AudioServer.GetMixRate());
+            if (_stream != null)
+            {
+                // The stream carries the game's own sound, so it must not fall silent when other apps play.
+                _audioYield?.Dispose();
+                _audioYield = null;
+                _soundCapture = new AudioEffectCapture { BufferLength = 1f };
+                AudioServer.AddBusEffect(AudioServer.GetBusIndex("Master"), _soundCapture);
+            }
         }
     }
 
@@ -223,6 +232,7 @@ public partial class Main : Node3D
         }
 
         _stream?.Push(GetViewport());
+        if (_soundCapture != null && _soundCapture.GetFramesAvailable() > 0) _stream.PushSound(_soundCapture.GetBuffer(_soundCapture.GetFramesAvailable()));
 
         _hostTimer -= delta;
         if (_hostTimer <= 0)
@@ -320,13 +330,13 @@ public partial class Main : Node3D
         _azimuthTarget = (float)(_replayTime / _replaySeconds * MathF.Tau);
         int cards = s.History.Length + 1;
         int card = Math.Min(cards - 1, (int)(_replayTime / _replaySeconds * cards));
-        var culture = CultureInfo.GetCultureInfo("vi-VN");
+        var culture = CultureInfo.GetCultureInfo("en-US");
         if (card < s.History.Length)
         {
             EraRecord e = s.History[card];
-            _replayLabel.Text = $"{Eras.Names[e.Era]}\n{Eras.FormatCalendar(Eras.StartOf(e.Era), culture)} – {Eras.FormatCalendar(Eras.EndOf(e.Era), culture)}\n{e.Population} dân  ·  {e.Buildings} công trình  ·  {e.Births} ca sinh  ·  {e.Floods} trận triều cường";
+            _replayLabel.Text = $"{Eras.Names[e.Era]}\n{Eras.FormatCalendar(Eras.StartOf(e.Era), culture)} – {Eras.FormatCalendar(Eras.EndOf(e.Era), culture)}\n{e.Population} people  ·  {e.Buildings} buildings  ·  {e.Births} births  ·  {e.Floods} storm surges";
         }
-        else _replayLabel.Text = $"Một nền văn minh đã đi qua 12.000 năm\nDân số cuối cùng {s.Population}  ·  {s.Buildings.Length} công trình\nMột vùng đất mới đang chờ";
+        else _replayLabel.Text = $"A civilisation has lived through 12,000 years\nFinal population {s.Population}  ·  {s.Buildings.Length} buildings\nA new land is waiting";
         if (_replayTime >= _replaySeconds) StartNewWorld();
     }
 
@@ -587,6 +597,11 @@ public partial class Main : Node3D
         RenderingServer.GlobalShaderParameterSet("rain", rain);
         RenderingServer.GlobalShaderParameterSet("daylight", day);
         SetRain(rain);
+        if (_sound != null)
+        {
+            _sound.Rain = rain;
+            _sound.Daylight = day;
+        }
         _view?.SetNightGlow(1f - day);
     }
 
@@ -643,11 +658,11 @@ public partial class Main : Node3D
 
     private void UpdateOverlay(WorldSnapshot s)
     {
-        var culture = CultureInfo.GetCultureInfo("vi-VN");
+        var culture = CultureInfo.GetCultureInfo("en-US");
         string era = Eras.Names[s.Era];
         string line = s.LastEvent?.Text ?? "";
-        string speed = _sim.Speed > 1 ? $"  ·  Tốc độ x{_sim.Speed}" : "";
-        _overlay.Text = $"{Eras.FormatCalendar(s.Calendar, culture)}  ·  {era}  ·  Mùa {Rules.SeasonName(s.Season)}{speed}\nDân số {s.Population}  ·  Lương thực {s.Food}\n{line}";
+        string speed = _sim.Speed > 1 ? $"  ·  Speed x{_sim.Speed}" : "";
+        _overlay.Text = $"{Eras.FormatCalendar(s.Calendar, culture)}  ·  {era}  ·  {Rules.SeasonName(s.Season)}{speed}\nPopulation {s.Population}  ·  Food {s.Food}\n{line}";
     }
 
     private void OpenMetrics(string path)

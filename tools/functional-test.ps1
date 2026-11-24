@@ -46,7 +46,7 @@ try {
 
     Wait-Until 12
     $tray = [T]::FindWindowExW([IntPtr]::Zero, [IntPtr]::Zero, "DeskCivTray", "DeskCiv")
-    $popup = [T]::FindWindowExW([IntPtr]::Zero, [IntPtr]::Zero, "DeskCivTray", "Âm lượng DeskCiv")
+    $popup = [T]::FindWindowExW([IntPtr]::Zero, [IntPtr]::Zero, "DeskCivTray", "DeskCiv volume")
     [void][T]::PostMessageW($tray, 0x8001, [IntPtr]1, [IntPtr]0x202)
     Start-Sleep -Milliseconds 500
     "popup_opens: $([T]::IsWindowVisible($popup))"
@@ -58,7 +58,7 @@ try {
 
     Wait-Until 26
     "bus_db_at_40pct: $((Get-Last).master_db) (expected about -8.0)"
-    $mute = [T]::FindWindowExW($popup, [IntPtr]::Zero, "BUTTON", "Tắt tiếng")
+    $mute = [T]::FindWindowExW($popup, [IntPtr]::Zero, "BUTTON", "Mute")
     if ($mute -eq [IntPtr]::Zero) { throw "Mute checkbox not found" }
     [void][T]::SendMessageW($mute, 0xF1, [IntPtr]1, [IntPtr]0)
     [void][T]::SendMessageW($popup, 0x111, [IntPtr]104, $mute)

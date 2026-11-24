@@ -1,4 +1,5 @@
-# Streams a DeskCiv world to YouTube Live (1280x720, 30 fps, GPU-encoded). Only the game picture is sent.
+# Streams a DeskCiv world to YouTube Live (1280x720, 30 fps, GPU-encoded) with its own sound. Only the game picture and sound are sent;
+# the sound is captured inside the game, so nothing plays through the speakers.
 #
 # One-time setup:
 #   1. In YouTube Studio > Create > Go live > Stream, copy the stream key.
@@ -20,6 +21,6 @@ $ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
 if (-not $ffmpeg) { $ffmpeg = Join-Path $env:USERPROFILE "miniconda3\Library\bin\ffmpeg.exe" }
 if (-not (Test-Path $ffmpeg)) { "ffmpeg not found; install it or add it to PATH."; return }
 $gameArgs = @("--path", "`"$root\game`"", "--resolution", $Resolution, "--position", "-4000,0", "--audio-driver", "Dummy", "--",
-          "--windowed", "--silent", "--no-save", "--stream-key-file=`"$KeyFile`"", "--ffmpeg=`"$ffmpeg`"")
+          "--windowed", "--no-save", "--stream-key-file=`"$KeyFile`"", "--ffmpeg=`"$ffmpeg`"")
 Start-Process -FilePath $godot -ArgumentList $gameArgs
 "DeskCiv is streaming to YouTube. Open YouTube Studio to see the preview (it takes 10-20 seconds to appear)."

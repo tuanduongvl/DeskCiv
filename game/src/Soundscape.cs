@@ -25,11 +25,13 @@ public partial class Soundscape : Node
     private readonly AudioSettings _settings;
     private readonly bool _forceSilent;
     private readonly RandomNumberGenerator _random = new();
-    private readonly AudioStreamWav[] _pieces = new AudioStreamWav[Eras8];
+    private readonly AudioStream[] _pieces = new AudioStream[Eras8];
     private const int Eras8 = 8;
     private int _master, _ambient, _music;
-    private AudioStreamPlayer _musicPlayer, _birdPlayer;
-    private AudioStreamWav[] _birds = Array.Empty<AudioStreamWav>();
+    private AudioStreamPlayer _musicPlayer, _birdPlayer, _rainPlayer;
+    private AudioStream[] _birds = Array.Empty<AudioStream>();
+    private bool _recordedBirds;
+    private float _rainLevel;
     private double _gain, _nextMusic = 30, _nextBird = 20;
     private Task<short[]> _composing;
     private int _composingEra = -1;
@@ -37,6 +39,10 @@ public partial class Soundscape : Node
     public bool Suppressed { get; set; }
     public bool Yielding { get; set; }
     public int Era { get; set; }
+    /// <summary>0 = dry, 1 = heavy rain.</summary>
+    public float Rain { get; set; }
+    /// <summary>0 = night, 1 = full day. Birds sing in daylight only.</summary>
+    public float Daylight { get; set; } = 1;
     public float MasterDb => AudioServer.GetBusVolumeDb(_master);
 
     public Soundscape() { }
@@ -55,13 +61,34 @@ public partial class Soundscape : Node
         Apply();
         if (_forceSilent) return;
 
-        AddChild(new AudioStreamPlayer { Stream = Wav(MakeWind(24), true), Bus = "Ambient", Autoplay = true, VolumeDb = -5 });
-        AddChild(new AudioStreamPlayer { Stream = Wav(MakeSurf(26), true), Bus = "Ambient", Autoplay = true });
+        // Recorded sounds from assets/audio (see THIRD_PARTY_NOTICES.md); generated sound fills in for any that are missing.
+        AddChild(new AudioStreamPlayer { Stream = Recorded("wind", true) ?? Wav(MakeWind(24), true), Bus = "Ambient", Autoplay = true, VolumeDb = -5 });
+        AddChild(new AudioStreamPlayer { Stream = Recorded("surf", true) ?? Wav(MakeSurf(26), true), Bus = "Ambient", Autoplay = true });
+        if (Recorded("rain", true) is AudioStream rain)
+        {
+            _rainPlayer = new AudioStreamPlayer { Stream = rain, Bus = "Ambient", VolumeDb = -60 };
+            AddChild(_rainPlayer);
+        }
         _birdPlayer = new AudioStreamPlayer { Bus = "Ambient", VolumeDb = -9 };
         AddChild(_birdPlayer);
-        _birds = new[] { Wav(MakeBird(2400, 3, 0.09), false), Wav(MakeBird(3200, 5, 0.06), false), Wav(MakeGull(), false) };
+        var birds = new System.Collections.Generic.List<AudioStream>();
+        for (int i = 1; Recorded($"bird_{i}", false) is AudioStream bird; i++) birds.Add(bird);
+        for (int i = 1; Recorded($"gull_{i}", false) is AudioStream gull; i++) birds.Add(gull);
+        _birds = birds.Count > 0 ? birds.ToArray() : new AudioStream[] { Wav(MakeBird(2400, 3, 0.09), false), Wav(MakeBird(3200, 5, 0.06), false), Wav(MakeGull(), false) };
+        _recordedBirds = birds.Count > 0;
+        for (int era = 0; era < Eras8; era++) _pieces[era] = Recorded($"music_{era}", false);
         _musicPlayer = new AudioStreamPlayer { Bus = "Music" };
         AddChild(_musicPlayer);
+    }
+
+    /// <summary>Loads assets/audio/NAME.dcsnd (an Ogg Vorbis file under a name the Godot importer leaves alone).</summary>
+    private static AudioStream Recorded(string name, bool loop)
+    {
+        string path = $"res://assets/audio/{name}.dcsnd";
+        if (!FileAccess.FileExists(path)) return null;
+        AudioStreamOggVorbis stream = AudioStreamOggVorbis.LoadFromBuffer(FileAccess.GetFileAsBytes(path));
+        if (stream != null) stream.Loop = loop;
+        return stream;
     }
 
     private static int AddBus(string name)
@@ -82,13 +109,25 @@ public partial class Soundscape : Node
         Apply();
         if (_forceSilent || _gain <= 0) return;
 
+        if (_rainPlayer != null)
+        {
+            _rainLevel = Mathf.MoveToward(_rainLevel, Rain, (float)delta * 0.1f);
+            if (_rainLevel > 0.01f && !_rainPlayer.Playing) _rainPlayer.Play();
+            else if (_rainLevel <= 0.01f && _rainPlayer.Playing) _rainPlayer.Stop();
+            _rainPlayer.VolumeDb = Mathf.LinearToDb(Mathf.Max(_rainLevel, 0.001f)) - 2;
+        }
+
         _nextBird -= delta;
         if (_nextBird <= 0)
         {
             _nextBird = _random.RandfRange(25, 70);
-            _birdPlayer.Stream = _birds[_random.RandiRange(0, _birds.Length - 1)];
-            _birdPlayer.PitchScale = _random.RandfRange(0.9f, 1.12f);
-            _birdPlayer.Play();
+            if (Daylight > 0.3f && Rain < 0.4f && !_birdPlayer.Playing)
+            {
+                _birdPlayer.Stream = _birds[_random.RandiRange(0, _birds.Length - 1)];
+                // Recordings keep their natural pitch; generated chirps vary a little.
+                _birdPlayer.PitchScale = _recordedBirds ? 1f : _random.RandfRange(0.9f, 1.12f);
+                _birdPlayer.Play();
+            }
         }
 
         if (_composing is { IsCompleted: true })
@@ -98,9 +137,11 @@ public partial class Soundscape : Node
             _musicPlayer.Stream = _pieces[_composingEra];
             _musicPlayer.Play();
         }
+        if (_musicPlayer.Playing) return;
         _nextMusic -= delta;
         if (_nextMusic > 0 || _composing != null) return;
-        _nextMusic = MusicInterval;
+        // A quiet spell of three to six minutes follows every piece.
+        _nextMusic = _random.RandfRange((float)MusicInterval * 0.75f, (float)MusicInterval * 1.5f);
         int era = Math.Clamp(Era, 0, Eras8 - 1);
         if (_pieces[era] != null)
         {
