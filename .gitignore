@@ -1,0 +1,19 @@
+# Local Godot download
+.tools/
+
+# Godot and .NET generated files
+.godot/
+bin/
+obj/
+*.user
+
+# Local test output
+measurements/
+
+# Downloaded third-party packs and regenerable AI outputs
+assets-source/quaternius-ual/
+assets-candidates/hunyuan3d/
+__pycache__/
+dist/
+assets-source/kenney/
+assets-source/polyhaven/

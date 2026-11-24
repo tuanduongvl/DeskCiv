@@ -1,0 +1,301 @@
+using System;
+using DeskCiv.Sim;
+using Godot;
+
+namespace DeskCiv;
+
+/// <summary>Decorative animals, birds and boats. They run on the render side and never affect the simulation.</summary>
+public partial class Wildlife : Node3D
+{
+    private const string Shader = @"
+shader_type spatial;
+render_mode diffuse_lambert, specular_disabled, cull_disabled;
+uniform int style = 0;
+uniform float leg_top = 0.4;
+uniform float body_z = 0.0;
+uniform float body_len = 1.0;
+uniform sampler2D albedo : source_color, hint_default_white, filter_linear_mipmap;
+void vertex() {
+    float t = TIME + INSTANCE_CUSTOM.y;
+    if (style == 0) {
+        // Four-legged walk: diagonal leg pairs swing in turn about the hips while the animal moves.
+        float moving = INSTANCE_CUSTOM.x;
+        if (VERTEX.y < leg_top) {
+            float pair = sign(VERTEX.x + 0.001) * sign(VERTEX.z - body_z + 0.001);
+            float swing = sin(t * 7.0 + (pair > 0.0 ? 0.0 : 3.14159)) * 0.42 * moving;
+            float below = leg_top - VERTEX.y;
+            VERTEX.z += below * sin(swing);
+            VERTEX.y = leg_top - below * cos(swing);
+        }
+        VERTEX.y += abs(sin(t * 7.0)) * 0.03 * moving;
+        // A slow head nod while grazing.
+        float head = smoothstep(body_z + 0.25 * body_len, body_z + 0.5 * body_len, VERTEX.z);
+        VERTEX.y -= head * (1.0 - moving) * (0.5 + 0.5 * sin(t * 0.7)) * 0.12 * body_len;
+    } else if (style == 1) {
+        VERTEX.y += abs(VERTEX.x) * sin(t * 5.5) * 0.55;
+    } else {
+        float a = sin(t * 0.9) * 0.05;
+        VERTEX.y += VERTEX.x * a + sin(t * 0.7) * 0.07;
+    }
+}
+void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
+
+    private const int Floats = 20;
+
+    private struct Agent
+    {
+        public float X, Z, TX, TZ, HomeX, HomeZ, Wait, Yaw, Phase, Moving;
+    }
+
+    private sealed class Flock
+    {
+        public MultiMesh Mesh;
+        public ShaderMaterial Material;
+        public Agent[] Agents;
+        public float[] Buffer;
+        public float Speed, Roam, Scale;
+    }
+
+    private readonly WorldMap _map;
+    private readonly float _centerX, _centerZ;
+    private readonly Random _random;
+    private Flock[] _herds = Array.Empty<Flock>();
+    private Flock _gulls, _boats;
+    private float _boatDraft;
+    private float _clock;
+
+    public Wildlife() { }
+
+    public Wildlife(WorldMap map, float centerX, float centerZ)
+    {
+        _map = map;
+        _centerX = centerX;
+        _centerZ = centerZ;
+        _random = new Random(map.Seed ^ 0x51ED);
+    }
+
+    public override void _Ready()
+    {
+        _herds = new[]
+        {
+            Herd(Real("animal_sheep") ?? MeshKit.Sheep(), 30, 3, 0.9f, 13f, 1.1f),
+            Herd(Real("animal_cow") ?? MeshKit.Cow(), 12, 2, 0.75f, 16f, 1.15f),
+            Herd(Real("animal_chicken") ?? MeshKit.Chicken(), 22, 4, 1.05f, 6f, 1f),
+            Herd(Real("animal_deer") ?? MeshKit.Deer(), 9, 2, 1.7f, 26f, 1.1f, 130f),
+        };
+        _gulls = AddFlock(MeshKit.Gull(), 18, 1);
+        for (int i = 0; i < _gulls.Agents.Length; i++)
+        {
+            ref Agent g = ref _gulls.Agents[i];
+            g.HomeX = Mathf.Lerp(_centerX, _map.CoastX(_centerZ) + 50, R());
+            g.HomeZ = _map.RiverCenter(g.HomeX) + R(-55, 55);
+            g.TX = R(12, 34);
+            g.TZ = R(0.16f, 0.34f) * (R() < 0.5f ? -1 : 1);
+            g.Yaw = R(0, MathF.Tau);
+            g.Wait = R(12, 21);
+            g.Phase = R(0, 10);
+        }
+        ArrayMesh realBoat = Real("boat");
+        _boatDraft = realBoat != null ? 0.55f : 0f; // the generated hull has its keel at y = 0
+        _boats = AddFlock(realBoat ?? MeshKit.Boat(), 5, 2);
+        for (int i = 0; i < _boats.Agents.Length; i++)
+        {
+            ref Agent b = ref _boats.Agents[i];
+            b.X = Mathf.Lerp(_centerX - 40, _map.CoastX(_centerZ) + 110, R());
+            b.TX = R() < 0.5f ? -1 : 1;
+            b.HomeZ = R(-0.5f, 0.5f);
+            b.Phase = R(0, 10);
+        }
+    }
+
+    /// <summary>Farm animals appear with farming and sailing boats with the Bronze Age. Deer and gulls are always wild.</summary>
+    public void SetEra(int era)
+    {
+        if (_gulls == null) return;
+        for (int i = 0; i < 3; i++) _herds[i].Mesh.VisibleInstanceCount = era >= 1 ? _herds[i].Agents.Length : 0;
+        _boats.Mesh.VisibleInstanceCount = era >= 2 ? _boats.Agents.Length : 0;
+    }
+
+    /// <summary>Texture and leg layout of a herd or boat model.</summary>
+    private static void ApplyLook(ShaderMaterial material, Mesh mesh)
+    {
+        // Legs are the lowest 45% of an animal; the head is at the +Z end.
+        Aabb box = mesh.GetAabb();
+        material.SetShaderParameter("leg_top", box.Position.Y + box.Size.Y * 0.45f);
+        material.SetShaderParameter("body_z", box.Position.Z + box.Size.Z * 0.5f);
+        material.SetShaderParameter("body_len", box.Size.Z);
+        Texture2D texture = mesh.GetSurfaceCount() > 0 && mesh.SurfaceGetMaterial(0) is StandardMaterial3D textured ? textured.AlbedoTexture : null;
+        material.SetShaderParameter("albedo", texture);
+    }
+
+    /// <summary>Swaps in regenerated animal and boat models while running (live reload).</summary>
+    public void ReloadModels()
+    {
+        if (_herds.Length < 4 || _boats == null) return;
+        Mesh[] meshes =
+        {
+            Real("animal_sheep") ?? MeshKit.Sheep(), Real("animal_cow") ?? MeshKit.Cow(),
+            Real("animal_chicken") ?? MeshKit.Chicken(), Real("animal_deer") ?? MeshKit.Deer(),
+        };
+        for (int i = 0; i < 4; i++)
+        {
+            _herds[i].Mesh.Mesh = meshes[i];
+            ApplyLook(_herds[i].Material, meshes[i]);
+        }
+        ArrayMesh boat = Real("boat");
+        _boatDraft = boat != null ? 0.55f : 0f;
+        _boats.Mesh.Mesh = (Mesh)boat ?? MeshKit.Boat();
+        ApplyLook(_boats.Material, _boats.Mesh.Mesh);
+    }
+
+    /// <summary>A realistic generated model from assets/models, or null to keep the low-poly one.</summary>
+    private static ArrayMesh Real(string name) => MeshKit.LoadModel(name);
+
+    private float R() => (float)_random.NextDouble();
+    private float R(float min, float max) => min + (max - min) * R();
+
+    private Flock AddFlock(Mesh mesh, int count, int style)
+    {
+        var material = new ShaderMaterial { Shader = new Shader { Code = Shader } };
+        material.SetShaderParameter("style", style);
+        ApplyLook(material, mesh);
+        var multi = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, UseCustomData = true, Mesh = mesh, InstanceCount = count, VisibleInstanceCount = count };
+        AddChild(new MultiMeshInstance3D
+        {
+            Multimesh = multi, MaterialOverride = material, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            CustomAabb = new Aabb(new Vector3(-WorldMap.SizeX / 2, -10, -WorldMap.SizeZ / 2), new Vector3(WorldMap.SizeX, 120, WorldMap.SizeZ)),
+        });
+        return new Flock { Mesh = multi, Material = material, Agents = new Agent[count], Buffer = new float[count * Floats], Scale = 1 };
+    }
+
+    private Flock Herd(Mesh mesh, int count, int groups, float speed, float roam, float scale, float distance = 75f)
+    {
+        Flock flock = AddFlock(mesh, count, 0);
+        flock.Speed = speed;
+        flock.Roam = roam;
+        flock.Scale = scale;
+        for (int g = 0; g < groups; g++)
+        {
+            (float homeX, float homeZ) = LandNear(_centerX, _centerZ, distance);
+            for (int i = g * count / groups; i < (g + 1) * count / groups; i++)
+            {
+                (float x, float z) = LandNear(homeX, homeZ, roam);
+                flock.Agents[i] = new Agent { X = x, Z = z, TX = x, TZ = z, HomeX = homeX, HomeZ = homeZ, Wait = R(0, 8), Yaw = R(0, MathF.Tau), Phase = R(0, 10) };
+            }
+        }
+        return flock;
+    }
+
+    private (float, float) LandNear(float x, float z, float radius)
+    {
+        for (int i = 0; i < 40; i++)
+        {
+            float a = R(0, MathF.Tau), d = MathF.Sqrt(R()) * radius;
+            float px = x + MathF.Cos(a) * d, pz = z + MathF.Sin(a) * d;
+            if (_map.Walkable(px, pz) && _map.Height(px, pz) > 0.9f && _map.Slope(px, pz) < 0.4f) return (px, pz);
+        }
+        return (x, z);
+    }
+
+    private static bool Open(byte[] tiles, float x, float z)
+    {
+        if (tiles == null || tiles.Length == 0) return true;
+        int tx = Math.Clamp((int)((x + WorldMap.SizeX / 2) / Rules.TileSize), 0, Rules.TileNx - 1);
+        int tz = Math.Clamp((int)((z + WorldMap.SizeZ / 2) / Rules.TileSize), 0, Rules.TileNz - 1);
+        return tiles[tx + tz * Rules.TileNx] is TileKind.Free or TileKind.Road;
+    }
+
+    /// <summary>Advances all animals. The renderer calls this only while the wallpaper is visible.</summary>
+    public void Step(float delta, byte[] tiles)
+    {
+        if (_gulls == null) return;
+        delta = Math.Min(delta, 0.25f);
+        _clock += delta;
+        foreach (Flock herd in _herds) StepHerd(herd, delta, tiles);
+        StepGulls(delta);
+        StepBoats(delta);
+    }
+
+    private void StepHerd(Flock flock, float delta, byte[] tiles)
+    {
+        for (int i = 0; i < flock.Agents.Length; i++)
+        {
+            ref Agent a = ref flock.Agents[i];
+            float dx = a.TX - a.X, dz = a.TZ - a.Z, distance = MathF.Sqrt(dx * dx + dz * dz);
+            if (distance < 0.2f)
+            {
+                a.Moving = 0;
+                a.Wait -= delta;
+                if (a.Wait <= 0)
+                {
+                    (float x, float z) = LandNear(a.HomeX, a.HomeZ, flock.Roam);
+                    if (Open(tiles, x, z)) (a.TX, a.TZ) = (x, z);
+                    a.Wait = R(3, 13);
+                }
+            }
+            else
+            {
+                float step = Math.Min(distance, flock.Speed * delta);
+                float nx = a.X + dx / distance * step, nz = a.Z + dz / distance * step;
+                if (_map.Walkable(nx, nz) && Open(tiles, nx, nz))
+                {
+                    (a.X, a.Z) = (nx, nz);
+                    a.Yaw = LerpAngle(a.Yaw, MathF.Atan2(dx, dz), Math.Min(1, delta * 5));
+                    a.Moving = 1;
+                }
+                else (a.TX, a.TZ) = (a.X, a.Z);
+            }
+            Write(flock.Buffer, i, flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z), a.Z, a.Moving, a.Phase);
+        }
+        flock.Mesh.Buffer = flock.Buffer;
+    }
+
+    private void StepGulls(float delta)
+    {
+        for (int i = 0; i < _gulls.Agents.Length; i++)
+        {
+            ref Agent g = ref _gulls.Agents[i];
+            g.Yaw += g.TZ * delta;
+            float x = g.HomeX + MathF.Cos(g.Yaw) * g.TX, z = g.HomeZ + MathF.Sin(g.Yaw) * g.TX;
+            float heading = g.TZ > 0 ? -g.Yaw : -g.Yaw + MathF.PI;
+            float height = g.Wait + MathF.Sin(_clock * 0.3f + g.Phase) * 1.6f;
+            Write(_gulls.Buffer, i, 1, heading, x, height, z, 1, g.Phase);
+        }
+        _gulls.Mesh.Buffer = _gulls.Buffer;
+    }
+
+    private void StepBoats(float delta)
+    {
+        float far = _map.CoastX(_centerZ) + 135, near = Math.Max(_centerX - 90, -WorldMap.SizeX / 2 + 30);
+        for (int i = 0; i < _boats.Agents.Length; i++)
+        {
+            ref Agent b = ref _boats.Agents[i];
+            b.X += b.TX * 2.3f * delta;
+            if (b.X > far) b.TX = -1;
+            if (b.X < near) b.TX = 1;
+            // Boats keep to the middle of the channel, inside its width at this point.
+            float lane = (10f + WorldMap.EstuaryWidth(b.X) * 0.8f) * b.HomeZ;
+            float z = _map.RiverCenter(b.X) + lane;
+            Write(_boats.Buffer, i, 1.15f, b.TX > 0 ? MathF.PI / 2 : -MathF.PI / 2, b.X, 0.03f - _boatDraft, z, 1, b.Phase);
+        }
+        _boats.Mesh.Buffer = _boats.Buffer;
+    }
+
+    private static float LerpAngle(float from, float to, float t)
+    {
+        float difference = (to - from + MathF.PI) % MathF.Tau;
+        if (difference < 0) difference += MathF.Tau;
+        return from + (difference - MathF.PI) * t;
+    }
+
+    private static void Write(float[] b, int index, float s, float yaw, float x, float y, float z, float moving, float phase)
+    {
+        int n = index * Floats;
+        float sin = MathF.Sin(yaw), cos = MathF.Cos(yaw);
+        b[n] = cos * s; b[n + 1] = 0; b[n + 2] = sin * s; b[n + 3] = x;
+        b[n + 4] = 0; b[n + 5] = s; b[n + 6] = 0; b[n + 7] = y;
+        b[n + 8] = -sin * s; b[n + 9] = 0; b[n + 10] = cos * s; b[n + 11] = z;
+        b[n + 12] = 1; b[n + 13] = 1; b[n + 14] = 1; b[n + 15] = 1;
+        b[n + 16] = moving; b[n + 17] = phase; b[n + 18] = 0; b[n + 19] = 0;
+    }
+}

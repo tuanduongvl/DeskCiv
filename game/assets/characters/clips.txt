@@ -1,0 +1,12 @@
+idle 0 58
+walk 58 22
+carry 80 25
+chop 105 29
+hoe 134 32
+mine 166 26
+sow 192 36
+gather 228 41
+fish 269 86
+build 355 31
+knead 386 34
+reap 420 28
