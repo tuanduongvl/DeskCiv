@@ -450,7 +450,7 @@ void fragment() {
     private StandardMaterial3D _vertexColors;
     private ShaderMaterial _fieldMaterial;
     private NoiseTexture2D _noiseTexture;
-    private MultiMesh _crops, _people, _cargo, _graves, _glow, _stumps, _hedges;
+    private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private ShaderMaterial _terrain;
     private StandardMaterial3D _glowMaterial;
     private ImageTexture _wearTexture;
@@ -495,6 +495,7 @@ void fragment() {
         for (int i = 0; i < _moving.Length; i++) ApplyMovingPart(i);
         _crops = AddInstances(MeshKit.Crops(), vertexColors, true, 32);
         _graves = AddInstances(MeshKit.Grave(), vertexColors, false, 32);
+        _sites = AddInstances(MeshKit.Site(), vertexColors, false, 8, true);
         _stumps = AddInstances(MeshKit.Stump(), vertexColors, false, Math.Max(1, _host.TreePositions.X.Length));
         _treeMaterial = new ShaderMaterial { Shader = new Shader { Code = TreeShader } };
         BuildScatter(vertexColors);
@@ -998,15 +999,18 @@ void fragment() {
         var movingCounts = new int[_moving.Length];
         Ensure(_crops, counts[(int)BType.Field]);
         Ensure(_glow, counts[(int)BType.Hut]);
+        Ensure(_sites, s.Buildings.Length);
         Array.Clear(counts);
         var variantCounts = new int[_buildings.Length];
         var olderCounts = new int[_buildings.Length];
         float renovated = (s.Year - _renovationStart) / RenovationYears;
-        int crops = 0, glows = 0;
+        int crops = 0, glows = 0, sites = 0;
         foreach (BuildingView b in s.Buildings)
         {
             float y = _map.Height(b.X, b.Z);
-            float rise = b.Built ? 1 : 0.18f + b.Progress * 0.82f;
+            // From the New Stone Age a plot under construction gets stakes, scaffold and materials, and the house rises inside it.
+            bool site = !b.Built && s.Era >= 1 && b.Type is not (BType.Field or BType.Vineyard or BType.Quarry or BType.Dike or BType.TideGate);
+            float rise = b.Built ? 1 : site ? 0.03f + b.Progress * 0.97f : 0.18f + b.Progress * 0.82f;
             float yaw = b.Type == BType.Field ? MathF.Round(b.Rotation / (MathF.PI / 2)) * (MathF.PI / 2) : b.Rotation;
             // The windmill's cap and sails turn into the south-east sea wind, the same yaw as its moving part below.
             if (b.Type == BType.Windmill) yaw = MathF.PI * 0.3f;
@@ -1042,6 +1046,11 @@ void fragment() {
                 _crops.SetInstanceTransform(crops, crop);
                 _crops.SetInstanceColor(crops++, new Color(0.3f, 0.58f, 0.22f).Lerp(new Color(0.9f, 0.74f, 0.28f), Mathf.SmoothStep(0.55f, 1f, b.Growth)));
             }
+            if (site)
+            {
+                float plot = Rules.Footprint(b.Type) / 2f;
+                _sites.SetInstanceTransform(sites++, new Transform3D(new Basis(Vector3.Up, yaw).Scaled(new Vector3(plot, 1, plot)), new Vector3(b.X, y, b.Z)));
+            }
             if (b.Type == BType.Hut && b.Built && b.Occupants > 0)
                 _glow.SetInstanceTransform(glows++, new Transform3D(Basis.Identity, new Vector3(b.X, y + (s.Era == 0 ? 0.04f : 0.3f), b.Z) + new Vector3(0, 0, s.Era == 0 ? 3.5f : 2.72f).Rotated(Vector3.Up, yaw)));
         }
@@ -1054,6 +1063,7 @@ void fragment() {
         }
         _crops.VisibleInstanceCount = crops;
         _glow.VisibleInstanceCount = glows;
+        _sites.VisibleInstanceCount = sites;
         UpdateHedges(s);
 
         int puffs = 0;

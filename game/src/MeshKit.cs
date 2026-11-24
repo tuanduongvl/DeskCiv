@@ -48,6 +48,17 @@ public sealed class MeshKit
         return this;
     }
 
+    /// <summary>Rotates everything added so far, for parts built upright but animated in another frame.</summary>
+    public MeshKit Turned(Basis basis)
+    {
+        for (int i = 0; i < _vertices.Count; i++)
+        {
+            _vertices[i] = basis * _vertices[i];
+            _normals[i] = (basis * _normals[i]).Normalized();
+        }
+        return this;
+    }
+
     public MeshKit Prism(Vector3 baseCenter, float bottom, float top, float height, int sides, Color color, bool capTop = true)
     {
         Vector3 inside = baseCenter + Vector3.Up * height * 0.45f, up = baseCenter + Vector3.Up * height;
@@ -655,14 +666,21 @@ public sealed class MeshKit
                 m.Box(Vector3.Zero, new Vector3(0.34f, 0.34f, 1.7f), wood.Darkened(0.2f));
                 return new MovingPart(LoadKit("rotor_watermill") ?? m.Build(), new Vector3(0, 2.05f, -4.6f), SpinSide, -0.8f, 0, 0);
             case BType.Mill:
-                m.Prism(new Vector3(0, 0, -0.14f), 0.76f, 0.76f, 0.01f, 3, stone);
-                m.Box(Vector3.Zero, new Vector3(1.05f, 1.05f, 0.28f), stone).Box(new Vector3(0, 0, 0.14f), new Vector3(0.24f, 0.24f, 0.05f), new Color(0.2f, 0.18f, 0.16f));
-                m.Box(new Vector3(0.48f, 0, 0.32f), new Vector3(0.1f, 0.1f, 0.5f), wood);
-                return new MovingPart(m.Build(), new Vector3(-2.9f, 0.86f, 4.4f), SpinFlat, 1.5f, 0, 0);
+                // Built upright, then laid into the spin frame. Round stones on a round stone plinth that reaches the
+                // ground, so only the handle shows the turning and nothing floats in front of the mill.
+                m.Prism(new Vector3(0, -0.86f, 0), 0.62f, 0.56f, 0.62f, 14, stone.Darkened(0.32f));
+                m.Prism(new Vector3(0, -0.24f, 0), 0.6f, 0.6f, 0.12f, 14, stone.Darkened(0.2f));
+                m.Prism(new Vector3(0, -0.12f, 0), 0.56f, 0.54f, 0.26f, 14, stone.Darkened(0.12f));
+                m.Prism(new Vector3(0, 0.14f, 0), 0.11f, 0.11f, 0.02f, 8, new Color(0.2f, 0.18f, 0.16f));
+                m.Box(new Vector3(0.42f, 0.36f, 0), new Vector3(0.08f, 0.46f, 0.08f), wood);
+                return new MovingPart(m.Turned(SpinFlat.Inverse()).Build(), new Vector3(-2.9f, 0.86f, 4.4f), SpinFlat, 1.5f, 0, 0);
             case BType.Winery:
-                m.Box(Vector3.Zero, new Vector3(0.2f, 0.2f, 2.0f), wood).Box(new Vector3(0, 0, 0.72f), new Vector3(2.1f, 0.12f, 0.12f), wood.Darkened(0.12f));
-                m.Box(new Vector3(0, 0, -0.95f), new Vector3(1.55f, 1.55f, 0.16f), wood.Lightened(0.08f));
-                return new MovingPart(m.Build(), new Vector3(3.0f, 1.65f, 4.0f), SpinFlat, 0.45f, 0, 0);
+                // Screw press over a round vat of must that stands on the ground; the round parts look still while the screw turns.
+                m.Box(Vector3.Zero, new Vector3(0.2f, 2.0f, 0.2f), wood).Box(new Vector3(0, 0.72f, 0), new Vector3(2.1f, 0.12f, 0.12f), wood.Darkened(0.12f));
+                m.Prism(new Vector3(0, -1.03f, 0), 0.8f, 0.8f, 0.16f, 14, wood.Lightened(0.08f));
+                m.Prism(new Vector3(0, -1.65f, 0), 0.98f, 0.94f, 0.6f, 16, wood.Darkened(0.05f));
+                m.Prism(new Vector3(0, -1.06f, 0), 0.9f, 0.9f, 0.02f, 16, new Color(0.36f, 0.14f, 0.32f));
+                return new MovingPart(m.Turned(SpinFlat.Inverse()).Build(), new Vector3(3.0f, 1.65f, 4.0f), SpinFlat, 0.45f, 0, 0);
             case BType.Smithy:
                 m.Box(new Vector3(0.55f, 0, 0), new Vector3(1.15f, 0.09f, 0.09f), wood);
                 m.Box(new Vector3(1.12f, 0.03f, 0), new Vector3(0.24f, 0.36f, 0.2f), new Color(0.32f, 0.33f, 0.36f));
@@ -909,6 +927,36 @@ public sealed class MeshKit
     }
 
     public static ArrayMesh Grave() => new MeshKit().Box(new Vector3(0, 0.38f, 0), new Vector3(0.62f, 0.76f, 0.2f), new Color(0.56f, 0.56f, 0.53f)).Build();
+
+    /// <summary>
+    /// A building site for a 2x2-tile (8 m) plot: corner stakes with a marking line, scaffold poles, a timber stack
+    /// and a stone pile. Larger plots scale it uniformly.
+    /// </summary>
+    public static ArrayMesh Site()
+    {
+        var m = new MeshKit();
+        Color pole = new(0.46f, 0.33f, 0.2f), fresh = new(0.7f, 0.55f, 0.36f), line = new(0.86f, 0.82f, 0.7f);
+        Vector3[] corners = { new(-3.1f, 0, -3.1f), new(3.1f, 0, -3.1f), new(3.1f, 0, 3.1f), new(-3.1f, 0, 3.1f) };
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3 c = corners[i], next = corners[(i + 1) % 4];
+            m.Box(c + new Vector3(0, 0.45f, 0), new Vector3(0.12f, 0.9f, 0.12f), fresh);
+            m.Beam(c + new Vector3(0, 0.55f, 0), next + new Vector3(0, 0.55f, 0), 0.02f, line);
+            // Scaffold: a tall pole just outside each corner, tied by two ledgers along each side.
+            Vector3 outside = c * 1.1f, nextOutside = next * 1.1f;
+            m.Box(outside + new Vector3(0, 2.3f, 0), new Vector3(0.13f, 4.6f, 0.13f), pole);
+            foreach (float h in new[] { 1.7f, 3.5f }) m.Beam(outside + new Vector3(0, h, 0), nextOutside + new Vector3(0, h, 0), 0.06f, pole);
+        }
+        // Timber stack beside the plot.
+        for (int row = 0; row < 3; row++)
+            for (int i = 0; i < 3 - row; i++)
+                m.Box(new Vector3(3.9f, 0.15f + row * 0.27f, -1.2f + i * 0.3f + row * 0.15f), new Vector3(2.6f, 0.26f, 0.26f), i % 2 == 0 ? fresh : fresh.Darkened(0.12f));
+        // Rough stone on the other side.
+        m.Box(new Vector3(-3.9f, 0.25f, 1.4f), new Vector3(0.9f, 0.5f, 0.8f), Rock, 0.4f)
+            .Box(new Vector3(-3.8f, 0.2f, 0.5f), new Vector3(0.7f, 0.4f, 0.6f), Rock.Darkened(0.1f), -0.3f)
+            .Box(new Vector3(-3.85f, 0.6f, 1.0f), new Vector3(0.6f, 0.35f, 0.5f), Rock.Lightened(0.08f), 0.9f);
+        return m.Build();
+    }
 
     public static ArrayMesh Cargo() => new MeshKit().Box(Vector3.Zero, new Vector3(0.62f, 0.42f, 0.62f), Colors.White).Build();
 
