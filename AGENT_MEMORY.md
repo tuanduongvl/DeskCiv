@@ -2,6 +2,13 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-24 — Public GitHub repository and YouTube streaming
+
+- **Purpose:** The user asked to push the repository publicly and stream the game to YouTube. Choices made by the user: public without Hunyuan models, merge to main.
+- **Changed:** `feature/village-logistics` fast-forwarded into local `main`. `WorldView.TryTextured` skips pipeline characters whose files are missing, so the game runs without Hunyuan assets (falls back to baked low-poly villagers and Kenney buildings). Added `README.md`. Public repo https://github.com/tuanduongvl/DeskCiv was created from a clean orphan snapshot (worktree `D:/2026/101.DeskCiv-public`, branch `public` pushed as `main`): no history, and without `game/assets/models` Hunyuan models, `game/assets/characters/hq_*` and `art/characters-painted`; generated tree, sail and sluice-door cut-outs are kept. New `StreamOutput` (`--stream-key-file=<file>` or `--stream-test=<file.flv>`, `--ffmpeg=<path>`): the game copies its own frames to ffmpeg, which encodes H.264 on the GPU via Media Foundation (`h264_mf -hw_encoding 1`, 4.5 Mb/s, silent AAC) and sends RTMP to YouTube; the key is read from a file and never logged. `tools/stream-youtube.ps1` and `stream-youtube.cmd` start a separate off-screen 1280x720 world with `--no-save`.
+- **Verified:** Public snapshot built and ran with 0 logged errors (screenshot). 40 s test recording: valid 1280x720 30 fps H.264+AAC FLV, correct picture, game CPU about 2% while encoding. Commit authors use the GitHub noreply address.
+- **Not done:** A live YouTube stream was not started: the agent may not read or enter the stream key. The user must save the key in `%USERPROFILE%\.deskciv\youtube-stream-key.txt` and run `stream-youtube.cmd`; YouTube live streaming must be enabled on the account. The public repo has no open-source licence. Later public updates need copying changed files into the worktree and committing there.
+
 ## 2026-11-24 — Green-screen sheets, second house shape, chicken, roundhouse, harbour warehouse, quarry
 
 - **Purpose:** Continue realistic models after ChatGPT's limit reset; the user suggested asking for green backgrounds so cut-outs are easier.

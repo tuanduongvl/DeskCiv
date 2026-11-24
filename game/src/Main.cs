@@ -25,6 +25,7 @@ public partial class Main : Node3D
     private DirectionalLight3D _sun;
     private Godot.Environment _environment;
     private GpuParticles3D _rain;
+    private StreamOutput _stream;
     private static bool _weatherGlobals;
     private string _forcedWeather;
     private Label _overlay, _replayLabel;
@@ -131,6 +132,13 @@ public partial class Main : Node3D
         UpdateOverlay(first);
         _sim.Start();
         if (metricsPath != null) OpenMetrics(metricsPath);
+        // --stream-key-file=<file with the YouTube stream key> streams the game picture; --stream-test=<file.flv> records instead.
+        string streamKey = Option(args, "--stream-key-file", null), streamTest = Option(args, "--stream-test", null);
+        if (streamKey != null || streamTest != null)
+        {
+            Vector2I size = GetViewport().GetVisibleRect().Size is var v ? new Vector2I((int)v.X, (int)v.Y) : new Vector2I(1280, 720);
+            _stream = StreamOutput.Start(streamKey, streamTest, Option(args, "--ffmpeg", "ffmpeg"), size.X & ~1, size.Y & ~1, 30);
+        }
     }
 
     private void BuildScene()
@@ -213,6 +221,8 @@ public partial class Main : Node3D
             if (_burstIndex++ < _burst) _shotFrames -= 4;
             else _shotPath = null;
         }
+
+        _stream?.Push(GetViewport());
 
         _hostTimer -= delta;
         if (_hostTimer <= 0)
@@ -670,6 +680,7 @@ public partial class Main : Node3D
     {
         if (_closed) return;
         _closed = true;
+        _stream?.Dispose();
         _sim.Stop();
         _tray.Stop();
         _audioYield?.Dispose();
