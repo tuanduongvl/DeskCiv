@@ -408,7 +408,9 @@ public partial class Main : Node3D
             {
                 _focusTarget = FocusAt(e.X, e.Z);
                 _distanceTarget = CloseDistance * 1.35f;
-                _focusTimer = 30;
+                _azimuthTarget = ClearAzimuth(s, e.X, e.Z);
+                // A funeral, feast or era celebration takes the crowd most of a minute to walk in; stay for it.
+                _focusTimer = s.Gathering ? 75 : 30;
             }
         }
         if (_focusTimer <= 0) NextShot(s);

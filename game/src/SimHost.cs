@@ -20,7 +20,7 @@ public sealed class WorldSnapshot
     public float Year, YearFraction, CenterX, CenterZ;
     /// <summary>How far the polder now being pumped dry has drained (0-1), or -1 when none is draining.</summary>
     public float PolderDrain = -1;
-    public bool RunComplete, Flooding, TraderVisiting;
+    public bool RunComplete, Flooding, TraderVisiting, Gathering;
     public EraRecord[] History = Array.Empty<EraRecord>();
     public BuildingView[] Buildings = Array.Empty<BuildingView>();
     public bool[] TreeAlive = Array.Empty<bool>();
@@ -302,7 +302,7 @@ public sealed class SimHost
         {
             Population = _sim.Population, Food = _sim.FoodInStores(), Season = _sim.Season, Calendar = Eras.Calendar(_sim.Year), Era = _sim.Era, PolderVersion = _sim.PolderVersion,
             ActiveEvent = _sim.ActiveEvent, TreeVersion = _lastTreeVersion, Year = _sim.Year, YearFraction = _sim.YearFraction,
-            CenterX = _sim.CenterX, CenterZ = _sim.CenterZ, RunComplete = _sim.RunComplete, Flooding = _sim.Flooding, TraderVisiting = _sim.TraderVisiting, History = _sim.History.ToArray(), Buildings = buildings, TreeAlive = _trees,
+            CenterX = _sim.CenterX, CenterZ = _sim.CenterZ, RunComplete = _sim.RunComplete, Flooding = _sim.Flooding, TraderVisiting = _sim.TraderVisiting, Gathering = _sim.GatherUntil > _sim.Tick, History = _sim.History.ToArray(), Buildings = buildings, TreeAlive = _trees,
             Wear = (byte[])_sim.Wear.Clone(), Tiles = (byte[])_sim.Tiles.Clone(), RoadVersion = _sim.RoadVersion, Graves = _sim.Graves.ToArray(), Spots = BuildSpots(),
             LastEvent = NewsEvent(), PolderDrain = DrainingPolder(),
         };
