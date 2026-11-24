@@ -615,6 +615,9 @@ public partial class Main : Node3D
             return forced switch { "rain" => (0.95f, 1f), "cloudy" => (0.65f, 0f), _ => (0.1f, 0f) };
         double minutes = DateTime.Now.Ticks / (double)TimeSpan.TicksPerMinute;
         float cover = 0.42f + 0.3f * MathF.Sin((float)(minutes / 53.0)) + 0.18f * MathF.Sin((float)(minutes / 17.0) + 1.3f) + 0.1f * MathF.Sin((float)(minutes / 7.3) + 4.1f);
+        // A drought year keeps the sky dry from late spring to autumn.
+        WorldSnapshot s = _sim?.Snapshot;
+        if (s != null && s.ActiveEvent == 1 && s.YearFraction is > 0.1f and < 0.8f) cover = Math.Min(cover, 0.3f);
         cover = Mathf.Clamp(cover, 0f, 1f);
         return (cover, Mathf.SmoothStep(0.78f, 0.92f, cover));
     }

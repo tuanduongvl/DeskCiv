@@ -967,17 +967,24 @@ void fragment() {
         float[] snow = { 0, 0, 0, 0.76f };
         Color[] leaves = { new(0.3f, 0.56f, 0.26f), new(0.2f, 0.42f, 0.2f), new(0.68f, 0.42f, 0.16f), new(0.74f, 0.78f, 0.78f) };
         Color[] water = { new(0.2f, 0.45f, 0.58f), new(0.18f, 0.44f, 0.56f), new(0.2f, 0.38f, 0.48f), new(0.56f, 0.68f, 0.76f) };
-        _terrain.SetShaderParameter("season_tint", tints[a].Lerp(tints[b], t));
-        _terrain.SetShaderParameter("snow", Mathf.Lerp(snow[a], snow[b], t));
-        Color leaf = leaves[a].Lerp(leaves[b], t), sea = water[a].Lerp(water[b], t);
+        // The year's event shows on the land: a drought parches grass and leaves from late spring, and a harsh
+        // winter brings snow before the end of autumn and lays it deeper.
+        float yf = s.YearFraction;
+        float drought = s.ActiveEvent == 1 ? Mathf.SmoothStep(0.08f, 0.3f, yf) * (1 - Mathf.SmoothStep(0.8f, 0.95f, yf)) : 0;
+        float harsh = s.ActiveEvent == 2 ? Mathf.SmoothStep(0.64f, 0.78f, yf) * (1 - Mathf.SmoothStep(0.94f, 1f, yf)) : 0;
+        Vector3 tint = tints[a].Lerp(tints[b], t).Lerp(new Vector3(1.32f, 0.98f, 0.52f), drought * 0.7f);
+        float snowLevel = Math.Max(Mathf.Lerp(snow[a], snow[b], t), harsh * 0.96f);
+        _terrain.SetShaderParameter("season_tint", tint);
+        _terrain.SetShaderParameter("snow", snowLevel);
+        Color leaf = leaves[a].Lerp(leaves[b], t).Lerp(new Color(0.46f, 0.46f, 0.2f), drought * 0.35f).Lerp(leaves[3], harsh * 0.8f);
+        Color sea = water[a].Lerp(water[b], t);
         _treeMaterial.SetShaderParameter("leaf", new Vector3(leaf.R, leaf.G, leaf.B));
         foreach (ShaderMaterial real in _realTreeMaterials) real.SetShaderParameter("leaf", new Vector3(leaf.R, leaf.G, leaf.B));
         _waterMaterial.SetShaderParameter("deep", new Vector3(sea.R * 0.78f, sea.G * 0.84f, sea.B * 0.92f));
-        Vector3 tint = tints[a].Lerp(tints[b], t);
         _scatterMaterial.SetShaderParameter("tint", tint);
-        bool snowy = Mathf.Lerp(snow[a], snow[b], t) > 0.35f;
+        bool snowy = snowLevel > 0.35f;
         _scatterNodes[0].Visible = !snowy && _detail < 2;
-        _scatterNodes[1].Visible = s.Season is 0 or 1 && _detail < 2;
+        _scatterNodes[1].Visible = s.Season is 0 or 1 && drought < 0.5f && _detail < 2;
         _scatterNodes[2].Visible = _detail < 2;
     }
 
@@ -1040,11 +1047,15 @@ void fragment() {
 
             if (b.Type == BType.Field)
             {
-                float growth = b.Sown ? Math.Max(0.06f, b.Growth) : 0.001f;
+                // Drought stunts and browns the crop; a bumper year stands tall and golden.
+                float stand = s.ActiveEvent switch { 1 => 0.62f, 4 => 1.22f, _ => 1f };
+                float growth = b.Sown ? Math.Max(0.06f, b.Growth) * stand : 0.001f;
                 Basis cropBasis = GroundBasis(b.X, b.Z, yaw, growth);
                 var crop = new Transform3D(cropBasis, new Vector3(b.X, y, b.Z) + cropBasis.Y.Normalized() * 0.2f);
                 _crops.SetInstanceTransform(crops, crop);
-                _crops.SetInstanceColor(crops++, new Color(0.3f, 0.58f, 0.22f).Lerp(new Color(0.9f, 0.74f, 0.28f), Mathf.SmoothStep(0.55f, 1f, b.Growth)));
+                Color green = s.ActiveEvent == 1 ? new Color(0.5f, 0.52f, 0.24f) : new Color(0.3f, 0.58f, 0.22f);
+                Color ripe = s.ActiveEvent switch { 1 => new Color(0.66f, 0.5f, 0.28f), 4 => new Color(0.98f, 0.78f, 0.22f), _ => new Color(0.9f, 0.74f, 0.28f) };
+                _crops.SetInstanceColor(crops++, green.Lerp(ripe, Mathf.SmoothStep(0.55f, 1f, b.Growth)));
             }
             if (site)
             {
@@ -1069,7 +1080,9 @@ void fragment() {
         int puffs = 0;
         foreach (BuildingView b in s.Buildings)
         {
-            bool hutFire = b.Type == BType.Hut && b.Occupants > 0 && (s.Season == 3 || (int)(b.X * 3 + b.Z * 5) % 3 == 0);
+            // In a harsh winter every hearth burns from late autumn.
+            bool cold = s.Season == 3 || (s.ActiveEvent == 2 && s.YearFraction > 0.64f);
+            bool hutFire = b.Type == BType.Hut && b.Occupants > 0 && (cold ||(int)(b.X * 3 + b.Z * 5) % 3 == 0);
             if (!b.Built || (b.Type is not (BType.Bakery or BType.Smithy) && !hutFire)) continue;
             int count = b.Type == BType.Hut ? 3 : 5;
             Vector3 source = b.Type == BType.Hut && s.Era == 0
