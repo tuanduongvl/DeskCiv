@@ -442,6 +442,11 @@ void fragment() {
     private readonly MultiMesh[] _variants = new MultiMesh[(int)BType.Count];
     private readonly MultiMeshInstance3D[] _variantNodes = new MultiMeshInstance3D[(int)BType.Count];
     private readonly bool[] _variantShown = new bool[(int)BType.Count];
+    // Buildings not yet rebuilt in the new era's style keep the previous era's model for a while.
+    private readonly MultiMesh[] _older = new MultiMesh[(int)BType.Count];
+    private readonly MultiMeshInstance3D[] _olderNodes = new MultiMeshInstance3D[(int)BType.Count];
+    private float _renovationStart = float.NegativeInfinity;
+    private const float RenovationYears = 12f;
     private StandardMaterial3D _vertexColors;
     private ShaderMaterial _fieldMaterial;
     private NoiseTexture2D _noiseTexture;
@@ -483,6 +488,9 @@ void fragment() {
             _buildingNodes[i] = (MultiMeshInstance3D)GetChild(GetChildCount() - 1);
             _variants[i] = AddInstances(MeshKit.Building((BType)i), vertexColors, true, 32, true);
             _variantNodes[i] = (MultiMeshInstance3D)GetChild(GetChildCount() - 1);
+            _older[i] = AddInstances(MeshKit.Building((BType)i), vertexColors, true, 32, true);
+            _olderNodes[i] = (MultiMeshInstance3D)GetChild(GetChildCount() - 1);
+            _older[i].VisibleInstanceCount = 0;
         }
         for (int i = 0; i < _moving.Length; i++) ApplyMovingPart(i);
         _crops = AddInstances(MeshKit.Crops(), vertexColors, true, 32);
@@ -895,6 +903,18 @@ void fragment() {
         }
         int tier = MeshKit.EraTier(era);
         if (tier == _eraTier) return;
+        // A real era change (not a model reload or the first frame) starts a renovation wave: the old models stay
+        // on the houses and workshops that have not been rebuilt yet.
+        bool renovate = _eraTier != int.MinValue && _shown != null;
+        if (renovate)
+        {
+            _renovationStart = _shown.Year;
+            for (int i = 0; i < (int)BType.Count; i++)
+            {
+                _older[i].Mesh = _buildings[i].Mesh;
+                _olderNodes[i].MaterialOverride = _buildingNodes[i].MaterialOverride;
+            }
+        }
         _eraTier = tier;
         for (int i = 0; i < (int)BType.Count; i++)
         {
@@ -959,6 +979,10 @@ void fragment() {
         _scatterNodes[2].Visible = _detail < 2;
     }
 
+    /// <summary>Homes, stores and workshops are rebuilt one by one after an era change; works and fields change at once.</summary>
+    private static bool Renovates(BType type) => type is BType.Hut or BType.Storehouse or BType.Bakery or BType.Smithy or BType.Winery
+        or BType.Woodcutter or BType.Fisher or BType.Gatherer or BType.Mill;
+
     private void UpdateBuildings(WorldSnapshot s)
     {
         var counts = new int[_buildings.Length];
@@ -967,6 +991,7 @@ void fragment() {
         {
             Ensure(_buildings[i], counts[i]);
             Ensure(_variants[i], counts[i]);
+            Ensure(_older[i], counts[i]);
             if (_moving[i] != null) Ensure(_moving[i], counts[i]);
         }
         var movingCounts = new int[_moving.Length];
@@ -974,6 +999,8 @@ void fragment() {
         Ensure(_glow, counts[(int)BType.Hut]);
         Array.Clear(counts);
         var variantCounts = new int[_buildings.Length];
+        var olderCounts = new int[_buildings.Length];
+        float renovated = (s.Year - _renovationStart) / RenovationYears;
         int crops = 0, glows = 0;
         foreach (BuildingView b in s.Buildings)
         {
@@ -987,8 +1014,10 @@ void fragment() {
             var transform = new Transform3D(basis, new Vector3(b.X, y, b.Z));
             // Every other building of a type with a second shape for this era uses that shape.
             bool alt = _variantShown[(int)b.Type] && (((int)(b.X * 7.31f) ^ (int)(b.Z * 3.17f)) & 1) == 1;
-            MultiMesh target = alt ? _variants[(int)b.Type] : _buildings[(int)b.Type];
-            int n = alt ? variantCounts[(int)b.Type]++ : counts[(int)b.Type]++;
+            // Each building gets its turn at a fixed point of the renovation wave, from a hash of its position.
+            bool old = renovated < 1f && b.Built && Renovates(b.Type) && ((uint)((int)(b.X * 13.7f) * 73856093 ^ (int)(b.Z * 11.3f) * 19349663) % 1000) / 1000f > renovated;
+            MultiMesh target = old ? _older[(int)b.Type] : alt ? _variants[(int)b.Type] : _buildings[(int)b.Type];
+            int n = old ? olderCounts[(int)b.Type]++ : alt ? variantCounts[(int)b.Type]++ : counts[(int)b.Type]++;
             target.SetInstanceTransform(n, transform);
             target.SetInstanceColor(n, b.Built ? Colors.White : new Color(0.88f, 0.82f, 0.72f));
             if (b.Built && _movingParts[(int)b.Type] is MeshKit.MovingPart moving)
@@ -1019,6 +1048,7 @@ void fragment() {
         {
             _buildings[i].VisibleInstanceCount = counts[i];
             _variants[i].VisibleInstanceCount = variantCounts[i];
+            _older[i].VisibleInstanceCount = olderCounts[i];
             if (_moving[i] != null) _moving[i].VisibleInstanceCount = movingCounts[i];
         }
         _crops.VisibleInstanceCount = crops;
