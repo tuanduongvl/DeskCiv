@@ -823,6 +823,7 @@ void fragment() {
         if (s == null || ReferenceEquals(s, _shown)) return;
         _shown = s;
         UpdateEraLook(s.Era);
+        _wildlife.TraderVisiting = s.TraderVisiting;
         UpdatePolderLand(s);
         _surge = Mathf.MoveToward(_surge, s.Flooding ? 1f : 0f, 0.1f);
         _waterMaterial.SetShaderParameter("surge", _surge);

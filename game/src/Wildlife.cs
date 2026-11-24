@@ -60,7 +60,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     private readonly float _centerX, _centerZ;
     private readonly Random _random;
     private Flock[] _herds = Array.Empty<Flock>();
-    private Flock _gulls, _boats;
+    private Flock _gulls, _boats, _trader;
+    /// <summary>True while a trading ship visits (from the simulation); it sails in, anchors off the village, then leaves.</summary>
+    public bool TraderVisiting { get; set; }
     private float _boatDraft;
     private float _clock;
 
@@ -98,6 +100,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         ArrayMesh realBoat = Real("boat");
         _boatDraft = realBoat != null ? 0.55f : 0f; // the generated hull has its keel at y = 0
         _boats = AddFlock(realBoat ?? MeshKit.Boat(), 5, 2);
+        _trader = AddFlock(realBoat ?? MeshKit.Boat(), 1, 2);
+        _trader.Agents[0].X = _map.CoastX(_centerZ) + 175;
+        _trader.Mesh.VisibleInstanceCount = 0;
         for (int i = 0; i < _boats.Agents.Length; i++)
         {
             ref Agent b = ref _boats.Agents[i];
@@ -146,6 +151,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         _boatDraft = boat != null ? 0.55f : 0f;
         _boats.Mesh.Mesh = (Mesh)boat ?? MeshKit.Boat();
         ApplyLook(_boats.Material, _boats.Mesh.Mesh);
+        _trader.Mesh.Mesh = _boats.Mesh.Mesh;
+        ApplyLook(_trader.Material, _trader.Mesh.Mesh);
     }
 
     /// <summary>A realistic generated model from assets/models, or null to keep the low-poly one.</summary>
@@ -214,6 +221,27 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         foreach (Flock herd in _herds) StepHerd(herd, delta, tiles);
         StepGulls(delta);
         StepBoats(delta);
+        StepTrader(delta);
+    }
+
+    /// <summary>A ship twice the size of the fishing boats that comes in from the sea and anchors off the village.</summary>
+    private void StepTrader(float delta)
+    {
+        ref Agent t = ref _trader.Agents[0];
+        float offshore = _map.CoastX(_centerZ) + 175, anchor = _centerX + 25;
+        float target = TraderVisiting ? anchor : offshore;
+        float gap = target - t.X;
+        if (MathF.Abs(gap) > 0.5f) t.X += MathF.Sign(gap) * Math.Min(MathF.Abs(gap), 3f * delta);
+        bool shown = TraderVisiting || t.X < offshore - 1;
+        if (shown && _trader.Mesh.VisibleInstanceCount == 0) GD.Print($"DeskCiv: trading ship arriving, anchor at {anchor:F0},{_map.RiverCenter(anchor) - 6:F0}");
+        _trader.Mesh.VisibleInstanceCount = shown ? 1 : 0;
+        if (!shown) return;
+        // Bow points the way it sails; at anchor it swings gently.
+        float heading = gap < -0.5f ? -MathF.PI / 2 : MathF.PI / 2;
+        if (MathF.Abs(gap) <= 0.5f) heading = -MathF.PI / 2 + MathF.Sin(_clock * 0.07f) * 0.12f;
+        float z = _map.RiverCenter(t.X) - 6;
+        Write(_trader.Buffer, 0, 2.2f, heading, t.X, 0.03f - _boatDraft * 2.2f / 1.15f, z, 0, 0);
+        _trader.Mesh.Buffer = _trader.Buffer;
     }
 
     private void StepHerd(Flock flock, float delta, byte[] tiles)

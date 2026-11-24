@@ -1737,8 +1737,16 @@ public sealed class Simulation
         }
     }
 
+    /// <summary>From the Iron Age a trading ship visits every third year, in its spring and early summer. Decorative: no goods change hands.</summary>
+    public bool TraderVisiting => Era >= 3 && (int)Year % 3 == 1 && YearFraction is > 0.05f and < 0.45f;
+
     private void NewYear()
     {
+        if (Era >= 3 && (int)MathF.Round(Year) % 3 == 1)
+        {
+            float sx = CenterX + 25;
+            Log("A trading ship sails up the estuary", sx, Map.RiverCenter(sx), 2);
+        }
         foreach (Building b in Buildings)
         {
             if (b.Type != BType.Field) continue;
