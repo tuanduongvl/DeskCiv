@@ -208,11 +208,17 @@ void fragment() {
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
 uniform sampler2D soil_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform vec3 green_tint = vec3(1.0);
+uniform float snow = 0.0;
 varying vec3 world;
 void vertex() { world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment() {
     vec3 photo = texture(soil_tex, world.xz / 6.0).rgb / textureLod(soil_tex, vec2(0.5), 12.0).rgb;
-    ALBEDO = COLOR.rgb * mix(vec3(dot(photo, vec3(0.333))), photo, 0.6);
+    vec3 base = COLOR.rgb * mix(vec3(dot(photo, vec3(0.333))), photo, 0.6);
+    // Green parts (vines, dike grass) follow the season like the land: autumn colours, then bare and snowed over.
+    float green = smoothstep(0.04, 0.14, COLOR.g - COLOR.r);
+    base = mix(base, base * green_tint, green);
+    ALBEDO = mix(base, vec3(0.86, 0.9, 0.93), snow * 0.8 * green);
 }";
 
     /// <summary>
@@ -990,6 +996,8 @@ void fragment() {
         foreach (ShaderMaterial real in _realTreeMaterials) real.SetShaderParameter("leaf", new Vector3(leaf.R, leaf.G, leaf.B));
         _waterMaterial.SetShaderParameter("deep", new Vector3(sea.R * 0.78f, sea.G * 0.84f, sea.B * 0.92f));
         _scatterMaterial.SetShaderParameter("tint", tint);
+        _fieldMaterial?.SetShaderParameter("green_tint", tint);
+        _fieldMaterial?.SetShaderParameter("snow", snowLevel);
         bool snowy = snowLevel > 0.35f;
         _scatterNodes[0].Visible = !snowy && _detail < 2;
         _scatterNodes[1].Visible = s.Season is 0 or 1 && drought < 0.5f && _detail < 2;
