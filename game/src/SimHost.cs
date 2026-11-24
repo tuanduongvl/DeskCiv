@@ -18,6 +18,8 @@ public sealed class WorldSnapshot
 {
     public int Population, Food, Season, Calendar, Era, PolderVersion, ActiveEvent, TreeVersion, RoadVersion;
     public float Year, YearFraction, CenterX, CenterZ;
+    /// <summary>How far the polder now being pumped dry has drained (0-1), or -1 when none is draining.</summary>
+    public float PolderDrain = -1;
     public bool RunComplete, Flooding;
     public EraRecord[] History = Array.Empty<EraRecord>();
     public BuildingView[] Buildings = Array.Empty<BuildingView>();
@@ -266,8 +268,11 @@ public sealed class SimHost
     private (float, float, Clip)[] BuildSpots()
     {
         var spots = new System.Collections.Generic.List<(float, float, Clip)>(64);
-        foreach (Person p in _sim.People)
+        // Start at a different villager each time, so people late in the list are filmed too.
+        int count = _sim.People.Count, start = count == 0 ? 0 : (int)(_sim.Tick / 600 % count);
+        for (int i = 0; i < count; i++)
         {
+            Person p = _sim.People[(start + i) % count];
             Clip clip = ClipOf(p);
             if (clip is Clip.Idle or Clip.Walk or Clip.Carry || p.Indoors) continue;
             spots.Add((p.X, p.Z, clip));
@@ -299,8 +304,16 @@ public sealed class SimHost
             ActiveEvent = _sim.ActiveEvent, TreeVersion = _lastTreeVersion, Year = _sim.Year, YearFraction = _sim.YearFraction,
             CenterX = _sim.CenterX, CenterZ = _sim.CenterZ, RunComplete = _sim.RunComplete, Flooding = _sim.Flooding, History = _sim.History.ToArray(), Buildings = buildings, TreeAlive = _trees,
             Wear = (byte[])_sim.Wear.Clone(), Tiles = (byte[])_sim.Tiles.Clone(), RoadVersion = _sim.RoadVersion, Graves = _sim.Graves.ToArray(), Spots = BuildSpots(),
-            LastEvent = _sim.Events.Count > 0 ? _sim.Events[^1] : null,
+            LastEvent = _sim.Events.Count > 0 ? _sim.Events[^1] : null, PolderDrain = DrainingPolder(),
         };
+    }
+
+    private float DrainingPolder()
+    {
+        float drain = -1;
+        foreach (Polder p in _sim.Polders)
+            if (p.Stage == Polder.Draining) drain = Math.Max(drain, p.Drain);
+        return drain;
     }
 
     public WorldSnapshot Snapshot { get { lock (_gate) return _snapshot; } }

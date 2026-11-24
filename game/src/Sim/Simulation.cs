@@ -1394,9 +1394,13 @@ public sealed class Simulation
         Want(homeless > 0 || capacity < pop + 6 + pop / 5, BType.Hut);
         Want(C(BType.Quarry) < 1 && pop >= 14, BType.Quarry);
         Want(pop >= 18 && fields < Math.Max(1, pop / 10), BType.Field);
-        Want(fields >= 1 && C(BType.Mill) + C(BType.Windmill) + C(BType.Watermill) < (fields + 1) / 2, BType.Mill);
+        // Polder pumps are windmills too, but they drain water and grind nothing.
+        int pumps = 0;
+        foreach (Building b in Buildings) if (b.Pump) pumps++;
+        int grindingWindmills = C(BType.Windmill) - pumps;
+        int grinders = C(BType.Mill) + grindingWindmills + C(BType.Watermill);
+        Want(fields >= 1 && grinders < (fields + 1) / 2, BType.Mill);
         Want(fields >= 1 && C(BType.Bakery) < (fields + 1) / 2, BType.Bakery);
-        int grinders = C(BType.Mill) + C(BType.Windmill) + C(BType.Watermill) - Buildings.FindAll(static b => b.Pump).Count;
         Want(StoredTotal(Res.Grain) > 60 + pop / 2 && grinders < 2 + pop / 18, BType.Mill);
         Want(StoredTotal(Res.Flour) > 40 + pop / 3 && C(BType.Bakery) < 2 + pop / 18, BType.Bakery);
         Want(C(BType.Woodcutter) < 1 + pop / 25, BType.Woodcutter);
@@ -1412,7 +1416,7 @@ public sealed class Simulation
             Want(C(BType.Vineyard) >= 1 && C(BType.Winery) < 1, BType.Winery);
             Want(C(BType.Watermill) < 1, BType.Watermill);
             Want(C(BType.Dike) < 4, BType.Dike);
-            Want(C(BType.Windmill) < 1, BType.Windmill);
+            Want(grindingWindmills < 1, BType.Windmill);
             Want(C(BType.Dike) >= 2 && C(BType.TideGate) < 1, BType.TideGate);
         }
         // Crafts and water works wait until the village can feed itself.
@@ -1422,7 +1426,7 @@ public sealed class Simulation
             Want(C(BType.Vineyard) >= 1 && C(BType.Winery) < 1 + pop / 140, BType.Winery);
             Want(pop >= 36 && C(BType.Smithy) < 1 + pop / 150, BType.Smithy);
             Want(pop >= 40 && C(BType.Watermill) < 1 + pop / 120, BType.Watermill);
-            Want(pop >= 48 && C(BType.Windmill) < 1 + pop / 90, BType.Windmill);
+            Want(pop >= 48 && grindingWindmills < 1 + pop / 90, BType.Windmill);
             Want(C(BType.Dike) >= 4 && C(BType.TideGate) < 1, BType.TideGate);
             Want(pop >= 44 && C(BType.Dike) < 4 + pop / 25, BType.Dike);
         }
@@ -1722,7 +1726,8 @@ public sealed class Simulation
             {
                 HarvestFactor = 0.55f;
                 ActiveEvent = 1;
-                Log("Drought ruins this year's harvest", CenterX, CenterZ, 3);
+                (float dx, float dz) = PlaceOf(BType.Field);
+                Log("Drought ruins this year's harvest", dx, dz, 3);
             }
             else if (roll < 0.28f)
             {
@@ -1733,20 +1738,35 @@ public sealed class Simulation
             else if (roll < 0.36f)
             {
                 ActiveEvent = 3;
+                (float sx, float sz) = (CenterX, CenterZ);
+                bool first = true;
                 foreach (Person p in People)
-                    if (Random.F() < 0.18f) p.Health = Math.Max(0.08f, p.Health - 0.42f);
-                Log("Sickness spreads through the village", CenterX, CenterZ, 3);
+                    if (Random.F() < 0.18f)
+                    {
+                        p.Health = Math.Max(0.08f, p.Health - 0.42f);
+                        if (first) (sx, sz, first) = (p.X, p.Z, false);
+                    }
+                Log("Sickness spreads through the village", sx, sz, 3);
             }
             else if (roll < 0.52f)
             {
                 HarvestFactor = 1.35f;
                 ActiveEvent = 4;
-                Log("A bumper harvest this year", CenterX, CenterZ, 2);
+                (float hx, float hz) = PlaceOf(BType.Field);
+                Log("A bumper harvest this year", hx, hz, 2);
             }
         }
         HarvestFactor *= 1 + Support;
         UseCrafts();
         if (Year >= 6 && Random.F() < 0.16f) FloodAt = Tick + (long)(Rules.TicksPerYear * Random.R(0.45f, 0.7f));
+    }
+
+    /// <summary>Where a village-wide event is filmed: the first finished building of a type, or the village centre.</summary>
+    private (float X, float Z) PlaceOf(BType type)
+    {
+        foreach (Building b in Buildings)
+            if (b.Type == type && b.Built) return (b.X, b.Z);
+        return (CenterX, CenterZ);
     }
 
     /// <summary>Share of a storm surge held back by finished dikes and a tide gate.</summary>
@@ -1759,6 +1779,7 @@ public sealed class Simulation
         Floods++;
         float protection = FloodProtection();
         int lost = 0;
+        (float fx, float fz) = PlaceOf(BType.Dike);
         foreach (Building b in Buildings)
         {
             if (b.Type != BType.Field || !b.Built || b.Yield <= 0 && b.Growth <= 0) continue;
@@ -1766,14 +1787,15 @@ public sealed class Simulation
             if (bank > 60 || Random.F() < protection) continue;
             b.Yield /= 2;
             b.Growth *= 0.6f;
+            if (lost == 0) (fx, fz) = (b.X, b.Z);
             lost++;
         }
         if (lost == 0)
         {
             FloodsHeld++;
-            Log(Count(BType.Dike, true) > 0 ? "A storm surge rises, but the dikes hold the fields" : "A storm surge rises and falls back", CenterX, CenterZ, 3);
+            Log(Count(BType.Dike, true) > 0 ? "A storm surge rises, but the dikes hold the fields" : "A storm surge rises and falls back", fx, fz, 3);
         }
-        else Log($"A storm surge breaks through and floods {lost} fields", CenterX, CenterZ, 3);
+        else Log($"A storm surge breaks through and floods {lost} fields", fx, fz, 3);
     }
 
     /// <summary>Tools and wine are used up each year and pay back in faster work and more births.</summary>

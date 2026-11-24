@@ -660,9 +660,29 @@ public partial class Main : Node3D
     {
         var culture = CultureInfo.GetCultureInfo("en-US");
         string era = Eras.Names[s.Era];
-        string line = s.LastEvent?.Text ?? "";
+        // News fades after about a simulated year (half an hour), so an old drought does not sit on screen for hours.
+        string line = s.LastEvent is WorldEvent news && s.Year - news.Tick / (float)Rules.TicksPerYear < 1f ? news.Text : "";
         string speed = _sim.Speed > 1 ? $"  ·  Speed x{_sim.Speed}" : "";
-        _overlay.Text = $"{Eras.FormatCalendar(s.Calendar, culture)}  ·  {era}  ·  {Rules.SeasonName(s.Season)}{speed}\nPopulation {s.Population}  ·  Food {s.Food}\n{line}";
+        string project = CurrentProject(s);
+        _overlay.Text = $"{Eras.FormatCalendar(s.Calendar, culture)}  ·  {era}  ·  {Rules.SeasonName(s.Season)}{speed}\nPopulation {s.Population}  ·  Food {s.Food}{project}\n{line}";
+    }
+
+    /// <summary>What the village is working on now: draining a polder, or the most advanced building site.</summary>
+    private static string CurrentProject(WorldSnapshot s)
+    {
+        if (s.PolderDrain >= 0) return $"  ·  Draining the polder {(int)(s.PolderDrain * 100)}%";
+        BuildingView? best = null;
+        foreach (BuildingView b in s.Buildings)
+            if (!b.Built && b.Type is not (BType.Field or BType.Vineyard) && (best == null || b.Progress > best.Value.Progress)) best = b;
+        if (best is not BuildingView site) return "";
+        string name = site.Type switch
+        {
+            BType.Hut => "a home",
+            BType.TideGate => "a tide gate",
+            BType.Dike => "a dike",
+            _ => "a " + System.Text.RegularExpressions.Regex.Replace(site.Type.ToString(), "(?<=[a-z])(?=[A-Z])", " ").ToLowerInvariant(),
+        };
+        return site.Progress < 0.01f ? $"  ·  Marking out {name}" : $"  ·  Building {name} {(int)(site.Progress * 100)}%";
     }
 
     private void OpenMetrics(string path)
