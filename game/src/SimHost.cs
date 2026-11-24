@@ -304,9 +304,33 @@ public sealed class SimHost
             ActiveEvent = _sim.ActiveEvent, TreeVersion = _lastTreeVersion, Year = _sim.Year, YearFraction = _sim.YearFraction,
             CenterX = _sim.CenterX, CenterZ = _sim.CenterZ, RunComplete = _sim.RunComplete, Flooding = _sim.Flooding, History = _sim.History.ToArray(), Buildings = buildings, TreeAlive = _trees,
             Wear = (byte[])_sim.Wear.Clone(), Tiles = (byte[])_sim.Tiles.Clone(), RoadVersion = _sim.RoadVersion, Graves = _sim.Graves.ToArray(), Spots = BuildSpots(),
-            LastEvent = _sim.Events.Count > 0 ? _sim.Events[^1] : null, PolderDrain = DrainingPolder(),
+            LastEvent = NewsEvent(), PolderDrain = DrainingPolder(),
         };
     }
+
+    /// <summary>
+    /// The event to show: of those logged since the last snapshot, the most important (the latest on a tie), so a
+    /// year's news is not hidden by an era change logged in the same tick.
+    /// </summary>
+    private WorldEvent? NewsEvent()
+    {
+        int count = _sim.Events.Count;
+        if (count == 0) return null;
+        // The list is capped, so new entries are found by tick, not by count.
+        if (_sim.Events[^1].Tick < _seenTick) _seenTick = -1; // a new world started
+        WorldEvent? best = null;
+        for (int i = count - 1; i >= 0 && _sim.Events[i].Tick > _seenTick; i--)
+            if (best == null || _sim.Events[i].Importance > best.Value.Importance) best = _sim.Events[i];
+        if (best != null)
+        {
+            _news = best;
+            _seenTick = _sim.Events[^1].Tick;
+        }
+        return _news ?? _sim.Events[^1];
+    }
+
+    private long _seenTick = -1;
+    private WorldEvent? _news;
 
     private float DrainingPolder()
     {

@@ -1809,9 +1809,22 @@ public sealed class Simulation
         FloodAt = -1;
         FloodEnd = Tick + 1800;
         Floods++;
+        // From the Middle Ages a quarter of the surges are great ones that break a stretch of dike. It becomes a building
+        // site again, so porters bring stone and wood and builders repair it, and the fields behind it are exposed meanwhile.
+        Building breach = null;
+        if (Era >= 4 && Count(BType.Dike, true) >= 2 && Random.F() < 0.25f)
+        {
+            int pick = Floods % Count(BType.Dike, true);
+            foreach (Building b in Buildings)
+                if (b.Type == BType.Dike && b.Built && pick-- == 0) { breach = b; break; }
+            breach.Built = false;
+            breach.Progress = 0.4f;
+            breach.Workers = 0;
+            BuildingVersion++;
+        }
         float protection = FloodProtection();
         int lost = 0;
-        (float fx, float fz) = PlaceOf(BType.Dike);
+        (float fx, float fz) = breach != null ? (breach.X, breach.Z) : PlaceOf(BType.Dike);
         foreach (Building b in Buildings)
         {
             if (b.Type != BType.Field || !b.Built || b.Yield <= 0 && b.Growth <= 0) continue;
@@ -1822,7 +1835,8 @@ public sealed class Simulation
             if (lost == 0) (fx, fz) = (b.X, b.Z);
             lost++;
         }
-        if (lost == 0)
+        if (breach != null) Log(lost > 0 ? $"A great storm surge breaks a dike and floods {lost} fields" : "A great storm surge breaks a dike; builders hurry to mend it", fx, fz, 3);
+        else if (lost == 0)
         {
             FloodsHeld++;
             Log(Count(BType.Dike, true) > 0 ? "A storm surge rises, but the dikes hold the fields" : "A storm surge rises and falls back", fx, fz, 3);
