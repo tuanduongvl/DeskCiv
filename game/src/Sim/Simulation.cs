@@ -14,6 +14,9 @@ public sealed class Simulation
     public readonly WorldMap Map;
     public Rng Random;
     public long Tick;
+    /// <summary>Where idle villagers gather until GatherUntil (a tick), and when the last gathering began.</summary>
+    public float GatherX, GatherZ;
+    public long GatherUntil = -1, LastGathering = -Rules.TicksPerYear;
     public readonly List<Person> People = new();
     public readonly List<Building> Buildings = new();
     public readonly List<WorldEvent> Events = new();
@@ -592,6 +595,15 @@ public sealed class Simulation
         return true;
     }
 
+    /// <summary>Draws idle villagers to one place for a while. Gatherings are at least half a year apart.</summary>
+    private void Gather(float x, float z, float seconds, bool force = false)
+    {
+        if (!force && Tick - LastGathering < Rules.TicksPerYear / 2) return;
+        (GatherX, GatherZ) = (x, z);
+        GatherUntil = Tick + (long)(seconds / Rules.TickSeconds);
+        LastGathering = Tick;
+    }
+
     private void Wander(Person p)
     {
         float cx = CenterX, cz = CenterZ, radius = 26;
@@ -606,6 +618,10 @@ public sealed class Simulation
             (cx, cz) = DoorPoint(store);
             radius = 8;
         }
+        // During a gathering (funeral, feast, era celebration) everyone with time on their hands joins the crowd.
+        // Workers, porters and builders keep the village running; children, elders and the jobless within reach go.
+        bool free = p.Age < 14 || p.Age >= 60 || (p.Job < 0 && p.Role is not (Role.Porter or Role.Builder));
+        if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius) = (GatherX, GatherZ, 7);
         float x = cx + Random.R(-radius, radius), z = cz + Random.R(-radius, radius);
         p.Act = Act.Wander;
         p.Timer = Random.R(3, 11);
@@ -1097,6 +1113,13 @@ public sealed class Simulation
         _freeSlots.Push(p.Slot);
         Deaths++;
         AddGrave();
+        // An elder's burial draws the village to the graveyard.
+        if (p.Age >= 50 && Tick - LastGathering >= Rules.TicksPerYear / 2)
+        {
+            (float gx, float gz) = Graves[^1];
+            Gather(gx, gz, 70);
+            Log("The village gathers to bury one of its elders", gx, gz, 2);
+        }
     }
 
     private void AddGrave()
@@ -1760,8 +1783,9 @@ public sealed class Simulation
             {
                 HarvestFactor = 1.35f;
                 ActiveEvent = 4;
-                (float hx, float hz) = PlaceOf(BType.Field);
-                Log("A bumper harvest this year", hx, hz, 2);
+                (float hx, float hz) = PlaceOf(BType.Storehouse);
+                Gather(hx, hz, 120);
+                Log("A bumper harvest: the village holds a feast", hx, hz, 2);
             }
         }
         HarvestFactor *= 1 + Support;
@@ -1852,6 +1876,7 @@ public sealed class Simulation
             RecordEra();
             Era = era;
             Log($"The village enters the {Eras.Names[Era]}", CenterX, CenterZ, 3);
+            Gather(CenterX, CenterZ, 150, true);
         }
         if (!RunComplete && Year >= Eras.TotalYears)
         {
@@ -2153,6 +2178,7 @@ public sealed class Simulation
         Add((ulong)Era);
         Add((ulong)PlanWait);
         foreach (Polder p in Polders) { Add((ulong)p.Built); Add((ulong)p.Stage); AddF(p.Drain); }
+        AddF(GatherX); AddF(GatherZ); Add((ulong)GatherUntil); Add((ulong)LastGathering);
         Add((ulong)FloodAt); Add((ulong)FloodEnd); AddF(ToolBonus); AddF(WineBonus);
         foreach (Person p in People)
         {
@@ -2175,7 +2201,7 @@ public sealed class Simulation
 
     public void Save(BinaryWriter w)
     {
-        w.Write(9);
+        w.Write(10);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2216,12 +2242,13 @@ public sealed class Simulation
             w.Write(p.X); w.Write(p.Z); w.Write(p.TX); w.Write(p.TZ); w.Write(p.Age); w.Write(p.MaxAge); w.Write(p.Hunger); w.Write(p.Health); w.Write(p.Timer);
             w.Write(p.Female); w.Write(p.Moving); w.Write(p.Indoors); w.Write((byte)p.Act); w.Write(p.Phase); w.Write(p.Amount); w.Write(p.CarryN); w.Write(p.CarryRes); w.Write(p.Stuck); w.Write(p.PathIndex); w.Write((byte)p.Role); w.Write(p.Path?.Length ?? -1); if (p.Path != null) foreach (int tile in p.Path) w.Write(tile);
         }
+        w.Write(GatherX); w.Write(GatherZ); w.Write(GatherUntil); w.Write(LastGathering);
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version != 9) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
@@ -2274,6 +2301,7 @@ public sealed class Simulation
         s._freeSlots.Clear();
         for (int i = Rules.MaxPeople - 1; i >= 0; i--)
             if (!used[i]) s._freeSlots.Push(i);
+        if (version >= 10) { s.GatherX = r.ReadSingle(); s.GatherZ = r.ReadSingle(); s.GatherUntil = r.ReadInt64(); s.LastGathering = r.ReadInt64(); }
         return s;
     }
 
