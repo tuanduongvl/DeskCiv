@@ -79,7 +79,7 @@ public sealed class Simulation
         return ((x + 0.5f) * Rules.TileSize - WorldMap.SizeX / 2, (z + 0.5f) * Rules.TileSize - WorldMap.SizeZ / 2);
     }
 
-    private static int TileAt(float x, float z)
+    public static int TileAt(float x, float z)
     {
         int tx = Math.Clamp((int)((x + WorldMap.SizeX / 2) / Rules.TileSize), 0, Rules.TileNx - 1);
         int tz = Math.Clamp((int)((z + WorldMap.SizeZ / 2) / Rules.TileSize), 0, Rules.TileNz - 1);
@@ -564,6 +564,8 @@ public sealed class Simulation
         {
             if (p.Job >= 0 && StartWork(p)) return;
             if (p.Role == Role.Builder && (TryBuild(p) || TryRoad(p) || TryPolderWork(p))) return;
+            // Farmers and other seasonal workers with nothing to do (winter, or full stores) lay roads and raise dikes.
+            if (p.Job >= 0 && (TryRoad(p) || TryPolderWork(p))) return;
         }
         Wander(p);
     }
@@ -1103,6 +1105,12 @@ public sealed class Simulation
         float angle = NextPersonId * 2.399963f + Deaths * 2.399963f, radius = 3 + MathF.Sqrt(Deaths) * 1.5f;
         float gx = CenterX - 46 + MathF.Cos(angle) * radius, gz = CenterZ + 30 + MathF.Sin(angle) * radius * 0.7f;
         if (!Map.Walkable(gx, gz)) (gx, gz) = (CenterX + MathF.Cos(angle) * 34, CenterZ + 18 + MathF.Sin(angle) * 10);
+        // Step outwards along the spiral until the stone lands on open ground, not in a house, field or road.
+        for (int step = 1; step <= 24 && !(Map.Walkable(gx, gz) && Tiles[TileAt(gx, gz)] == TileKind.Free); step++)
+        {
+            float a = angle + step * 2.399963f, r = radius + step * 1.2f;
+            (gx, gz) = (CenterX - 46 + MathF.Cos(a) * r, CenterZ + 30 + MathF.Sin(a) * r * 0.7f);
+        }
         Graves.Add((gx, gz));
     }
 

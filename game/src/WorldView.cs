@@ -451,7 +451,8 @@ void fragment() {
     private ImageTexture _wearTexture;
     private byte[] _wearBytes;
     private float[] _peopleBuffer = Array.Empty<float>(), _cargoBuffer = Array.Empty<float>();
-    private int _treeVersion = -1, _graveCount = -1;
+    private int _treeVersion = -1, _graveCount = -1, _graveBuildings = -1;
+    private (float X, float Z) _lastGrave;
     private WorldSnapshot _shown;
 
     private static readonly Color[] Clothes = { new(0.56f, 0.34f, 0.22f), new(0.72f, 0.62f, 0.42f), new(0.42f, 0.46f, 0.3f), new(0.6f, 0.28f, 0.26f) };
@@ -828,7 +829,8 @@ void fragment() {
             UpdateScatter(s);
         }
         if (s.TreeVersion != _treeVersion) UpdateTrees(s);
-        if (s.Graves.Length != _graveCount) UpdateGraves(s);
+        // The list stays full once the oldest stones are cleared, so also watch its newest entry and new buildings.
+        if (s.Graves.Length != _graveCount || s.Buildings.Length != _graveBuildings || (s.Graves.Length > 0 && s.Graves[^1] != _lastGrave)) UpdateGraves(s);
         Buffer.BlockCopy(s.Wear, 0, _wearBytes, 0, _wearBytes.Length);
         _wearTexture.Update(Image.CreateFromData(Simulation.WearNx, Simulation.WearNz, false, Image.Format.L8, _wearBytes));
     }
@@ -1117,11 +1119,16 @@ void fragment() {
     private void UpdateGraves(WorldSnapshot s)
     {
         _graveCount = s.Graves.Length;
+        _graveBuildings = s.Buildings.Length;
+        if (_graveCount > 0) _lastGrave = s.Graves[^1];
         Ensure(_graves, _graveCount);
         for (int i = 0; i < _graveCount; i++)
         {
             (float x, float z) = s.Graves[i];
-            _graves.SetInstanceTransform(i, new Transform3D(new Basis(Vector3.Up, i * 0.7f), new Vector3(x, _map.Height(x, z), z)));
+            // A stone the town has since built over is hidden.
+            byte tile = s.Tiles[Simulation.TileAt(x, z)];
+            float scale = tile is TileKind.Building or TileKind.Road or TileKind.Field ? 0f : 1f;
+            _graves.SetInstanceTransform(i, new Transform3D(new Basis(Vector3.Up, i * 0.7f).Scaled(Vector3.One * scale), new Vector3(x, _map.Height(x, z), z)));
         }
         _graves.VisibleInstanceCount = _graveCount;
     }
