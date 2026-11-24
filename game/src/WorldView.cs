@@ -194,7 +194,13 @@ void fragment() {
     if (UV.x > 0.5 && abs(dot(NORMAL, VIEW)) < 0.35) discard;
     float crown = smoothstep(0.0, 0.08, t.g - t.r);
     vec3 season = pow(leaf / vec3(0.2, 0.42, 0.2), vec3(0.7));
-    ALBEDO = mix(t.rgb, clamp(t.rgb * season, 0.0, 1.0), crown);
+    vec3 tinted = clamp(t.rgb * season, 0.0, 1.0);
+    // The winter leaf colour is a pale grey; multiplied into green needles it turned them purple. In winter
+    // the crown keeps its dark needles and takes snow on its lighter parts instead.
+    float frost = smoothstep(0.35, 0.7, leaf.b);
+    float light = dot(t.rgb, vec3(0.3, 0.59, 0.11));
+    vec3 snowy = mix(t.rgb * vec3(0.8, 0.92, 0.88), vec3(0.86, 0.9, 0.93), 0.15 + 0.6 * smoothstep(0.12, 0.45, light));
+    ALBEDO = mix(t.rgb, mix(tinted, snowy, frost), crown);
 }";
 
     /// <summary>Fields: the vertex-coloured furrows take detail from a CC0 photo of a dry ploughed field.</summary>
@@ -1027,7 +1033,11 @@ void fragment() {
             // Every other building of a type with a second shape for this era uses that shape.
             bool alt = _variantShown[(int)b.Type] && (((int)(b.X * 7.31f) ^ (int)(b.Z * 3.17f)) & 1) == 1;
             // Each building gets its turn at a fixed point of the renovation wave, from a hash of its position.
-            bool old = renovated < 1f && b.Built && Renovates(b.Type) && ((uint)((int)(b.X * 13.7f) * 73856093 ^ (int)(b.Z * 11.3f) * 19349663) % 1000) / 1000f > renovated;
+            float turn = ((uint)((int)(b.X * 13.7f) * 73856093 ^ (int)(b.Z * 11.3f) * 19349663) % 1000) / 1000f;
+            bool renovating = renovated < 1f && b.Built && Renovates(b.Type);
+            bool old = renovating && turn > renovated;
+            // A house stands in scaffolding for a short while around its turn to be rebuilt.
+            if (renovating && s.Era >= 1 && MathF.Abs(turn - renovated) < 0.03f) site = true;
             MultiMesh target = old ? _older[(int)b.Type] : alt ? _variants[(int)b.Type] : _buildings[(int)b.Type];
             int n = old ? olderCounts[(int)b.Type]++ : alt ? variantCounts[(int)b.Type]++ : counts[(int)b.Type]++;
             target.SetInstanceTransform(n, transform);
