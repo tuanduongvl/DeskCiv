@@ -459,6 +459,7 @@ void fragment() {
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private ShaderMaterial _terrain;
     private StandardMaterial3D _glowMaterial;
+    private Node3D _glowNode;
     private ImageTexture _wearTexture;
     private byte[] _wearBytes;
     private float[] _peopleBuffer = Array.Empty<float>(), _cargoBuffer = Array.Empty<float>();
@@ -519,8 +520,9 @@ void fragment() {
         }
         _people = AddInstances(MeshKit.Person(), vertexColors, true, 128);
         _cargo = AddInstances(MeshKit.Cargo(), vertexColors, true, 128);
-        _glowMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, AlbedoColor = new Color(1f, 0.68f, 0.28f) };
+        _glowMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, AlbedoColor = new Color(1f, 0.68f, 0.28f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
         _glow = AddInstances(MeshKit.Glow(), _glowMaterial, false, 32);
+        _glowNode = (Node3D)GetChild(GetChildCount() - 1);
         // Felled trees use the pine model and material, realistic or kit.
         _falling = AddInstances(_treeKinds[0].Mesh, ((MultiMeshInstance3D)GetChild(_treeNodeIndex)).MaterialOverride, false, MaxFalling, true);
         _fallingNodeIndex = GetChildCount() - 1;
@@ -1074,7 +1076,7 @@ void fragment() {
                 _sites.SetInstanceTransform(sites++, new Transform3D(new Basis(Vector3.Up, yaw).Scaled(new Vector3(plot, 1, plot)), new Vector3(b.X, y, b.Z)));
             }
             if (b.Type == BType.Hut && b.Built && b.Occupants > 0)
-                _glow.SetInstanceTransform(glows++, new Transform3D(Basis.Identity, new Vector3(b.X, y + (s.Era == 0 ? 0.04f : 0.3f), b.Z) + new Vector3(0, 0, s.Era == 0 ? 3.5f : 2.72f).Rotated(Vector3.Up, yaw)));
+                _glow.SetInstanceTransform(glows++, new Transform3D(Basis.Identity, new Vector3(b.X, y + 0.06f, b.Z) + new Vector3(0, 0, s.Era == 0 ? 3.5f : 2.72f).Rotated(Vector3.Up, yaw)));
         }
         for (int i = 0; i < _buildings.Length; i++)
         {
@@ -1089,12 +1091,16 @@ void fragment() {
         UpdateHedges(s);
 
         int puffs = 0;
+        // In a harsh winter every hearth burns from late autumn.
+        bool cold = s.Season == 3 || (s.ActiveEvent == 2 && s.YearFraction > 0.64f);
+        // Bakeries and smithies take their smoke first, so a big winter town does not use the whole budget on huts.
+        for (int pass = 0; pass < 2; pass++)
         foreach (BuildingView b in s.Buildings)
         {
-            // In a harsh winter every hearth burns from late autumn.
-            bool cold = s.Season == 3 || (s.ActiveEvent == 2 && s.YearFraction > 0.64f);
-            bool hutFire = b.Type == BType.Hut && b.Occupants > 0 && (cold ||(int)(b.X * 3 + b.Z * 5) % 3 == 0);
-            if (!b.Built || (b.Type is not (BType.Bakery or BType.Smithy) && !hutFire)) continue;
+            bool workshop = b.Type is BType.Bakery or BType.Smithy;
+            if (workshop != (pass == 0)) continue;
+            bool hutFire = b.Type == BType.Hut && b.Occupants > 0 && (cold || (int)(b.X * 3 + b.Z * 5) % 3 == 0);
+            if (!b.Built || (!workshop && !hutFire)) continue;
             int count = b.Type == BType.Hut ? 3 : 5;
             Vector3 source = b.Type == BType.Hut && s.Era == 0
                 ? new Vector3(b.X, _map.Height(b.X, b.Z) + 0.3f, b.Z) + new Vector3(0, 0, 3.5f).Rotated(Vector3.Up, b.Rotation)
@@ -1200,7 +1206,9 @@ void fragment() {
 
     public void SetNightGlow(float amount)
     {
-        _glowMaterial.AlbedoColor = new Color(1f, 0.68f, 0.28f) * Mathf.Clamp(amount, 0.05f, 1f);
+        _glowMaterial.AlbedoColor = new Color(1f, 0.68f, 0.28f) * Mathf.Clamp(amount, 0.05f, 1f) * 0.4f;
+        // By day the unlit glow is near black and stood out as a dark block beside the realistic house models.
+        if (_glowNode != null) _glowNode.Visible = amount > 0.15f;
     }
 
     /// <summary>Uploads interpolated people and carried goods.</summary>
@@ -1224,7 +1232,9 @@ void fragment() {
         {
             byte kind = current.Kind[i];
             if (kind == 0) continue;
-            bool known = previous.Kind[i] != 0;
+            // A slot freed and reused within one publish (a death then a birth) would streak from the old position.
+            float jumpX = current.X[i] - previous.X[i], jumpZ = current.Z[i] - previous.Z[i];
+            bool known = previous.Kind[i] != 0 && jumpX * jumpX + jumpZ * jumpZ < 25f;
             float x = known ? previous.X[i] + (current.X[i] - previous.X[i]) * t : current.X[i];
             float y = known ? previous.Y[i] + (current.Y[i] - previous.Y[i]) * t : current.Y[i];
             float z = known ? previous.Z[i] + (current.Z[i] - previous.Z[i]) * t : current.Z[i];

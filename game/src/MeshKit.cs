@@ -1025,5 +1025,27 @@ public sealed class MeshKit
         return m.Build();
     }
 
-    public static ArrayMesh Glow() => new MeshKit().Prism(Vector3.Zero, 0.62f, 0.5f, 0.95f, 6, Colors.White).Build();
+    /// <summary>A pool of firelight on the ground before a door: a thin disc drawn additively at night.</summary>
+    public static ArrayMesh Glow()
+    {
+        // A fan bright at the centre and black (no light added) at the rim, so the pool has a soft edge.
+        const int sides = 16;
+        var vertices = new List<Vector3>();
+        var colors = new List<Color>();
+        for (int i = 0; i < sides; i++)
+        {
+            float a0 = i * MathF.Tau / sides, a1 = (i + 1) * MathF.Tau / sides;
+            vertices.Add(Vector3.Zero); colors.Add(Colors.White);
+            vertices.Add(new Vector3(MathF.Cos(a1) * 1.9f, 0, MathF.Sin(a1) * 1.9f)); colors.Add(Colors.Black);
+            vertices.Add(new Vector3(MathF.Cos(a0) * 1.9f, 0, MathF.Sin(a0) * 1.9f)); colors.Add(Colors.Black);
+        }
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
+        arrays[(int)Mesh.ArrayType.Normal] = vertices.ConvertAll(_ => Vector3.Up).ToArray();
+        arrays[(int)Mesh.ArrayType.Color] = colors.ToArray();
+        var mesh = new ArrayMesh();
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+        return mesh;
+    }
 }
