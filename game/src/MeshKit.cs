@@ -562,7 +562,16 @@ public sealed class MeshKit
                         float x = -6.5f + post * 2.6f;
                         m.Box(new Vector3(x, 0.72f, z), new Vector3(0.12f, 1.44f, 0.12f), Timber);
                         if (post == 5) continue;
-                        m.Box(new Vector3(x + 1.3f, 1.12f, z), new Vector3(2.3f, 0.72f, 0.62f), new Color(0.27f + row % 2 * 0.04f, 0.46f, 0.2f));
+                        // Vines as separate leafy clumps along the wire, not one solid hedge box, so rows read as plants.
+                        for (int k = 0; k < 4; k++)
+                        {
+                            int h = row * 31 + post * 7 + k * 13;
+                            float cx = x + 0.38f + k * 0.62f, r = 0.34f + (h % 5) * 0.03f, tall = 0.5f + (h % 3) * 0.08f;
+                            var green = new Color(0.25f + (h % 4) * 0.025f, 0.42f + (h % 3) * 0.04f, 0.18f + (h % 2) * 0.03f);
+                            m.Box(new Vector3(cx, 0.3f, z), new Vector3(0.08f, 0.6f, 0.08f), Timber.Darkened(0.2f));
+                            m.Prism(new Vector3(cx, 0.5f, z + ((h % 3) - 1) * 0.05f), r * 0.75f, r, tall * 0.55f, 6, green);
+                            m.Prism(new Vector3(cx, 0.5f + tall * 0.55f, z), r, r * 0.5f, tall * 0.4f, 6, green.Lightened(0.06f));
+                        }
                         m.Prism(new Vector3(x + 0.7f + post * 0.1f, 0.62f, z + 0.3f), 0.03f, 0.17f, 0.3f, 5, new Color(0.34f, 0.15f, 0.42f));
                         m.Prism(new Vector3(x + 1.8f, 0.62f, z - 0.3f), 0.03f, 0.17f, 0.3f, 5, new Color(0.4f, 0.17f, 0.46f));
                     }
@@ -592,11 +601,23 @@ public sealed class MeshKit
                 m.Box(new Vector3(-1.1f, 0.78f, 3.0f), new Vector3(0.95f, 0.26f, 0.38f), new Color(0.3f, 0.31f, 0.34f));
                 break;
             case BType.Dike:
-                for (int layer = 0; layer < 4; layer++)
+            {
+                // One smooth earth bank with a rounded trapezoid profile (it used to be four stacked boxes that read
+                // as green steps): a muddy sea-side toe, grassy slopes and crest. Neighbouring dikes join end to end.
+                (float Z, float Y)[] profile = { (-4.9f, 0), (-3.4f, 1.0f), (-2.0f, 1.85f), (-0.8f, 2.4f), (0.5f, 2.4f), (1.8f, 1.9f), (3.2f, 1.0f), (4.6f, 0) };
+                Color mud = new(0.44f, 0.4f, 0.3f), grass = new(0.38f, 0.48f, 0.25f);
+                Vector3 inside = new(0, 1.0f, -0.2f);
+                const float half = 6.1f;
+                for (int i = 0; i < profile.Length - 1; i++)
                 {
-                    float t = layer / 4f;
-                    m.Box(new Vector3(0, 0.34f + layer * 0.6f, -0.2f), new Vector3(12.2f, 0.66f, 9.4f - t * 6.2f), layer == 3 ? new Color(0.42f, 0.5f, 0.27f) : new Color(0.46f, 0.42f, 0.28f).Lerp(new Color(0.4f, 0.48f, 0.26f), t));
+                    (float z0, float y0) = profile[i];
+                    (float z1, float y1) = profile[i + 1];
+                    Color c = i == 0 ? mud : i == 1 ? mud.Lerp(grass, 0.6f) : grass.Lightened(((i * 7) % 3) * 0.025f);
+                    m.Quad(inside, new Vector3(-half, y0, z0), new Vector3(half, y0, z0), new Vector3(half, y1, z1), new Vector3(-half, y1, z1), c);
+                    foreach (float x in new[] { -half, half })
+                        m.Face(inside, new Vector3(x, 0, -0.2f), new Vector3(x, y0, z0), new Vector3(x, y1, z1), grass.Darkened(0.1f));
                 }
+            }
                 for (int i = 0; i < 5; i++)
                     if (!m.TryKit("prop_revetment", new Vector3(-4.8f + i * 2.4f, 0, -4.4f + (i % 2) * 0.15f), (i % 2) * MathF.PI))
                         m.Box(new Vector3(-4.8f + i * 2.4f, 0.62f, -4.55f), new Vector3(2.3f, 1.2f, 0.82f), Rock.Lightened(i % 3 * 0.06f));

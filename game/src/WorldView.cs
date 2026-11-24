@@ -938,7 +938,7 @@ void fragment() {
             else _variants[i].VisibleInstanceCount = 0;
             // Realistic models carry their own textured material; kit and procedural models use vertex colors.
             _buildingNodes[i].MaterialOverride = mesh.GetSurfaceCount() > 0 && mesh.SurfaceGetMaterial(0) is StandardMaterial3D real ? BuildingMaterial(real, mesh, (BType)i)
-                : (BType)i is BType.Field or BType.Vineyard && _fieldMaterial != null ? _fieldMaterial : _vertexColors;
+                : (BType)i is BType.Field or BType.Vineyard or BType.Dike && _fieldMaterial != null ? _fieldMaterial : _vertexColors;
         }
     }
 
