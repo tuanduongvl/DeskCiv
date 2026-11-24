@@ -478,6 +478,14 @@ public sealed class Simulation
             return true;
         }
         float nx = p.X + dx / distance * step, nz = p.Z + dz / distance * step;
+        // Without a path (a short wander, or no route found) people walk straight; they stop at a house wall
+        // instead of walking through it, unless the house is where they are going or where they stand.
+        int nextTile = TileAt(nx, nz);
+        if (Tiles[nextTile] == TileKind.Building && nextTile != TileAt(p.TX, p.TZ) && Tiles[TileAt(p.X, p.Z)] != TileKind.Building)
+        {
+            p.Stuck = 0;
+            return true;
+        }
         if (!Map.Walkable(nx, nz))
         {
             float gx = Map.Height(p.X + 2, p.Z) - Map.Height(p.X - 2, p.Z), gz = Map.Height(p.X, p.Z + 2) - Map.Height(p.X, p.Z - 2);
@@ -1774,8 +1782,7 @@ public sealed class Simulation
                 foreach (Person p in People)
                     if (Random.F() < 0.18f)
                     {
-                        p.Health = Math.Max(0.08f, p.Health - 0.42f);
-                        if (first) (sx, sz, first) = (p.X, p.Z, false);
+                        p.Health = Math.Max(0.08f, p.Health - 0.42f);                        if (first) (sx, sz, first) = (p.X, p.Z, false);
                     }
                 Log("Sickness spreads through the village", sx, sz, 3);
             }
