@@ -979,6 +979,44 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A village well: stone ring, two posts, a little roof and a windlass with a bucket.</summary>
+    public static ArrayMesh Well()
+    {
+        var m = new MeshKit();
+        Color stone = Rock.Darkened(0.05f), wood = new(0.42f, 0.29f, 0.18f);
+        m.Prism(Vector3.Zero, 0.95f, 0.9f, 0.85f, 12, stone).Prism(new Vector3(0, 0.84f, 0), 0.72f, 0.72f, 0.02f, 12, new Color(0.12f, 0.16f, 0.2f));
+        foreach (int s in new[] { -1, 1 }) m.Box(new Vector3(s * 0.78f, 1.3f, 0), new Vector3(0.12f, 1.7f, 0.12f), wood);
+        m.Box(new Vector3(0, 1.7f, 0), new Vector3(1.6f, 0.1f, 0.1f), wood).Box(new Vector3(0, 1.35f, 0), new Vector3(0.18f, 0.22f, 0.18f), wood.Darkened(0.2f));
+        m.Gable(new Vector3(0, 2.15f, 0), 1.9f, 1.4f, 0.55f, new Color(0.45f, 0.33f, 0.2f));
+        return m.Build();
+    }
+
+    /// <summary>A town fountain: octagonal basin, a column and an upper bowl.</summary>
+    public static ArrayMesh Fountain()
+    {
+        var m = new MeshKit();
+        Color stone = new(0.68f, 0.65f, 0.58f), water = new(0.25f, 0.42f, 0.5f);
+        m.Prism(Vector3.Zero, 1.7f, 1.7f, 0.6f, 8, stone).Prism(new Vector3(0, 0.55f, 0), 1.5f, 1.5f, 0.02f, 8, water);
+        m.Prism(new Vector3(0, 0.5f, 0), 0.22f, 0.18f, 1.4f, 8, stone).Prism(new Vector3(0, 1.75f, 0), 0.25f, 0.7f, 0.25f, 10, stone);
+        m.Prism(new Vector3(0, 1.98f, 0), 0.6f, 0.6f, 0.02f, 10, water).Prism(new Vector3(0, 2.0f, 0), 0.08f, 0.02f, 0.5f, 6, stone);
+        return m.Build();
+    }
+
+    /// <summary>An early 20th-century water tower: brick shaft, riveted tank and a conical roof, about 17 m.</summary>
+    public static ArrayMesh WaterTower()
+    {
+        var m = new MeshKit();
+        Color brick = new(0.55f, 0.3f, 0.22f), tank = new(0.45f, 0.48f, 0.5f), roof = new(0.3f, 0.33f, 0.36f);
+        m.Prism(Vector3.Zero, 2.4f, 2.0f, 11f, 12, brick).Prism(new Vector3(0, 11f, 0), 2.1f, 3.6f, 1.2f, 12, brick.Darkened(0.1f));
+        m.Prism(new Vector3(0, 12.2f, 0), 3.6f, 3.6f, 3.2f, 16, tank).Prism(new Vector3(0, 15.4f, 0), 3.8f, 0.3f, 1.8f, 16, roof);
+        for (int i = 0; i < 6; i++)
+        {
+            float a = i * MathF.Tau / 6;
+            m.Box(new Vector3(MathF.Cos(a) * 2.02f, 5.5f, MathF.Sin(a) * 2.02f), new Vector3(0.3f, 1.6f, 0.3f), new Color(0.75f, 0.78f, 0.8f), -a);
+        }
+        return m.Build();
+    }
+
     /// <summary>A cast-iron street lamp post, 4 m, with its arm over local +Z. The lantern is a separate mesh.</summary>
     public static ArrayMesh LampPost()
     {

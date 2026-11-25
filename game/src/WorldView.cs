@@ -492,7 +492,7 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
-    private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools;
+    private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers;
     private StandardMaterial3D _lanternMaterial;
     private int _lampPoolNode;
     private readonly float[] _barrowBuffer = new float[HeroCapacity * 16];
@@ -603,6 +603,9 @@ void fragment() {
         _lanterns = AddInstances(MeshKit.Lantern(), _lanternMaterial, false, 64);
         _lampPools = AddInstances(MeshKit.Glow(), _glowMaterial, false, 64);
         _lampPoolNode = GetChildCount() - 1;
+        _wells = AddInstances(MeshKit.Well(), vertexColors, false, 16, true);
+        _fountains = AddInstances(MeshKit.Fountain(), vertexColors, false, 16, true);
+        _towers = AddInstances(MeshKit.WaterTower(), vertexColors, false, 2, true);
 
         var puffMaterial = new ShaderMaterial { Shader = new Shader { Code = SmokeShader } };
         _smoke = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = MeshKit.Puff(), InstanceCount = MaxPuffs, VisibleInstanceCount = 0 };
@@ -935,6 +938,7 @@ void fragment() {
         _terrain.SetShaderParameter("road_style", s.Era >= 7 ? 2f : s.Era >= 4 ? 1f : 0f);
         _terrain.SetShaderParameter("street_style", s.Era >= 6 ? 2f : s.Era >= 5 ? 1f : 0f);
         UpdateStreetLamps(s);
+        UpdateWaterSupply(s);
     }
 
     /// <summary>From the Industrial era a lamp stands at the edge of every few road tiles, beside the verge.</summary>
@@ -969,6 +973,49 @@ void fragment() {
             count++;
         }
         foreach (MultiMesh m in new[] { _lampPosts, _lanterns, _lampPools }) m.VisibleInstanceCount = count;
+    }
+
+    /// <summary>
+    /// Water supply by era: a well beside each storehouse from the New Stone Age, a fountain there from the Middle Ages,
+    /// and from the Industrial era a water tower on the highest free ground near the centre.
+    /// </summary>
+    private void UpdateWaterSupply(WorldSnapshot s)
+    {
+        int wells = 0, fountains = 0, towers = 0;
+        foreach (BuildingView b in s.Buildings) if (b.Type == BType.Storehouse) { Ensure(_wells, wells + 1); Ensure(_fountains, fountains + 1); wells++; fountains++; }
+        wells = fountains = 0;
+        if (s.Era >= 1)
+            foreach (BuildingView b in s.Buildings)
+            {
+                if (b.Type != BType.Storehouse || !b.Built) continue;
+                Vector3 at = new Vector3(b.X, 0, b.Z) + new Vector3(7.6f, 0, 4.6f).Rotated(Vector3.Up, b.Rotation);
+                at.Y = _map.Height(at.X, at.Z);
+                var spot = new Transform3D(new Basis(Vector3.Up, b.Rotation), at);
+                if (s.Era >= 4) _fountains.SetInstanceTransform(fountains++, spot);
+                else _wells.SetInstanceTransform(wells++, spot);
+            }
+        if (s.Era >= 6)
+        {
+            int nx = Rules.TileNx, cx = (int)((s.CenterX + WorldMap.SizeX / 2) / Rules.TileSize), cz = (int)((s.CenterZ + WorldMap.SizeZ / 2) / Rules.TileSize);
+            float bestHeight = float.MinValue;
+            Vector3 best = Vector3.Zero;
+            for (int z = Math.Max(1, cz - 25); z < Math.Min(Rules.TileNz - 1, cz + 25); z++)
+            for (int x = Math.Max(1, cx - 25); x < Math.Min(nx - 1, cx + 25); x++)
+            {
+                bool free = true;
+                for (int dz = -1; dz <= 1 && free; dz++)
+                for (int dx = -1; dx <= 1 && free; dx++)
+                    free = s.Tiles[x + dx + (z + dz) * nx] == TileKind.Free;
+                if (!free) continue;
+                float wx = (x + 0.5f) * Rules.TileSize - WorldMap.SizeX / 2, wz = (z + 0.5f) * Rules.TileSize - WorldMap.SizeZ / 2;
+                float h = _map.Height(wx, wz) - 0.002f * ((x - cx) * (x - cx) + (z - cz) * (z - cz));
+                if (h > bestHeight) (bestHeight, best) = (h, new Vector3(wx, _map.Height(wx, wz), wz));
+            }
+            if (bestHeight > float.MinValue) _towers.SetInstanceTransform(towers++, new Transform3D(Basis.Identity, best));
+        }
+        _wells.VisibleInstanceCount = wells;
+        _fountains.VisibleInstanceCount = fountains;
+        _towers.VisibleInstanceCount = towers;
     }
 
     private void UpdateEraLook(int era)
