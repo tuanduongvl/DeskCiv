@@ -979,6 +979,38 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>One unit of a storehouse's goods pile; a store shows up to four of each kind as its stock grows.</summary>
+    public static ArrayMesh GoodsPile(int kind)
+    {
+        var m = new MeshKit();
+        switch (kind)
+        {
+            case 0: // logs
+                for (int row = 0; row < 3; row++)
+                    for (int i = 0; i < 3 - row; i++)
+                        m.Box(new Vector3(0, 0.17f + row * 0.3f, -0.32f + i * 0.32f + row * 0.16f), new Vector3(1.5f, 0.29f, 0.29f), i % 2 == 0 ? new Color(0.55f, 0.4f, 0.25f) : new Color(0.48f, 0.34f, 0.21f));
+                break;
+            case 1: // stone blocks
+                m.Box(new Vector3(-0.25f, 0.25f, 0), new Vector3(0.7f, 0.5f, 0.6f), Rock.Darkened(0.18f), 0.2f).Box(new Vector3(0.35f, 0.2f, 0.1f), new Vector3(0.55f, 0.4f, 0.5f), Rock.Darkened(0.25f), -0.3f);
+                m.Box(new Vector3(0.05f, 0.62f, 0.05f), new Vector3(0.55f, 0.32f, 0.45f), Rock.Darkened(0.1f), 0.6f);
+                break;
+            case 2: // grain and flour sacks
+                Color sack = new(0.76f, 0.68f, 0.5f);
+                m.Prism(new Vector3(-0.28f, 0, 0), 0.26f, 0.2f, 0.62f, 8, sack).Prism(new Vector3(0.28f, 0, 0.05f), 0.26f, 0.2f, 0.58f, 8, sack.Darkened(0.06f));
+                m.Prism(new Vector3(0, 0, -0.42f), 0.25f, 0.19f, 0.6f, 8, sack.Lightened(0.05f));
+                break;
+            default: // barrels
+                Color stave = new(0.5f, 0.33f, 0.19f), hoop = new(0.25f, 0.24f, 0.24f);
+                foreach (float x in new[] { -0.3f, 0.32f })
+                {
+                    m.Prism(new Vector3(x, 0, 0), 0.25f, 0.29f, 0.38f, 10, stave, false).Prism(new Vector3(x, 0.38f, 0), 0.29f, 0.25f, 0.38f, 10, stave);
+                    m.Prism(new Vector3(x, 0.12f, 0), 0.275f, 0.28f, 0.05f, 10, hoop, false).Prism(new Vector3(x, 0.6f, 0), 0.28f, 0.27f, 0.05f, 10, hoop, false);
+                }
+                break;
+        }
+        return m.Build();
+    }
+
     public static ArrayMesh Cargo() => new MeshKit().Box(Vector3.Zero, new Vector3(0.62f, 0.42f, 0.62f), Colors.White).Build();
 
     public static ArrayMesh GrassTuft()

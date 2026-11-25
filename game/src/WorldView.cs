@@ -463,6 +463,7 @@ void fragment() {
     private ShaderMaterial _fieldMaterial;
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
+    private readonly MultiMesh[] _piles = new MultiMesh[4];
     private ShaderMaterial _terrain;
     private StandardMaterial3D _glowMaterial;
     private Node3D _glowNode;
@@ -509,6 +510,7 @@ void fragment() {
         _crops = AddInstances(MeshKit.Crops(), vertexColors, true, 32);
         _graves = AddInstances(MeshKit.Grave(), vertexColors, false, 32);
         _sites = AddInstances(MeshKit.Site(), vertexColors, false, 8, true);
+        for (int k = 0; k < _piles.Length; k++) _piles[k] = AddInstances(MeshKit.GoodsPile(k), vertexColors, false, 16, true);
         _stumps = AddInstances(MeshKit.Stump(), vertexColors, false, Math.Max(1, _host.TreePositions.X.Length));
         _treeMaterial = new ShaderMaterial { Shader = new Shader { Code = TreeShader } };
         BuildScatter(vertexColors);
@@ -1029,6 +1031,8 @@ void fragment() {
         var olderCounts = new int[_buildings.Length];
         float renovated = (s.Year - _renovationStart) / RenovationYears;
         int crops = 0, glows = 0, sites = 0;
+        var piles = new int[_piles.Length];
+        foreach (MultiMesh pile in _piles) Ensure(pile, counts[(int)BType.Storehouse] * 4 + 4);
         foreach (BuildingView b in s.Buildings)
         {
             float y = _map.Height(b.X, b.Z);
@@ -1078,6 +1082,26 @@ void fragment() {
                 Color ripe = s.ActiveEvent switch { 1 => new Color(0.66f, 0.5f, 0.28f), 4 => new Color(0.98f, 0.78f, 0.22f), _ => new Color(0.9f, 0.74f, 0.28f) };
                 _crops.SetInstanceColor(crops++, green.Lerp(ripe, Mathf.SmoothStep(0.55f, 1f, b.Growth)));
             }
+            if (b.Type == BType.Storehouse && b.Built)
+            {
+                // Goods piles beside the store: logs and stone along the sides, sacks and barrels behind, one unit per level.
+                int[] levels = { b.WoodPile, b.StonePile, b.SackPile, b.BarrelPile };
+                for (int k = 0; k < levels.Length; k++)
+                    for (int j = 0; j < levels[k]; j++)
+                    {
+                        Vector3 local = k switch
+                        {
+                            0 => new Vector3(-6.4f, 0, -2.4f + j * 1.15f),
+                            1 => new Vector3(6.4f, 0, -2.4f + j * 1.15f),
+                            2 => new Vector3(-3.4f + j * 1.0f, 0, -5.9f),
+                            _ => new Vector3(0.9f + j * 1.0f, 0, -5.9f),
+                        };
+                        Vector3 at = new Vector3(b.X, 0, b.Z) + local.Rotated(Vector3.Up, yaw);
+                        at.Y = _map.Height(at.X, at.Z);
+                        float pileYaw = yaw + (k == 0 ? MathF.PI / 2 : 0) + ((j * 37 + k * 11) % 7 - 3) * 0.04f;
+                        _piles[k].SetInstanceTransform(piles[k]++, new Transform3D(new Basis(Vector3.Up, pileYaw), at));
+                    }
+            }
             if (site)
             {
                 float plot = Rules.Footprint(b.Type) / 2f;
@@ -1096,6 +1120,7 @@ void fragment() {
         _crops.VisibleInstanceCount = crops;
         _glow.VisibleInstanceCount = glows;
         _sites.VisibleInstanceCount = sites;
+        for (int k = 0; k < _piles.Length; k++) _piles[k].VisibleInstanceCount = piles[k];
         UpdateHedges(s);
 
         int puffs = 0;

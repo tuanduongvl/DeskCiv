@@ -12,6 +12,8 @@ public struct BuildingView
     public float X, Z, Rotation, Progress, Growth;
     public bool Built, Sown, Warm;
     public int Occupants;
+    /// <summary>Pile sizes 0-4 of a storehouse's wood, stone, food sacks and wine barrels, drawn beside it.</summary>
+    public byte WoodPile, StonePile, SackPile, BarrelPile;
 }
 
 public sealed class WorldSnapshot
@@ -297,6 +299,14 @@ public sealed class SimHost
                 Type = b.Type, X = b.X, Z = b.Z, Rotation = b.Rotation, Progress = b.Progress, Growth = b.Growth,
                 Built = b.Built, Sown = b.Sown, Warm = b.Warm, Occupants = b.Occupants,
             };
+            if (b.Type == BType.Storehouse && b.Built)
+            {
+                int[] s = b.Stock;
+                buildings[i].WoodPile = Pile(s[(int)Res.Wood]);
+                buildings[i].StonePile = Pile(s[(int)Res.Stone]);
+                buildings[i].SackPile = Pile(s[(int)Res.Grain] + s[(int)Res.Flour] + s[(int)Res.Berries] + s[(int)Res.Fish] + s[(int)Res.Bread]);
+                buildings[i].BarrelPile = Pile(s[(int)Res.Wine] + s[(int)Res.Grapes]);
+            }
         }
         return new WorldSnapshot
         {
@@ -339,6 +349,8 @@ public sealed class SimHost
             if (p.Stage == Polder.Draining) drain = Math.Max(drain, p.Drain);
         return drain;
     }
+
+    private static byte Pile(int stock) => (byte)(stock <= 0 ? 0 : Math.Min(4, 1 + stock / 40));
 
     public WorldSnapshot Snapshot { get { lock (_gate) return _snapshot; } }
 
