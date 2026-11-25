@@ -1064,6 +1064,9 @@ public sealed class MeshKit
         foreach (float x in new[] { -1.9f, 1.9f }) m.Box(new Vector3(x, 0.45f, 0), new Vector3(0.08f, 0.9f, 0.08f), plank).Box(new Vector3(x, 0.8f, 0), new Vector3(0.06f, 0.08f, 1.3f), plank);
         return m.Build();
     }
+    /// <summary>An Industrial-era factory (image-made only), 23 m along local X, gate at +Z, chimney at a back corner.</summary>
+    public static ArrayMesh Factory() => LoadModel("landmark_factory");
+
     /// <summary>A cast-iron street lamp post, 4 m, with its arm over local +Z. The lantern is a separate mesh.</summary>
     public static ArrayMesh LampPost()
     {

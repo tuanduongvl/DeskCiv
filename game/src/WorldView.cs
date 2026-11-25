@@ -493,7 +493,10 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
-    private MultiMesh _rubble, _churches, _quays, _trenches;
+    private MultiMesh _rubble, _churches, _quays, _trenches, _factories;
+    private Vector3? _factoryAt;
+    private Vector3 _factoryChimney;
+    private float _factoryYaw;
     private Vector3 _churchShown;
     private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers, _boilers;
     private Vector3? _boilerAt;
@@ -550,6 +553,11 @@ void fragment() {
         _sites = AddInstances(MeshKit.Site(), vertexColors, false, 8, true);
         _rubble = AddInstances(MeshKit.Rubble(), vertexColors, false, 4, true);
         _trenches = AddInstances(MeshKit.Trench(), vertexColors, false, 8, true);
+        if (MeshKit.Factory() is ArrayMesh factory)
+        {
+            _factories = AddInstances(factory, factory.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
+            _factoryChimney = HighestPoint(factory);
+        }
         Mesh church = MeshKit.Church();
         _churches = AddInstances(church, church.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
         Mesh quay = MeshKit.Quay();
@@ -1001,7 +1009,7 @@ void fragment() {
     public Vector3? Landmark(int n)
     {
         var list = new System.Collections.Generic.List<Vector3>();
-        foreach (MultiMesh m in new[] { _churches, _quays, _towers, _boilers, _fountains, _wells })
+        foreach (MultiMesh m in new[] { _churches, _factories, _quays, _towers, _boilers, _fountains, _wells })
             if (m != null)
                 for (int i = 0; i < Math.Min(2, m.VisibleInstanceCount); i++) list.Add(m.GetInstanceTransform(i).Origin);
         return list.Count == 0 ? null : list[n % list.Count];
@@ -1053,6 +1061,14 @@ void fragment() {
         _puffMaterial?.SetShaderParameter("tone", s.Era == 6 ? new Vector3(0.42f, 0.41f, 0.4f) : s.Era >= 7 ? new Vector3(0.8f, 0.8f, 0.8f) : new Vector3(0.86f, 0.85f, 0.82f));
         _boilerAt = null;
         foreach (Simulation.Landmark l in s.Landmarks) if (l.Kind == 2) _boilerAt = LotCentre(l);
+        _factoryAt = null;
+        foreach (Simulation.Landmark l in s.Landmarks)
+            if (l.Kind == 3 && _factories != null) (_factoryAt, _factoryYaw) = (LotCentre(l), l.Yaw);
+        if (_factories != null)
+        {
+            if (_factoryAt is Vector3 mill) _factories.SetInstanceTransform(0, new Transform3D(new Basis(Vector3.Up, _factoryYaw), mill));
+            _factories.VisibleInstanceCount = _factoryAt != null ? 1 : 0;
+        }
         if (_boilerAt is Vector3 boiler) _boilers.SetInstanceTransform(0, new Transform3D(Basis.Identity, boiler));
         _boilers.VisibleInstanceCount = _boilerAt != null ? 1 : 0;
         // From the Middle Ages a parish church stands on the open ground nearest the centre, facing it.
@@ -1389,6 +1405,16 @@ void fragment() {
             {
                 _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 2.2f), top));
                 _smoke.SetInstanceCustomData(puffs++, new Color(k / 8f, 0, 0));
+            }
+        }
+        if (_factoryAt is Vector3 works)
+        {
+            // The mill chimney smokes heavily, dark coal smoke in the Industrial era.
+            Vector3 top = works + _factoryChimney.Rotated(Vector3.Up, _factoryYaw) + Vector3.Up * 0.3f;
+            for (int k = 0; k < 10 && puffs < MaxPuffs; k++)
+            {
+                _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 2.6f), top));
+                _smoke.SetInstanceCustomData(puffs++, new Color(k / 10f, 0, 0));
             }
         }
         _smoke.VisibleInstanceCount = puffs;
