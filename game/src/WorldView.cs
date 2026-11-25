@@ -493,7 +493,7 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
-    private MultiMesh _rubble, _churches, _quays;
+    private MultiMesh _rubble, _churches, _quays, _trenches;
     private Vector3 _churchShown;
     private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers, _boilers;
     private Vector3? _boilerAt;
@@ -549,6 +549,7 @@ void fragment() {
         _graves = AddInstances(MeshKit.Grave(), vertexColors, false, 32);
         _sites = AddInstances(MeshKit.Site(), vertexColors, false, 8, true);
         _rubble = AddInstances(MeshKit.Rubble(), vertexColors, false, 4, true);
+        _trenches = AddInstances(MeshKit.Trench(), vertexColors, false, 8, true);
         Mesh church = MeshKit.Church();
         _churches = AddInstances(church, church.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
         Mesh quay = MeshKit.Quay();
@@ -955,6 +956,7 @@ void fragment() {
         _terrain.SetShaderParameter("street_style", s.Era >= 6 ? 2f : s.Era >= 5 ? 1f : 0f);
         UpdateStreetLamps(s);
         UpdateWaterSupply(s);
+        UpdateWaterMains(s);
     }
 
     /// <summary>From the Industrial era a lamp stands at the edge of every few road tiles, beside the verge.</summary>
@@ -1081,6 +1083,39 @@ void fragment() {
         _wells.VisibleInstanceCount = wells;
         _fountains.VisibleInstanceCount = fountains;
         _towers.VisibleInstanceCount = towers;
+    }
+
+    /// <summary>
+    /// From the Industrial era water mains are laid street by street, outwards from the centre over about 30 years.
+    /// The few road tiles just past the laid part are dug up: trench, pipe and spoil. Render-only.
+    /// </summary>
+    private void UpdateWaterMains(WorldSnapshot s)
+    {
+        int count = 0;
+        float years = s.Year - 6 * Eras.YearsEach;
+        if (s.Era >= 6 && years < 30)
+        {
+            var roads = new System.Collections.Generic.List<(float D, int Tile)>();
+            for (int i = 0; i < s.Tiles.Length; i++)
+            {
+                if (s.Tiles[i] != TileKind.Road) continue;
+                (float x, float z) = Simulation.TileCenter(i);
+                roads.Add(((x - s.CenterX) * (x - s.CenterX) + (z - s.CenterZ) * (z - s.CenterZ), i));
+            }
+            roads.Sort((a, b) => a.D != b.D ? a.D.CompareTo(b.D) : a.Tile.CompareTo(b.Tile));
+            int laid = (int)(roads.Count * Math.Clamp(years / 30f, 0f, 1f));
+            Ensure(_trenches, 4);
+            for (int k = laid; k < Math.Min(roads.Count, laid + 4); k++)
+            {
+                int tile = roads[k].Tile, nx = Rules.TileNx;
+                (float x, float z) = Simulation.TileCenter(tile);
+                // Lay the trench along the street: across X if the neighbours left/right are road.
+                bool alongX = tile % nx > 0 && s.Tiles[tile - 1] == TileKind.Road || tile % nx < nx - 1 && s.Tiles[tile + 1] == TileKind.Road;
+                var basis = new Basis(Vector3.Up, alongX ? 0 : MathF.PI / 2);
+                _trenches.SetInstanceTransform(count++, new Transform3D(basis, new Vector3(x, _map.Height(x, z) + 0.02f, z)));
+            }
+        }
+        _trenches.VisibleInstanceCount = count;
     }
 
     private void UpdateEraLook(int era)

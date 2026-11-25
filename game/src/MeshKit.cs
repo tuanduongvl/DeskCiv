@@ -1053,6 +1053,17 @@ public sealed class MeshKit
         m.Box(new Vector3(-4f, 4.5f, 0), new Vector3(3.5f, 7f, 3.5f), wood.Darkened(0.1f)).Beam(new Vector3(-4f, 7.5f, 0), new Vector3(-4f, 8.5f, 4.5f), 0.15f, wood);
         return m.Build();
     }
+    /// <summary>A street dug up to lay a water main: open trench, a length of pipe beside it and a spoil heap. 4 m long along local X.</summary>
+    public static ArrayMesh Trench()
+    {
+        var m = new MeshKit();
+        Color soil = new(0.36f, 0.27f, 0.19f), deep = new(0.18f, 0.13f, 0.1f), pipe = new(0.3f, 0.3f, 0.32f), plank = new(0.6f, 0.47f, 0.3f);
+        m.Box(new Vector3(0, 0.02f, 0), new Vector3(3.8f, 0.04f, 1.1f), deep).Box(new Vector3(0, 0.05f, 0.75f), new Vector3(3.8f, 0.1f, 0.4f), soil);
+        m.Prism(new Vector3(0.2f, 0, -1.05f), 0.55f, 0.15f, 0.55f, 7, soil.Lightened(0.05f)).Prism(new Vector3(-1.2f, 0, -0.95f), 0.4f, 0.12f, 0.4f, 7, soil);
+        m.Beam(new Vector3(-1.6f, 0.2f, 1.15f), new Vector3(1.4f, 0.2f, 1.15f), 0.16f, pipe);
+        foreach (float x in new[] { -1.9f, 1.9f }) m.Box(new Vector3(x, 0.45f, 0), new Vector3(0.08f, 0.9f, 0.08f), plank).Box(new Vector3(x, 0.8f, 0), new Vector3(0.06f, 0.08f, 1.3f), plank);
+        return m.Build();
+    }
     /// <summary>A cast-iron street lamp post, 4 m, with its arm over local +Z. The lantern is a separate mesh.</summary>
     public static ArrayMesh LampPost()
     {
