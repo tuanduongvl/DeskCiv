@@ -289,6 +289,8 @@ uniform sampler2D ground_tex : filter_linear, repeat_disable;
 uniform vec3 deep = vec3(0.14, 0.36, 0.5);
 uniform vec3 shallow = vec3(0.34, 0.62, 0.62);
 uniform float surge = 0.0;
+// Winter ice along the shallow river banks (not the open sea): 0 none, 1 at the depth of a harsh winter.
+uniform float ice = 0.0;
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
 global uniform float cloud_cover;
 global uniform float rain;
@@ -309,13 +311,17 @@ void fragment() {
     vec3 c = mix(shallow, deep, smoothstep(0.05, 0.9, depth));
     c += ripple * 0.022;
     c = mix(c, vec3(0.92, 0.95, 0.92), clamp(foam, 0.0, 1.0) * 0.72);
+    float rim = ice * smoothstep(0.9 * ice + 0.05, 0.35 * ice, depth) * (1.0 - smoothstep(140.0, 220.0, world.x));
+    rim = clamp(rim * 1.8 - (texture(noise_tex, world.xz / 9.0).r - 0.5) * 0.6, 0.0, 1.0);
+    float crack = texture(noise_tex, world.xz / 22.0 + vec2(0.37, 0.11)).r;
+    c = mix(c, mix(vec3(0.7, 0.78, 0.83), vec3(0.9, 0.93, 0.95), crack), rim);
     float cloud = texture(noise_tex, world.xz / 300.0 + TIME * vec2(0.0035, 0.002)).r;
     c *= 1.0 - smoothstep(0.78 - cloud_cover * 0.55, 0.9 - cloud_cover * 0.55, cloud) * 0.3 * daylight;
     c = mix(c, c * vec3(0.78, 0.82, 0.86), rain * 0.5);
     ALBEDO = c;
-    ROUGHNESS = 0.34 + rain * 0.3;
+    ROUGHNESS = mix(0.34 + rain * 0.3, 0.55, rim);
     SPECULAR = 0.36;
-    NORMAL_MAP = normalize(vec3(0.5 + ripple * 0.07, 0.5 - ripple * 0.05, 1.0));
+    NORMAL_MAP = normalize(vec3(0.5 + ripple * 0.07 * (1.0 - rim), 0.5 - ripple * 0.05 * (1.0 - rim), 1.0));
 }";
 
     private const float CharacterScale = 1.12f, NearRadius = 700f;
@@ -1252,6 +1258,8 @@ void fragment() {
         float snowLevel = Math.Max(Mathf.Lerp(snow[a], snow[b], t), harsh * 0.96f);
         _terrain.SetShaderParameter("season_tint", tint);
         _terrain.SetShaderParameter("snow", snowLevel);
+        // Only a harsh winter freezes the river: ice spreads out from the shallow banks.
+        _waterMaterial.SetShaderParameter("ice", harsh);
         Color leaf = leaves[a].Lerp(leaves[b], t).Lerp(new Color(0.46f, 0.46f, 0.2f), drought * 0.35f).Lerp(leaves[3], harsh * 0.8f);
         Color sea = water[a].Lerp(water[b], t);
         _treeMaterial.SetShaderParameter("leaf", new Vector3(leaf.R, leaf.G, leaf.B));
