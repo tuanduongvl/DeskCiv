@@ -1196,6 +1196,17 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A small skater seen from afar: dark coat, red scarf, pale face, leaning forward a little.</summary>
+    public static ArrayMesh Skater()
+    {
+        var m = new MeshKit();
+        Color coat = new(0.18f, 0.2f, 0.26f), scarf = new(0.75f, 0.15f, 0.12f), skin = new(0.86f, 0.7f, 0.58f), legs = new(0.12f, 0.12f, 0.12f);
+        m.Box(new Vector3(0.1f, 0.4f, -0.12f), new Vector3(0.14f, 0.8f, 0.14f), legs).Box(new Vector3(-0.05f, 0.4f, 0.12f), new Vector3(0.14f, 0.8f, 0.14f), legs);
+        m.Box(new Vector3(0.05f, 1.15f, 0), new Vector3(0.36f, 0.75f, 0.46f), coat).Box(new Vector3(0.07f, 1.56f, 0), new Vector3(0.3f, 0.1f, 0.38f), scarf);
+        m.Box(new Vector3(0.08f, 1.75f, 0), new Vector3(0.24f, 0.26f, 0.24f), skin);
+        return m.Build();
+    }
+
     /// <summary>A market stall: a trestle table of goods under a striped awning, open towards local +Z.</summary>
     public static ArrayMesh MarketStall()
     {

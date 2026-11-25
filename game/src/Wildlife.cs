@@ -60,7 +60,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     private readonly float _centerX, _centerZ;
     private readonly Random _random;
     private Flock[] _herds = Array.Empty<Flock>();
-    private Flock _gulls, _boats, _trader;
+    private Flock _gulls, _boats, _trader, _skaters;
     /// <summary>True while a trading ship visits (from the simulation); it sails in, anchors off the village, then leaves.</summary>
     public bool TraderVisiting { get; set; }
     private bool _frozen;
@@ -115,6 +115,17 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         _trader = AddFlock(realBoat ?? MeshKit.Boat(), 1, 2);
         _trader.Agents[0].X = _map.CoastX(_centerZ) + 175;
         _trader.Mesh.VisibleInstanceCount = 0;
+        // Skaters circle on the frozen river off the village in a harsh winter.
+        _skaters = AddFlock(MeshKit.Skater(), 8, 2);
+        _skaters.Mesh.VisibleInstanceCount = 0;
+        for (int i = 0; i < _skaters.Agents.Length; i++)
+        {
+            ref Agent s = ref _skaters.Agents[i];
+            s.TX = R(5f, 15f);
+            s.TZ = R(0.25f, 0.5f) * (R() < 0.5f ? -1 : 1);
+            s.Phase = R(0, MathF.Tau);
+            s.HomeX = _centerX + R(-10f, 30f);
+        }
         for (int i = 0; i < _boats.Agents.Length; i++)
         {
             ref Agent b = ref _boats.Agents[i];
@@ -149,6 +160,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         int[] wanted = { 4 + 3 * _fields, 1 + _fields, 4 + _huts / 2 };
         for (int i = 0; i < 3; i++) _herds[i].Mesh.VisibleInstanceCount = farming ? Math.Clamp(wanted[i], 0, _herds[i].Agents.Length) : 0;
         _boats.Mesh.VisibleInstanceCount = _era >= 2 && !_frozen ? Math.Clamp(_fishers, 1, _boats.Agents.Length) : 0;
+        if (_skaters != null) _skaters.Mesh.VisibleInstanceCount = _frozen ? _skaters.Agents.Length : 0;
     }
 
     /// <summary>Texture and leg layout of a herd or boat model.</summary>
@@ -251,6 +263,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         foreach (Flock herd in _herds) StepHerd(herd, delta, tiles);
         StepGulls(delta);
         StepBoats(delta);
+        StepSkaters(delta);
         StepTrader(delta);
     }
 
@@ -320,6 +333,24 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             Write(_gulls.Buffer, i, 1, heading, x, height, z, 1, g.Phase);
         }
         _gulls.Mesh.Buffer = _gulls.Buffer;
+    }
+
+    /// <summary>Skaters glide in wide loops on the ice off the village, between the bank and mid-river.</summary>
+    private void StepSkaters(float delta)
+    {
+        if (!_frozen) return;
+        float side = MathF.Sign(_centerZ - _map.RiverCenter(_centerX));
+        for (int i = 0; i < _skaters.Agents.Length; i++)
+        {
+            ref Agent s = ref _skaters.Agents[i];
+            s.Phase += s.TZ * delta;
+            float cz = _map.RiverCenter(s.HomeX) + side * WorldMap.EstuaryWidth(s.HomeX) * 0.35f;
+            float x = s.HomeX + MathF.Cos(s.Phase) * s.TX, z = cz + MathF.Sin(s.Phase) * s.TX * 0.6f;
+            // Face along the loop, the way they are going.
+            float heading = MathF.Atan2(-MathF.Sin(s.Phase) * MathF.Sign(s.TZ), MathF.Cos(s.Phase) * 0.6f * MathF.Sign(s.TZ));
+            Write(_skaters.Buffer, i, 1f, heading, x, 0.05f, z, 1, s.Phase);
+        }
+        _skaters.Mesh.Buffer = _skaters.Buffer;
     }
 
     private void StepBoats(float delta)
