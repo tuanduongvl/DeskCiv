@@ -2029,7 +2029,8 @@ public sealed class Simulation
         p.A = polder.Ring[polder.Built];
         p.Timer = 28f;
         (float x, float z) = TileCenter(stand);
-        GoTo(p, x, z);
+        // Spread the dike workers over the tile instead of stacking them on its centre.
+        GoTo(p, x + (p.Id % 3 - 1) * 1.2f, z + (p.Id / 3 % 3 - 1) * 1.2f);
         return true;
     }
 
