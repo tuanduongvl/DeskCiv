@@ -1488,8 +1488,8 @@ void fragment() {
         {
             bool workshop = b.Type is BType.Bakery or BType.Smithy;
             if (workshop != (pass == 0)) continue;
-            // With district heating in the 20th century only one hearth in four still smokes.
-            bool hutFire = b.Type == BType.Hut && b.Occupants > 0 && (cold || (int)(b.X * 3 + b.Z * 5) % 3 == 0) && (s.Era < 7 || _boilerAt == null || (int)(b.X * 5 + b.Z * 3) % 4 == 0);
+            // A house on the district heating (20th century, street by street) seldom lights its own hearth.
+            bool hutFire = b.Type == BType.Hut && b.Occupants > 0 && (cold || (int)(b.X * 3 + b.Z * 5) % 3 == 0) && (!b.DistrictHeated || (int)(b.X * 5 + b.Z * 3) % 4 == 0);
             if (!b.Built || (!workshop && !hutFire)) continue;
             int count = b.Type == BType.Hut ? 3 : 5;
             Vector3 source = b.Type == BType.Hut && s.Era == 0

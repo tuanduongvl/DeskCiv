@@ -432,8 +432,8 @@ public sealed class Simulation
             {
                 if (season == 3 && b.Occupants > 0)
                 {
-                    // Coal stoves burn less wood from the Industrial era, and district heating takes most of the load later.
-                    b.BurnDebt += ColdFactor * dt / 75f * (Era >= 7 ? 0.35f : Era >= 6 ? 0.7f : 1f);
+                    // Coal stoves burn less wood from the Industrial era; a house on the district heating takes most of the load off.
+                    b.BurnDebt += ColdFactor * dt / 75f * (DistrictHeated(b) ? 0.35f : Era >= 6 ? 0.7f : 1f);
                     while (b.BurnDebt >= 1 && b.Stock[(int)Res.Wood] > b.Out[(int)Res.Wood])
                     {
                         b.BurnDebt -= 1;
@@ -2593,6 +2593,12 @@ public sealed class Simulation
         DigTile = -1;
         MainsVersion++;
     }
+
+    /// <summary>
+    /// District heating (20th century): the hot-water pipes go down with the sewers, so a house is on it once there is
+    /// a boiler house and its street has been dug for sewers.
+    /// </summary>
+    public bool DistrictHeated(Building b) => Era >= 7 && b.Type == BType.Hut && PipedNear(b.DoorTile) >= 2 && Landmarks.Exists(l => l.Kind == 2);
 
     /// <summary>The best pipes within two tiles of a door.</summary>
     private int PipedNear(int door)
