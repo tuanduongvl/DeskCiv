@@ -42,7 +42,7 @@ public partial class Main : Node3D
     private string _shotPath;
     private double _shotAt;
     private int _baseSpeed = 1, _shotNumber, _shotFrames, _shotWait, _burst, _burstIndex;
-    private float CloseDistance = 30f, _azimuth, _azimuthTarget, _driftAmount = 1;
+    private float CloseDistance = 30f, _azimuth, _azimuthTarget, _driftAmount = 1, _lift, _liftTarget;
     private const float MinZoom = 10f, MaxZoom = 270f, ManualSeconds = 60f;
     private bool _manual, _wasPanning;
     private double _manualUntil;
@@ -434,6 +434,7 @@ public partial class Main : Node3D
     private void NextShot(WorldSnapshot s)
     {
         _shotNumber++;
+        _liftTarget = 0;
         if (_focusPoint is Vector2 point)
         {
             _focusTarget = FocusAt(point.X, point.Y);
@@ -447,9 +448,9 @@ public partial class Main : Node3D
             foreach (BuildingView b in s.Buildings)
             {
                 if (b.Type != look || !b.Built) continue;
-                _focusTarget = FocusAt(b.X, b.Z);
+                _focusTarget = FocusAt(b.X, b.Z) + new Vector3(0, 3f, 0);
                 _distanceTarget = CloseDistance;
-                _azimuthTarget = ClearAzimuth(s, b.X, b.Z);
+                _azimuthTarget = ClearAzimuth(s, b.X, b.Z, 5f);
                 _focusTimer = 100000;
                 return;
             }
@@ -461,7 +462,7 @@ public partial class Main : Node3D
         {
             _focusTarget = FocusAt(landmark.X, landmark.Z);
             _distanceTarget = CloseDistance * 1.6f;
-            _azimuthTarget = ClearAzimuth(s, landmark.X, landmark.Z);
+            _azimuthTarget = ClearAzimuth(s, landmark.X, landmark.Z, 8f);
             _focusTimer = 20;
             return;
         }
@@ -498,32 +499,49 @@ public partial class Main : Node3D
         _focusTimer = _forcedClip != null ? 100000 : 34;
     }
 
-    /// <summary>Finds a viewing direction with no building or tree between the camera and the worker.</summary>
-    private float ClearAzimuth(WorldSnapshot s, float x, float z)
+    /// <summary>
+    /// Finds the viewing direction where the fewest buildings and trees stand between the camera and the target.
+    /// The camera looks down at a shallow angle, so a building blocks the view when it is taller than the sight
+    /// line at that distance. If every direction is blocked, the camera also rises for this shot.
+    /// </summary>
+    private float ClearAzimuth(WorldSnapshot s, float x, float z, float skip = 3f)
     {
-        float[] degrees = { 0, 35, -35, 70, -70, 110, -110, 145, -145, 180 };
+        float distance = Mathf.Max(_distanceTarget, 10f);
+        float slope = SightHeight(distance, 0f) / 0.92f;
         (float[] treeX, float[] treeZ) = _sim.TreePositions;
-        foreach (float degree in degrees)
+        float bestCost = float.MaxValue, bestAngle = 0;
+        for (int k = 0; k < 16; k++)
         {
+            // 0, +22.5, -22.5, +45, ... so the usual front view wins ties.
+            float degree = (k % 2 == 1 ? 1 : -1) * ((k + 1) / 2) * 22.5f;
             float angle = Mathf.DegToRad(degree), dx = MathF.Sin(angle), dz = MathF.Cos(angle);
-            bool clear = true;
-            for (float d = 3f; d <= 25f && clear; d += 1.5f)
+            float cost = 0;
+            for (float d = skip; d <= Mathf.Min(45f, distance * 0.92f) && cost < bestCost; d += 1.5f)
             {
+                float sight = d * slope + 1f;
+                if (sight > 18f) break;
                 float px = x + dx * d, pz = z + dz * d;
                 int tx = Math.Clamp((int)((px + WorldMap.SizeX / 2) / Rules.TileSize), 0, Rules.TileNx - 1);
                 int tz = Math.Clamp((int)((pz + WorldMap.SizeZ / 2) / Rules.TileSize), 0, Rules.TileNz - 1);
-                if (s.Tiles[tx + tz * Rules.TileNx] == TileKind.Building) clear = false;
-                for (int i = 0; i < treeX.Length && clear; i++)
+                if (s.Tiles[tx + tz * Rules.TileNx] == TileKind.Building) { cost += (18f - sight) / d; continue; }
+                if (sight > 9f) continue;
+                for (int i = 0; i < treeX.Length; i++)
                 {
                     if (!s.TreeAlive[i]) continue;
                     float ax = treeX[i] - px, az = treeZ[i] - pz;
-                    if (ax * ax + az * az < 9f && (treeX[i] - x) * (treeX[i] - x) + (treeZ[i] - z) * (treeZ[i] - z) > 6f) clear = false;
+                    if (ax * ax + az * az < 9f) { cost += (9f - sight) / d * 0.5f; break; }
                 }
             }
-            if (clear) return angle;
+            if (cost < bestCost) { bestCost = cost; bestAngle = angle; }
+            if (cost == 0) break;
         }
-        return 0;
+        _liftTarget = Mathf.Clamp(bestCost / 2f, 0f, 1f);
+        return bestAngle;
     }
+
+    /// <summary>Camera height as a fraction of its distance; raised for shots that would otherwise be blocked.</summary>
+    private static float SightHeight(float distance, float lift) =>
+        Mathf.Lerp(0.36f, 0.58f, Mathf.Clamp((distance - 40f) / 120f, 0f, 1f)) + lift * 0.5f;
 
     private Vector3 FocusAt(float x, float z) => new(x, Mathf.Max(0, _sim.Map.Height(x, z)) + 1f, z);
 
@@ -589,7 +607,8 @@ public partial class Main : Node3D
         float t = (float)_elapsed;
         var drift = new Vector3(MathF.Sin(t / 37f) * _distance * 0.055f, 0, MathF.Sin(t / 53f) * _distance * 0.03f) * _driftAmount;
         Vector3 target = _focus + drift * 0.45f;
-        float height = Mathf.Lerp(0.36f, 0.58f, Mathf.Clamp((_distance - 40f) / 120f, 0f, 1f));
+        _lift = Mathf.Lerp(_lift, _liftTarget, ease);
+        float height = SightHeight(_distance, _lift);
         var position = _focus + drift + new Vector3(MathF.Sin(_azimuth) * _distance * 0.92f, _distance * height, MathF.Cos(_azimuth) * _distance * 0.92f);
         position.X = Mathf.Clamp(position.X, -WorldMap.SizeX / 2 + 6, WorldMap.SizeX / 2 - 6);
         position.Z = Mathf.Clamp(position.Z, -WorldMap.SizeZ / 2 + 6, WorldMap.SizeZ / 2 - 6);
