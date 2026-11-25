@@ -636,6 +636,15 @@ public sealed class Simulation
         // Workers, porters and builders keep the village running; children, elders and the jobless within reach go.
         bool free = p.Age < 14 || p.Age >= 60 || (p.Job < 0 && p.Role is not (Role.Porter or Role.Builder));
         if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius) = (GatherX, GatherZ, 7);
+        // By day, jobless adults stand about at the factory gate hoping for work (Industrial era and later).
+        else if (!Night && p.Age >= 14 && p.Age < 60 && p.Job < 0 && p.Role is not (Role.Porter or Role.Builder) && p.Id % 2 == 0
+                 && Landmarks.FindIndex(l => l.Kind == 3) is int factoryAt and >= 0)
+        {
+            Landmark factory = Landmarks[factoryAt];
+            (float fx, float fz) = TileCenter(factory.TileX + factory.TileZ * Rules.TileNx);
+            float gate = (factory.HalfZ + 1.3f) * Rules.TileSize;
+            (cx, cz, radius) = (fx + MathF.Sin(factory.Yaw) * gate, fz + MathF.Cos(factory.Yaw) * gate, 5);
+        }
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         p.Act = Act.Wander;
         p.Timer = Cosmetic.R(3, 11);
