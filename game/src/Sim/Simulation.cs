@@ -1810,10 +1810,95 @@ public sealed class Simulation
         Log("An old house is pulled down and rebuilt larger", chosen.X, chosen.Z, 1);
     }
 
+    /// <summary>Town landmarks on their own lots (0 church, 1 water tower, 2 boiler house). Not buildings: nobody works there.</summary>
+    public readonly record struct Landmark(int Kind, int TileX, int TileZ, int HalfX, int HalfZ, float Yaw);
+    public readonly List<Landmark> Landmarks = new();
+
+    private bool LotFree(int x, int z, int hx, int hz, bool keepCorridors = true)
+    {
+        for (int dz = -hz; dz <= hz; dz++)
+        for (int dx = -hx; dx <= hx; dx++)
+        {
+            int tx = x + dx, tz = z + dz;
+            if (!InGrid(tx, tz) || Tiles[tx + tz * Rules.TileNx] != TileKind.Free || (keepCorridors && OnCorridor(tx, tz))) return false;
+            (float wx, float wz) = TileCenter(tx + tz * Rules.TileNx);
+            if (!Map.Walkable(wx, wz)) return false;
+        }
+        return true;
+    }
+
+    private void AddLandmark(int kind, int x, int z, int hx, int hz, float yaw)
+    {
+        for (int dz = -hz; dz <= hz; dz++)
+        for (int dx = -hx; dx <= hx; dx++)
+        {
+            int tile = x + dx + (z + dz) * Rules.TileNx;
+            RoadQueue.Remove(tile);
+            Tiles[tile] = TileKind.Building;
+            ClearTrees(tile);
+        }
+        Landmarks.Add(new Landmark(kind, x, z, hx, hz, yaw));
+        RoadVersion++;
+    }
+
+    /// <summary>
+    /// At each new year: a parish church from the Middle Ages on the free lot nearest the centre, a water tower from
+    /// the Industrial era on the highest free ground nearby, a boiler house beside it in the 20th century.
+    /// Deterministic scans, no random draws.
+    /// </summary>
+    private void PlaceLandmarks()
+    {
+        bool Has(int kind) => Landmarks.Exists(l => l.Kind == kind);
+        int cx = (int)((CenterX + WorldMap.SizeX / 2) / Rules.TileSize), cz = (int)((CenterZ + WorldMap.SizeZ / 2) / Rules.TileSize);
+        if (Era >= 4 && !Has(0))
+        {
+            // Nearest free lot, lying north-south or east-west; corridor land only if nothing else is left.
+            int best = int.MaxValue, bx = 0, bz = 0;
+            bool along = true;
+            for (int pass = 0; pass < 2 && best == int.MaxValue; pass++)
+            for (int z = cz - 40; z <= cz + 40; z++)
+            for (int x = cx - 40; x <= cx + 40; x++)
+            {
+                int d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
+                if (d >= best) continue;
+                if (LotFree(x, z, 1, 3, pass == 0)) (best, bx, bz, along) = (d, x, z, true);
+                else if (LotFree(x, z, 3, 1, pass == 0)) (best, bx, bz, along) = (d, x, z, false);
+            }
+            if (best < int.MaxValue)
+                AddLandmark(0, bx, bz, along ? 1 : 3, along ? 3 : 1, along ? (bz > cz ? 0 : MathF.PI) : (bx > cx ? MathF.PI / 2 : -MathF.PI / 2));
+        }
+        if (Era >= 6 && !Has(1))
+        {
+            float best = float.MinValue;
+            int bx = 0, bz = 0;
+            for (int z = cz - 45; z <= cz + 45; z++)
+            for (int x = cx - 45; x <= cx + 45; x++)
+            {
+                if (!InGrid(x, z)) continue;
+                (float wx, float wz) = TileCenter(x + z * Rules.TileNx);
+                float h = Map.Height(wx, wz) - 0.004f * ((x - cx) * (x - cx) + (z - cz) * (z - cz));
+                if (h > best && LotFree(x, z, 1, 1, false)) (best, bx, bz) = (h, x, z);
+            }
+            if (best > float.MinValue) AddLandmark(1, bx, bz, 1, 1, 0);
+        }
+        if (Era >= 7 && !Has(2) && Landmarks.Find(l => l.Kind == 1) is { Kind: 1 } tower)
+        {
+            // The free lot nearest the water tower, within 10 tiles.
+            int best = int.MaxValue, bx = 0, bz = 0;
+            for (int dz = -10; dz <= 10; dz++)
+            for (int dx = -10; dx <= 10; dx++)
+            {
+                int d = dx * dx + dz * dz;
+                if (d >= 9 && d < best && LotFree(tower.TileX + dx, tower.TileZ + dz, 1, 1, false)) (best, bx, bz) = (d, tower.TileX + dx, tower.TileZ + dz);
+            }
+            if (best < int.MaxValue) AddLandmark(2, bx, bz, 1, 1, 0);
+        }
+    }
     private void NewYear()
     {
         if (Era >= 4) WidenBusyStreets();
         if (Era >= 6) RenewOldHouse();
+        PlaceLandmarks();
         foreach (Building b in Buildings)
         {
             if (b.Type != BType.Field) continue;
@@ -2322,6 +2407,7 @@ public sealed class Simulation
         Add((ulong)Era);
         Add((ulong)PlanWait);
         foreach (Polder p in Polders) { Add((ulong)p.Built); Add((ulong)p.Stage); AddF(p.Drain); }
+        foreach (Landmark l in Landmarks) { Add((ulong)l.Kind); Add((ulong)l.TileX); Add((ulong)l.TileZ); }
         AddF(GatherX); AddF(GatherZ); Add((ulong)GatherUntil); Add((ulong)LastGathering);
         Add((ulong)FloodAt); Add((ulong)FloodEnd); AddF(ToolBonus); AddF(WineBonus);
         foreach (Person p in People)
@@ -2345,7 +2431,7 @@ public sealed class Simulation
 
     public void Save(BinaryWriter w)
     {
-        w.Write(12);
+        w.Write(13);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2392,12 +2478,14 @@ public sealed class Simulation
         foreach (Building b in Buildings) if (b.Renewed) renewed++;
         w.Write(renewed);
         foreach (Building b in Buildings) if (b.Renewed) w.Write(b.Id);
+        w.Write(Landmarks.Count);
+        foreach (Landmark l in Landmarks) { w.Write(l.Kind); w.Write(l.TileX); w.Write(l.TileZ); w.Write(l.HalfX); w.Write(l.HalfZ); w.Write(l.Yaw); }
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version is not (9 or 10 or 11 or 12)) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10 or 11 or 12 or 13)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
@@ -2453,6 +2541,7 @@ public sealed class Simulation
         if (version >= 10) { s.GatherX = r.ReadSingle(); s.GatherZ = r.ReadSingle(); s.GatherUntil = r.ReadInt64(); s.LastGathering = r.ReadInt64(); }
         if (version >= 11) s.Cosmetic.State = r.ReadUInt64();
         if (version >= 12) for (int n = r.ReadInt32(); n > 0; n--) s.Buildings[r.ReadInt32()].Renewed = true;
+        if (version >= 13) for (int n = r.ReadInt32(); n > 0; n--) s.Landmarks.Add(new Landmark(r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadSingle()));
         return s;
     }
 

@@ -30,6 +30,7 @@ public sealed class WorldSnapshot
     public (float X, float Z)[] Graves = Array.Empty<(float, float)>();
     public (float X, float Z, Clip Clip)[] Spots = Array.Empty<(float, float, Clip)>();
     public WorldEvent? LastEvent;
+    public Simulation.Landmark[] Landmarks = Array.Empty<Simulation.Landmark>();
 }
 
 public sealed class PeopleFrame
@@ -314,7 +315,7 @@ public sealed class SimHost
             ActiveEvent = _sim.ActiveEvent, TreeVersion = _lastTreeVersion, Year = _sim.Year, YearFraction = _sim.YearFraction,
             CenterX = _sim.CenterX, CenterZ = _sim.CenterZ, RunComplete = _sim.RunComplete, Flooding = _sim.Flooding, TraderVisiting = _sim.TraderVisiting, Gathering = _sim.GatherUntil > _sim.Tick, History = _sim.History.ToArray(), Buildings = buildings, TreeAlive = _trees,
             Wear = (byte[])_sim.Wear.Clone(), Tiles = (byte[])_sim.Tiles.Clone(), RoadVersion = _sim.RoadVersion, Graves = _sim.Graves.ToArray(), Spots = BuildSpots(),
-            LastEvent = NewsEvent(), PolderDrain = DrainingPolder(),
+            LastEvent = NewsEvent(), PolderDrain = DrainingPolder(), Landmarks = _sim.Landmarks.ToArray(),
         };
     }
 

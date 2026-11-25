@@ -1038,72 +1038,27 @@ void fragment() {
                 if (s.Era >= 4) _fountains.SetInstanceTransform(fountains++, spot);
                 else _wells.SetInstanceTransform(wells++, spot);
             }
-        if (s.Era >= 6)
+        // Landmark lots are chosen and kept by the simulation, so they never move and nobody walks through them.
+        Vector3 LotCentre(Simulation.Landmark l)
         {
-            int nx = Rules.TileNx, cx = (int)((s.CenterX + WorldMap.SizeX / 2) / Rules.TileSize), cz = (int)((s.CenterZ + WorldMap.SizeZ / 2) / Rules.TileSize);
-            float bestHeight = float.MinValue;
-            Vector3 best = Vector3.Zero;
-            for (int z = Math.Max(1, cz - 25); z < Math.Min(Rules.TileNz - 1, cz + 25); z++)
-            for (int x = Math.Max(1, cx - 25); x < Math.Min(nx - 1, cx + 25); x++)
-            {
-                bool free = true;
-                for (int dz = -1; dz <= 1 && free; dz++)
-                for (int dx = -1; dx <= 1 && free; dx++)
-                    free = s.Tiles[x + dx + (z + dz) * nx] == TileKind.Free;
-                if (!free) continue;
-                float wx = (x + 0.5f) * Rules.TileSize - WorldMap.SizeX / 2, wz = (z + 0.5f) * Rules.TileSize - WorldMap.SizeZ / 2;
-                float h = _map.Height(wx, wz) - 0.002f * ((x - cx) * (x - cx) + (z - cz) * (z - cz));
-                if (h > bestHeight) (bestHeight, best) = (h, new Vector3(wx, _map.Height(wx, wz), wz));
-            }
-            if (bestHeight > float.MinValue) _towers.SetInstanceTransform(towers++, new Transform3D(Basis.Identity, best));
+            float wx = (l.TileX + 0.5f) * Rules.TileSize - WorldMap.SizeX / 2, wz = (l.TileZ + 0.5f) * Rules.TileSize - WorldMap.SizeZ / 2;
+            return new Vector3(wx, _map.Height(wx, wz), wz);
         }
+        foreach (Simulation.Landmark l in s.Landmarks)
+            if (l.Kind == 1 && towers == 0) _towers.SetInstanceTransform(towers++, new Transform3D(Basis.Identity, LotCentre(l)));
         // Heating by era: coal smoke is darker in the Industrial era; in the 20th century a district heating boiler
         // house beside the water tower takes over from most hearths.
         _puffMaterial?.SetShaderParameter("tone", s.Era == 6 ? new Vector3(0.42f, 0.41f, 0.4f) : s.Era >= 7 ? new Vector3(0.8f, 0.8f, 0.8f) : new Vector3(0.86f, 0.85f, 0.82f));
         _boilerAt = null;
-        if (s.Era >= 7 && towers > 0)
-        {
-            Vector3 tower = _towers.GetInstanceTransform(0).Origin;
-            foreach (Vector3 offset in new[] { new Vector3(14, 0, 0), new Vector3(-14, 0, 0), new Vector3(0, 0, 14), new Vector3(0, 0, -14) })
-            {
-                Vector3 at = tower + offset;
-                int tx = (int)((at.X + WorldMap.SizeX / 2) / Rules.TileSize), tz = (int)((at.Z + WorldMap.SizeZ / 2) / Rules.TileSize);
-                if (tx < 1 || tz < 1 || tx >= Rules.TileNx - 1 || tz >= Rules.TileNz - 1 || s.Tiles[tx + tz * Rules.TileNx] != TileKind.Free) continue;
-                at.Y = _map.Height(at.X, at.Z);
-                _boilerAt = at;
-                break;
-            }
-        }
+        foreach (Simulation.Landmark l in s.Landmarks) if (l.Kind == 2) _boilerAt = LotCentre(l);
         if (_boilerAt is Vector3 boiler) _boilers.SetInstanceTransform(0, new Transform3D(Basis.Identity, boiler));
         _boilers.VisibleInstanceCount = _boilerAt != null ? 1 : 0;
         // From the Middle Ages a parish church stands on the open ground nearest the centre, facing it.
         int churches = 0;
-        if (s.Era >= 4)
-        {
-            int nx = Rules.TileNx, cx = (int)((s.CenterX + WorldMap.SizeX / 2) / Rules.TileSize), cz = (int)((s.CenterZ + WorldMap.SizeZ / 2) / Rules.TileSize);
-            float bestDistance = float.MaxValue;
-            Vector3 spot = Vector3.Zero;
-            for (int z = Math.Max(2, cz - 30); z < Math.Min(Rules.TileNz - 2, cz + 30); z++)
-            for (int x = Math.Max(3, cx - 30); x < Math.Min(nx - 3, cx + 30); x++)
-            {
-                float d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
-                if (d >= bestDistance) continue;
-                bool free = true;
-                for (int dz = -3; dz <= 3 && free; dz++)
-                for (int dx = -1; dx <= 1 && free; dx++)
-                    free = z + dz > 0 && z + dz < Rules.TileNz && s.Tiles[x + dx + (z + dz) * nx] == TileKind.Free;
-                if (!free) continue;
-                float wx = (x + 0.5f) * Rules.TileSize - WorldMap.SizeX / 2, wz = (z + 0.5f) * Rules.TileSize - WorldMap.SizeZ / 2;
-                if (!_map.Walkable(wx, wz)) continue;
-                (bestDistance, spot) = (d, new Vector3(wx, _map.Height(wx, wz), wz));
-            }
-            if (bestDistance < float.MaxValue)
-            {
-                // The model's long axis is Z with the tower at +Z; turn the tower end away from the centre.
-                float yaw = spot.Z > s.CenterZ ? 0 : MathF.PI;
-                _churches.SetInstanceTransform(churches++, new Transform3D(new Basis(Vector3.Up, yaw), spot));
-            }
-        }
+        foreach (Simulation.Landmark l in s.Landmarks)
+            if (l.Kind == 0 && churches == 0)
+                // The model's long axis is Z with the tower at +Z; the lot's yaw turns the tower away from the centre.
+                _churches.SetInstanceTransform(churches++, new Transform3D(new Basis(Vector3.Up, l.Yaw), LotCentre(l)));
         if (churches != _churches.VisibleInstanceCount || (churches > 0 && _churches.GetInstanceTransform(0).Origin != _churchShown)) _graveCount = -1;
         _churches.VisibleInstanceCount = churches;
         // From the Renaissance a quay with a treadwheel crane stands on the bank where the trading ship anchors.
