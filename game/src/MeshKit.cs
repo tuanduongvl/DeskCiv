@@ -982,6 +982,7 @@ public sealed class MeshKit
     /// <summary>A village well: stone ring, two posts, a little roof and a windlass with a bucket.</summary>
     public static ArrayMesh Well()
     {
+        if (LoadModel("prop_well") is ArrayMesh real) return real;
         var m = new MeshKit();
         Color stone = Rock.Darkened(0.05f), wood = new(0.42f, 0.29f, 0.18f);
         m.Prism(Vector3.Zero, 0.95f, 0.9f, 0.85f, 12, stone).Prism(new Vector3(0, 0.84f, 0), 0.72f, 0.72f, 0.02f, 12, new Color(0.12f, 0.16f, 0.2f));
@@ -994,6 +995,7 @@ public sealed class MeshKit
     /// <summary>A town fountain: octagonal basin, a column and an upper bowl.</summary>
     public static ArrayMesh Fountain()
     {
+        if (LoadModel("prop_fountain") is ArrayMesh real) return real;
         var m = new MeshKit();
         Color stone = new(0.68f, 0.65f, 0.58f), water = new(0.25f, 0.42f, 0.5f);
         m.Prism(Vector3.Zero, 1.7f, 1.7f, 0.6f, 8, stone).Prism(new Vector3(0, 0.55f, 0), 1.5f, 1.5f, 0.02f, 8, water);
@@ -1005,6 +1007,7 @@ public sealed class MeshKit
     /// <summary>An early 20th-century water tower: brick shaft, riveted tank and a conical roof, about 17 m.</summary>
     public static ArrayMesh WaterTower()
     {
+        if (LoadModel("prop_watertower") is ArrayMesh real) return real;
         var m = new MeshKit();
         Color brick = new(0.55f, 0.3f, 0.22f), tank = new(0.45f, 0.48f, 0.5f), roof = new(0.3f, 0.33f, 0.36f);
         m.Prism(Vector3.Zero, 2.4f, 2.0f, 11f, 12, brick).Prism(new Vector3(0, 11f, 0), 2.1f, 3.6f, 1.2f, 12, brick.Darkened(0.1f));

@@ -606,9 +606,11 @@ void fragment() {
         _lanterns = AddInstances(MeshKit.Lantern(), _lanternMaterial, false, 64);
         _lampPools = AddInstances(MeshKit.Glow(), _glowMaterial, false, 64);
         _lampPoolNode = GetChildCount() - 1;
-        _wells = AddInstances(MeshKit.Well(), vertexColors, false, 16, true);
-        _fountains = AddInstances(MeshKit.Fountain(), vertexColors, false, 16, true);
-        _towers = AddInstances(MeshKit.WaterTower(), vertexColors, false, 2, true);
+        // Image-made prop models carry their own textured material; the procedural fallbacks use vertex colours.
+        Mesh well = MeshKit.Well(), fountain = MeshKit.Fountain(), tower = MeshKit.WaterTower();
+        _wells = AddInstances(well, well.SurfaceGetMaterial(0) ?? vertexColors, false, 16, true);
+        _fountains = AddInstances(fountain, fountain.SurfaceGetMaterial(0) ?? vertexColors, false, 16, true);
+        _towers = AddInstances(tower, tower.SurfaceGetMaterial(0) ?? vertexColors, false, 2, true);
         _boilers = AddInstances(MeshKit.BoilerHouse(), vertexColors, false, 2, true);
 
         var puffMaterial = _puffMaterial = new ShaderMaterial { Shader = new Shader { Code = SmokeShader } };
