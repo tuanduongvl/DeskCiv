@@ -1116,11 +1116,13 @@ void fragment() {
             float yaw = b.Type == BType.Field ? MathF.Round(b.Rotation / (MathF.PI / 2)) * (MathF.PI / 2) : b.Rotation;
             // The windmill's cap and sails turn into the south-east sea wind, the same yaw as its moving part below.
             if (b.Type == BType.Windmill) yaw = MathF.PI * 0.3f;
-            Basis basis = b.Type is BType.Field or BType.Vineyard ? GroundBasis(b.X, b.Z, yaw, rise) : new Basis(Vector3.Up, yaw).Scaled(new Vector3(1, rise, 1));
+            // A house rebuilt in the Industrial era stands a little wider and taller than its neighbours.
+            float grow = b.Renewed ? 1.12f : 1f, lift = b.Renewed ? 1.22f : 1f;
+            Basis basis = b.Type is BType.Field or BType.Vineyard ? GroundBasis(b.X, b.Z, yaw, rise) : new Basis(Vector3.Up, yaw).Scaled(new Vector3(grow, rise * lift, grow));
             if (b.Type == BType.Field) y += 0.22f;
             var transform = new Transform3D(basis, new Vector3(b.X, y, b.Z));
             // Every other building of a type with a second shape for this era uses that shape.
-            bool alt = _variantShown[(int)b.Type] && (((int)(b.X * 7.31f) ^ (int)(b.Z * 3.17f)) & 1) == 1;
+            bool alt = _variantShown[(int)b.Type] && ((((int)(b.X * 7.31f) ^ (int)(b.Z * 3.17f)) & 1) == 1) != b.Renewed;
             // Each building gets its turn at a fixed point of the renovation wave, from a hash of its position.
             float turn = ((uint)((int)(b.X * 13.7f) * 73856093 ^ (int)(b.Z * 11.3f) * 19349663) % 1000) / 1000f;
             bool renovating = renovated < 1f && b.Built && Renovates(b.Type);

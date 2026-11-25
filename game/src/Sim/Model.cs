@@ -49,6 +49,8 @@ public sealed class Person
 
 public sealed class Building
 {
+    /// <summary>An old house that has been pulled down and rebuilt larger (from the Industrial era).</summary>
+    public bool Renewed;
     public int Id, Occupants, Workers, TileX, TileZ, Direction, DoorTile;
     public BType Type;
     public float X, Z, Rotation, Progress, Growth, BurnDebt;

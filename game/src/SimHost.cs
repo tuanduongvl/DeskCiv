@@ -10,7 +10,7 @@ public struct BuildingView
 {
     public BType Type;
     public float X, Z, Rotation, Progress, Growth;
-    public bool Built, Sown, Warm;
+    public bool Built, Sown, Warm, Renewed;
     public int Occupants;
     /// <summary>Pile sizes 0-4 of a storehouse's wood, stone, food sacks and wine barrels, drawn beside it.</summary>
     public byte WoodPile, StonePile, SackPile, BarrelPile;
@@ -297,7 +297,7 @@ public sealed class SimHost
             buildings[i] = new BuildingView
             {
                 Type = b.Type, X = b.X, Z = b.Z, Rotation = b.Rotation, Progress = b.Progress, Growth = b.Growth,
-                Built = b.Built, Sown = b.Sown, Warm = b.Warm, Occupants = b.Occupants,
+                Built = b.Built, Sown = b.Sown, Warm = b.Warm, Renewed = b.Renewed, Occupants = b.Occupants,
             };
             if (b.Type == BType.Storehouse && b.Built)
             {

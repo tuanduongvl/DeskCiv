@@ -1784,9 +1784,36 @@ public sealed class Simulation
         }
     }
 
+    /// <summary>
+    /// From the Industrial era, one old house near the centre a year is pulled down and rebuilt larger on the same plot.
+    /// Its family stays on; builders and porters treat it as a site until it stands again.
+    /// </summary>
+    private void RenewOldHouse()
+    {
+        Building chosen = null;
+        float best = 80f * 80f;
+        foreach (Building b in Buildings)
+        {
+            if (b.Type != BType.Hut) continue;
+            if (b.Renewed && !b.Built) return; // one rebuild at a time
+            if (!b.Built || b.Renewed) continue;
+            float d = Dist2(b.X, b.Z, CenterX, CenterZ);
+            if (d < best) (best, chosen) = (d, b);
+        }
+        if (chosen == null) return;
+        chosen.Renewed = true;
+        chosen.Built = false;
+        chosen.Progress = 0.2f;
+        chosen.Workers = 0;
+        BuildingVersion++;
+        Log("An old house is pulled down and rebuilt larger", chosen.X, chosen.Z, 1);
+    }
+
     private void NewYear()
     {
-        if (Era >= 4) WidenBusyStreets();        if (Era >= 3 && (int)MathF.Round(Year) % 3 == 1)
+        if (Era >= 4) WidenBusyStreets();
+        if (Era >= 6) RenewOldHouse();
+        if (Era >= 3 && (int)MathF.Round(Year) % 3 == 1)
         {
             float sx = CenterX + 25;
             // Children, elders and the jobless go down to the bank to watch the ship come in.
@@ -2312,7 +2339,7 @@ public sealed class Simulation
 
     public void Save(BinaryWriter w)
     {
-        w.Write(11);
+        w.Write(12);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2355,12 +2382,16 @@ public sealed class Simulation
         }
         w.Write(GatherX); w.Write(GatherZ); w.Write(GatherUntil); w.Write(LastGathering);
         w.Write(Cosmetic.State);
+        int renewed = 0;
+        foreach (Building b in Buildings) if (b.Renewed) renewed++;
+        w.Write(renewed);
+        foreach (Building b in Buildings) if (b.Renewed) w.Write(b.Id);
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version is not (9 or 10 or 11)) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10 or 11 or 12)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
@@ -2415,6 +2446,7 @@ public sealed class Simulation
             if (!used[i]) s._freeSlots.Push(i);
         if (version >= 10) { s.GatherX = r.ReadSingle(); s.GatherZ = r.ReadSingle(); s.GatherUntil = r.ReadInt64(); s.LastGathering = r.ReadInt64(); }
         if (version >= 11) s.Cosmetic.State = r.ReadUInt64();
+        if (version >= 12) for (int n = r.ReadInt32(); n > 0; n--) s.Buildings[r.ReadInt32()].Renewed = true;
         return s;
     }
 
