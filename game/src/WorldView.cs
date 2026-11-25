@@ -515,6 +515,10 @@ void fragment() {
     private StandardMaterial3D _glowMaterial;
     /// <summary>Flames over a burning house, flickered every frame.</summary>
     private MultiMesh _flames;
+    /// <summary>Railway track along the sim's rail row, and the train that runs on it (view only, on its own clock).</summary>
+    private MultiMesh _rails, _train, _portal;
+    private float _trainClock, _trainStopX, _trainZ, _tunnelX;
+    private bool _hasRail;
     private Vector3? _fireAt;
     private float _fireClock;
     private Node3D _glowNode;
@@ -596,6 +600,9 @@ void fragment() {
         _glowNode = (Node3D)GetChild(GetChildCount() - 1);
         var flameMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
         _flames = AddInstances(MeshKit.Flame(), flameMaterial, false, 5);
+        _rails = AddInstances(MeshKit.RailTrack(), vertexColors, false, 64, true);
+        _train = AddInstances(MeshKit.Train(), vertexColors, false, 1, true);
+        _portal = AddInstances(MeshKit.TunnelPortal(), vertexColors, false, 1, true);
         // Felled trees use the pine model and material, realistic or kit.
         _falling = AddInstances(_treeKinds[0].Mesh, ((MultiMeshInstance3D)GetChild(_treeNodeIndex)).MaterialOverride, false, MaxFalling, true);
         _fallingNodeIndex = GetChildCount() - 1;
@@ -731,6 +738,58 @@ void fragment() {
         }
     }
 
+    /// <summary>Lays track instances along the sim's rail row (built-over tiles are skipped) and finds where the train stops.</summary>
+    private void UpdateRailway(WorldSnapshot s)
+    {
+        int count = 0;
+        _hasRail = s.RailRow >= 0;
+        if (_hasRail)
+        {
+            Ensure(_rails, s.RailX1 - s.RailX0 + 1);
+            for (int x = s.RailX0; x <= s.RailX1; x++)
+            {
+                int tile = x + s.RailRow * Rules.TileNx;
+                if (s.Tiles[tile] == TileKind.Building) continue;
+                (float wx, float wz) = Simulation.TileCenter(tile);
+                _rails.SetInstanceTransform(count++, new Transform3D(Basis.Identity, new Vector3(wx, _map.Height(wx, wz) + 0.03f, wz)));
+            }
+            (float sx, float sz) = Simulation.TileCenter(s.RailX1 - 4 + s.RailRow * Rules.TileNx);
+            (_trainStopX, _trainZ) = (sx + 6f, sz);
+            (float tx, float tz) = Simulation.TileCenter(s.RailX0 + s.RailRow * Rules.TileNx);
+            _tunnelX = tx - 2f;
+            _portal.SetInstanceTransform(0, new Transform3D(Basis.Identity, new Vector3(_tunnelX, _map.Height(tx, tz) - 0.2f, tz)));
+        }
+        _rails.VisibleInstanceCount = count;
+        _portal.VisibleInstanceCount = _hasRail ? 1 : 0;
+    }
+
+    /// <summary>
+    /// The train keeps its own four-minute timetable: it steams out of the tunnel in the western hills, stands at the station for a
+    /// minute, backs out and is gone for two minutes. View only.
+    /// </summary>
+    private void AnimateTrain(float delta)
+    {
+        if (!_hasRail)
+        {
+            _train.VisibleInstanceCount = 0;
+            return;
+        }
+        _trainClock = (_trainClock + delta) % 240f;
+        // The train comes out of the tunnel; its front starts just inside the portal.
+        float west = _tunnelX - 2f, x;
+        if (_trainClock < 40f) x = Mathf.Lerp(west, _trainStopX, Mathf.SmoothStep(0f, 1f, _trainClock / 40f));
+        else if (_trainClock < 100f) x = _trainStopX;
+        else if (_trainClock < 140f) x = Mathf.Lerp(_trainStopX, west, Mathf.SmoothStep(0f, 1f, (_trainClock - 100f) / 40f));
+        else
+        {
+            _train.VisibleInstanceCount = 0;
+            return;
+        }
+        float ground = Math.Max(_map.Height(x, _trainZ), _map.Height(x - 20f, _trainZ)) + 0.25f;
+        _train.SetInstanceTransform(0, new Transform3D(Basis.Identity, new Vector3(x, ground, _trainZ)));
+        _train.VisibleInstanceCount = 1;
+    }
+
     /// <summary>Flickers the flames on a burning house: each tongue grows and shrinks on its own rhythm.</summary>
     private void AnimateFire(float delta)
     {
@@ -756,6 +815,7 @@ void fragment() {
     {
         _wildlife?.Step(delta, _shown?.Tiles);
         AnimateFire(delta);
+        AnimateTrain(delta);
         if (_fallingTrees.Count == 0)
         {
             _falling.VisibleInstanceCount = 0;
@@ -999,6 +1059,7 @@ void fragment() {
         UpdateStreetLamps(s);
         UpdateWaterSupply(s);
         UpdateWaterMains(s);
+        UpdateRailway(s);
     }
 
     /// <summary>From the Industrial era a lamp stands at the edge of every few road tiles, beside the verge.</summary>

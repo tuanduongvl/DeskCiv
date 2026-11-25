@@ -47,6 +47,8 @@ public sealed class Simulation
     /// <summary>Diagnostic: how many times a mill hand has walked in through the gate (not saved).</summary>
     public int ShiftsWorked;
     public long FireAt = -1, FireEnd = -1;
+    /// <summary>The railway: one tile row from a tunnel mouth in the western hills (RailX0) to just past the station (RailX1). -1 when none.</summary>
+    public int RailRow = -1, RailX0, RailX1;
     public int MilestoneMask;
     public long FloodAt = -1, FloodEnd = -1;
     public float ToolBonus = 1, WineBonus = 1;
@@ -150,7 +152,7 @@ public sealed class Simulation
     private bool CanEnter(int tile, int goal, bool toRoad)
     {
         byte kind = Tiles[tile];
-        if (toRoad) return kind is TileKind.Free or TileKind.Road or TileKind.PlannedRoad;
+        if (toRoad) return kind is TileKind.Free or TileKind.Road or TileKind.PlannedRoad or TileKind.Rail; // streets cross the railway on the level
         return tile == goal || (kind != TileKind.Blocked && kind != TileKind.Building);
     }
 
@@ -1935,6 +1937,41 @@ public sealed class Simulation
         return true;
     }
 
+    /// <summary>
+    /// Where a railway along this row, running west from tile x1, would enter the hills: the first tile that cannot be
+    /// walked on (the line goes into a tunnel there). -1 if a building or a lot stands in the way first, or if the
+    /// open stretch is shorter than 25 tiles.
+    /// </summary>
+    private int RailEnd(int x1, int row)
+    {
+        if (row < 0 || row >= Rules.TileNz || x1 >= Rules.TileNx) return -1;
+        for (int x = x1; x >= 0; x--)
+        {
+            int tile = x + row * Rules.TileNx;
+            (float wx, float wz) = TileCenter(tile);
+            if (!Map.Walkable(wx, wz)) return x1 - x >= 25 ? x + 1 : -1;
+            if (Tiles[tile] is not (TileKind.Free or TileKind.Road or TileKind.PlannedRoad or TileKind.Field or TileKind.Blocked)) return -1;
+        }
+        return x1 >= 25 ? 0 : -1;
+    }
+
+    /// <summary>Lays the line: open ground becomes track; streets keep their surface as level crossings.</summary>
+    private void LayRail(int stationX, int stationZ, int row, int toCentre)
+    {
+        (RailRow, RailX0, RailX1) = (row, RailEnd(stationX + 4, row), stationX + 4);
+        for (int x = RailX0; x <= RailX1; x++)
+        {
+            int tile = x + row * Rules.TileNx;
+            if (Tiles[tile] != TileKind.Free) continue;
+            Tiles[tile] = TileKind.Rail;
+            ClearTrees(tile);
+        }
+        RoadVersion++;
+        (float gx, float gz) = TileCenter(stationX + (stationZ + 2 * toCentre) * Rules.TileNx);
+        Gather(gx, gz, 150, true);
+        Log("The railway reaches the town: the first train pulls into the new station", gx, gz, 3);
+    }
+
     private void AddLandmark(int kind, int x, int z, int hx, int hz, float yaw)
     {
         for (int dz = -hz; dz <= hz; dz++)
@@ -2003,18 +2040,34 @@ public sealed class Simulation
             if (best < int.MaxValue) AddLandmark(3, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
         }
         // A railway station in the 20th century, laid out like the factory: east-west, entrance facing the centre.
+        // The line runs west along the row behind it into a tunnel in the hills, so the station goes where that row is
+        // clear of buildings (the town's fringe, as real stations did). Without such a lot it stands alone, with no line.
         if (Era >= 7 && !Has(4))
         {
             int best = int.MaxValue, bx = 0, bz = 0;
-            for (int pass = 0; pass < 2 && best == int.MaxValue; pass++)
-            for (int z = cz - 45; z <= cz + 45; z++)
-            for (int x = cx - 45; x <= cx + 45; x++)
+            bool line = false;
+            for (int pass = 0; pass < 3 && best == int.MaxValue; pass++)
             {
-                int d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
-                if (d < best && LotFree(x, z, 3, 1, pass == 0)) (best, bx, bz) = (d, x, z);
+                int reach = pass < 2 ? 60 : 45;
+                for (int z = cz - reach; z <= cz + reach; z++)
+                for (int x = cx - reach; x <= cx + reach; x++)
+                {
+                    int d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
+                    if (d >= best || !LotFree(x, z, 3, 1, pass == 0)) continue;
+                    if (pass < 2 && RailEnd(x + 4, z + (z < cz ? -2 : 2)) < 0) continue;
+                    (best, bx, bz, line) = (d, x, z, pass < 2);
+                }
             }
-            if (best < int.MaxValue) AddLandmark(4, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
+            if (best < int.MaxValue)
+            {
+                AddLandmark(4, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
+                if (line) LayRail(bx, bz, bz + (bz < cz ? -2 : 2), bz < cz ? 1 : -1);
+            }
         }
+        // Fields along the line that have since been built over or cleared get their track too.
+        if (RailRow >= 0)
+            for (int x = RailX0; x <= RailX1; x++)
+                if (Tiles[x + RailRow * Rules.TileNx] == TileKind.Free) Tiles[x + RailRow * Rules.TileNx] = TileKind.Rail;
         if (Era >= 7 && !Has(2) && Landmarks.Find(l => l.Kind == 1) is { Kind: 1 } tower)
         {
             // The free lot nearest the water tower, within 10 tiles.
@@ -2737,6 +2790,7 @@ public sealed class Simulation
         foreach (byte t in Tiles) Add(t);
         foreach (int t in RoadQueue) Add((ulong)t);
         foreach (byte pipe in Pipes) Add(pipe);
+        Add((ulong)(long)RailRow); Add((ulong)RailX0); Add((ulong)RailX1);
         Add((ulong)(long)FireBuilding); Add((ulong)FireAt); Add((ulong)FireEnd); Add((ulong)FiresStarted);
         Add((ulong)(long)DigTile); Add((ulong)DigWork); Add((ulong)MainsWaitUntil); Add((ulong)MainsLogged);
         return h;
@@ -2744,7 +2798,7 @@ public sealed class Simulation
 
     public void Save(BinaryWriter w)
     {
-        w.Write(15);
+        w.Write(16);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2795,12 +2849,13 @@ public sealed class Simulation
         foreach (Landmark l in Landmarks) { w.Write(l.Kind); w.Write(l.TileX); w.Write(l.TileZ); w.Write(l.HalfX); w.Write(l.HalfZ); w.Write(l.Yaw); }
         w.Write(Pipes); w.Write(DigTile); w.Write(DigWork); w.Write(MainsWaitUntil); w.Write(MainsLogged); w.Write(MainsVersion);
         w.Write(FireBuilding); w.Write(FireAt); w.Write(FireEnd); w.Write(FiresStarted); w.Write(FiresPutOut);
+        w.Write(RailRow); w.Write(RailX0); w.Write(RailX1);
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version is not (9 or 10 or 11 or 12 or 13 or 14 or 15)) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10 or 11 or 12 or 13 or 14 or 15 or 16)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
@@ -2866,6 +2921,7 @@ public sealed class Simulation
         {
             s.FireBuilding = r.ReadInt32(); s.FireAt = r.ReadInt64(); s.FireEnd = r.ReadInt64(); s.FiresStarted = r.ReadInt32(); s.FiresPutOut = r.ReadInt32();
         }
+        if (version >= 16) { s.RailRow = r.ReadInt32(); s.RailX0 = r.ReadInt32(); s.RailX1 = r.ReadInt32(); }
         return s;
     }
 

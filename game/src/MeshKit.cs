@@ -1196,6 +1196,50 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>One 4 m length of railway along local X: ballast, sleepers and two rails.</summary>
+    public static ArrayMesh RailTrack()
+    {
+        var m = new MeshKit();
+        Color ballast = new(0.46f, 0.43f, 0.4f), sleeper = new(0.3f, 0.22f, 0.15f), steel = new(0.42f, 0.42f, 0.45f);
+        m.Box(new Vector3(0, 0.05f, 0), new Vector3(4f, 0.1f, 2.6f), ballast);
+        for (int k = 0; k < 6; k++) m.Box(new Vector3(-1.67f + k * 0.667f, 0.13f, 0), new Vector3(0.24f, 0.07f, 2.3f), sleeper);
+        foreach (float z in new[] { -0.72f, 0.72f }) m.Box(new Vector3(0, 0.22f, z), new Vector3(4f, 0.12f, 0.1f), steel);
+        return m.Build();
+    }
+
+    /// <summary>A stone tunnel mouth facing +X, where the railway enters the hills.</summary>
+    public static ArrayMesh TunnelPortal()
+    {
+        var m = new MeshKit();
+        Color stone = new(0.5f, 0.47f, 0.42f), dark = new(0.04f, 0.04f, 0.05f);
+        m.Box(new Vector3(-3f, 3.5f, 0), new Vector3(6f, 7f, 11f), stone.Darkened(0.15f));
+        m.Box(new Vector3(0.05f, 2.6f, 0), new Vector3(0.1f, 5.2f, 4.4f), dark);
+        m.Box(new Vector3(0.2f, 5.9f, 0), new Vector3(0.4f, 1.4f, 6.4f), stone).Box(new Vector3(0.2f, 3f, 2.9f), new Vector3(0.4f, 6f, 1.4f), stone).Box(new Vector3(0.2f, 3f, -2.9f), new Vector3(0.4f, 6f, 1.4f), stone);
+        return m.Build();
+    }
+
+    /// <summary>A steam train facing +X: locomotive and tender at the front, three carriages behind; about 40 m long.</summary>
+    public static ArrayMesh Train()
+    {
+        var m = new MeshKit();
+        Color black = new(0.12f, 0.12f, 0.13f), red = new(0.45f, 0.12f, 0.1f), green = new(0.16f, 0.3f, 0.22f), roof = new(0.25f, 0.25f, 0.27f), brass = new(0.7f, 0.58f, 0.3f);
+        // Locomotive: frame, boiler, smokebox and chimney, cab.
+        m.Box(new Vector3(0, 0.9f, 0), new Vector3(9f, 0.5f, 2.6f), black);
+        m.Box(new Vector3(0.8f, 2.0f, 0), new Vector3(6f, 1.8f, 1.8f), green).Box(new Vector3(4f, 2.0f, 0), new Vector3(0.8f, 1.9f, 1.9f), black);
+        m.Box(new Vector3(3.3f, 3.4f, 0), new Vector3(0.6f, 1.2f, 0.6f), black).Box(new Vector3(1f, 3.05f, 0), new Vector3(0.6f, 0.5f, 0.6f), brass);
+        m.Box(new Vector3(-3.2f, 2.5f, 0), new Vector3(2.4f, 2.8f, 2.7f), green).Box(new Vector3(-3.2f, 4f, 0), new Vector3(2.8f, 0.2f, 3f), roof);
+        m.Box(new Vector3(-6.2f, 1.7f, 0), new Vector3(3.4f, 1.8f, 2.5f), black);
+        for (int c = 0; c < 3; c++)
+        {
+            float x = -12.6f - c * 9.6f;
+            m.Box(new Vector3(x, 0.8f, 0), new Vector3(9f, 0.4f, 2.4f), black);
+            m.Box(new Vector3(x, 2.2f, 0), new Vector3(9f, 2.4f, 2.8f), red).Box(new Vector3(x, 3.5f, 0), new Vector3(9.2f, 0.25f, 3f), roof);
+            for (int w = 0; w < 5; w++)
+                foreach (float z in new[] { -1.42f, 1.42f }) m.Box(new Vector3(x - 3.4f + w * 1.7f, 2.5f, z), new Vector3(1f, 0.8f, 0.04f), new Color(0.75f, 0.7f, 0.5f));
+        }
+        return m.Build();
+    }
+
     /// <summary>A flame: two crossed upright quads, bright yellow at the base fading to nothing at the top (drawn additively).</summary>
     public static ArrayMesh Flame()
     {

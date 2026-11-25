@@ -36,6 +36,8 @@ public sealed class WorldSnapshot
     public int DigTile = -1, MainsVersion;
     /// <summary>The burning house, if any.</summary>
     public bool Burning;
+    /// <summary>The railway row and its west and east tiles, or -1.</summary>
+    public int RailRow = -1, RailX0, RailX1;
     public float FireX, FireZ;
 }
 
@@ -332,6 +334,7 @@ public sealed class SimHost
             Wear = (byte[])_sim.Wear.Clone(), Tiles = (byte[])_sim.Tiles.Clone(), RoadVersion = _sim.RoadVersion, Graves = _sim.Graves.ToArray(), Spots = BuildSpots(),
             LastEvent = NewsEvent(), PolderDrain = DrainingPolder(), Landmarks = _sim.Landmarks.ToArray(),
             Pipes = _pipes, DigTile = _sim.DigTile, MainsVersion = _lastMainsVersion,
+            RailRow = _sim.RailRow, RailX0 = _sim.RailX0, RailX1 = _sim.RailX1,
             Burning = _sim.Burning >= 0, FireX = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].X : 0, FireZ = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].Z : 0,
         };
     }

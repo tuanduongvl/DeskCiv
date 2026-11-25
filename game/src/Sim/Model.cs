@@ -10,7 +10,7 @@ public enum Role : byte { None, Porter, Builder, Worker }
 
 public static class TileKind
 {
-    public const byte Free = 0, Blocked = 1, Building = 2, Road = 3, PlannedRoad = 4, Field = 5;
+    public const byte Free = 0, Blocked = 1, Building = 2, Road = 3, PlannedRoad = 4, Field = 5, Rail = 6;
 }
 
 public sealed class Rng
