@@ -90,6 +90,7 @@ public partial class Main : Node3D
         _restartEvery = Number(args, "--restart-every", 0);
         _restartTimer = _restartEvery;
         _sim = new SimHost(seed, HasFlag(args, "--fresh"), _canSave, _baseSpeed, (float)Number(args, "--start-year", 0));
+        if (HasFlag(args, "--test-fire")) _sim.IgniteForTest();
         BuildScene();
         // Test switches for measuring what the look costs.
         if (HasFlag(args, "--no-shadows")) _sun.ShadowEnabled = false;

@@ -1196,6 +1196,32 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A flame: two crossed upright quads, bright yellow at the base fading to nothing at the top (drawn additively).</summary>
+    public static ArrayMesh Flame()
+    {
+        var vertices = new List<Vector3>();
+        var colors = new List<Color>();
+        var hot = new Color(1.6f, 1.15f, 0.4f);
+        var mid = new Color(1.4f, 0.45f, 0.08f);
+        for (int plane = 0; plane < 2; plane++)
+        {
+            Vector3 side = plane == 0 ? new Vector3(1.6f, 0, 0) : new Vector3(0, 0, 1.6f);
+            Vector3 up = new(0, 2.6f, 0), top = new(0, 5.2f, 0);
+            Vector3[] quad = { -side, side, side + up, -side, side + up, -side + up, -side * 0.7f + up, side * 0.7f + up, top };
+            Color[] tint = { hot, hot, mid, hot, mid, mid, mid, mid, Colors.Black };
+            vertices.AddRange(quad);
+            colors.AddRange(tint);
+        }
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
+        arrays[(int)Mesh.ArrayType.Normal] = vertices.ConvertAll(_ => Vector3.Up).ToArray();
+        arrays[(int)Mesh.ArrayType.Color] = colors.ToArray();
+        var mesh = new ArrayMesh();
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+        return mesh;
+    }
+
     /// <summary>A pool of firelight on the ground before a door: a thin disc drawn additively at night.</summary>
     public static ArrayMesh Glow()
     {

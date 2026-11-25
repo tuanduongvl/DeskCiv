@@ -42,6 +42,9 @@ public sealed class Simulation
     public readonly byte[] Pipes = new byte[Rules.TileNx * Rules.TileNz];
     public int DigTile = -1, DigWork, MainsVersion, MainsLogged;
     public long MainsWaitUntil;
+    /// <summary>A house fire: the house, when it catches, and when the fire is over. -1 when none is due.</summary>
+    public int FireBuilding = -1, FiresStarted, FiresPutOut;
+    public long FireAt = -1, FireEnd = -1;
     public int MilestoneMask;
     public long FloodAt = -1, FloodEnd = -1;
     public float ToolBonus = 1, WineBonus = 1;
@@ -405,6 +408,7 @@ public sealed class Simulation
     private void UpdateWorld(float dt)
     {
         if (FloodAt >= 0 && Tick >= FloodAt) StrikeFlood();
+        if (FireBuilding >= 0) UpdateFire();
         UpdatePolders(dt);
         int season = Season;
         foreach (Building b in Buildings)
@@ -2052,6 +2056,18 @@ public sealed class Simulation
                 if (Gather(hx, hz, 120))
                     Log("A bumper harvest: the village holds a feast", hx, hz, 2);
             }
+            else if (roll < 0.58f && Era >= 3 && FireBuilding < 0)
+            {
+                // Some time between late spring and autumn a house catches fire. The same roll picks which one.
+                float share = (roll - 0.52f) / 0.06f;
+                int huts = 0;
+                foreach (Building b in Buildings)
+                    if (b.Type == BType.Hut && b.Built && b.Occupants > 0) huts++;
+                int pick = (int)(share * huts);
+                foreach (Building b in Buildings)
+                    if (b.Type == BType.Hut && b.Built && b.Occupants > 0 && pick-- == 0) { FireBuilding = b.Id; break; }
+                FireAt = Tick + (long)(Rules.TicksPerYear * (0.3f + 0.4f * share));
+            }
         }
         HarvestFactor *= 1 + Support;
         UseCrafts();
@@ -2332,6 +2348,64 @@ public sealed class Simulation
         return true;
     }
 
+    /// <summary>
+    /// A house fire. The neighbours run to it and pass buckets; on a street with a water main the hydrant puts it
+    /// out, otherwise the house burns down, the family moves out, and builders put up a new one.
+    /// </summary>
+    private void UpdateFire()
+    {
+        Building b = Buildings[FireBuilding];
+        if (FireEnd < 0)
+        {
+            if (Tick < FireAt) return;
+            if (b.Type != BType.Hut || !b.Built)
+            {
+                (FireBuilding, FireAt) = (-1, -1);
+                return;
+            }
+            FiresStarted++;
+            FireEnd = Tick + (long)(150 / Rules.TickSeconds);
+            (float dx, float dz) = DoorPoint(b);
+            Gather(dx, dz, 150, true);
+            Log("Fire! A house is burning and the neighbours form a bucket chain", b.X, b.Z, 3);
+            return;
+        }
+        if (Tick < FireEnd) return;
+        if (PipedNear(b.DoorTile) >= 1)
+        {
+            FiresPutOut++;
+            Log("A hydrant on the new water main saves the burning house", b.X, b.Z, 2);
+        }
+        else
+        {
+            foreach (Person p in People)
+                if (p.Home == b.Id) p.Home = -1;
+            b.Occupants = 0;
+            b.Renewed = true;
+            b.Built = false;
+            b.Warm = false;
+            b.Progress = 0.2f;
+            b.Workers = 0;
+            BuildingVersion++;
+            AssignHomes();
+            Log("The house burns down; the family moves in with neighbours and it will be rebuilt", b.X, b.Z, 2);
+        }
+        (FireBuilding, FireAt, FireEnd) = (-1, -1, -1);
+    }
+
+    /// <summary>Test switch --test-fire: the occupied house nearest the centre catches fire in 20 seconds.</summary>
+    public void IgniteForTest()
+    {
+        float best = float.MaxValue;
+        foreach (Building b in Buildings)
+            if (b.Type == BType.Hut && b.Built && b.Occupants > 0 && Dist2(b.X, b.Z, CenterX, CenterZ) < best)
+                (best, FireBuilding) = (Dist2(b.X, b.Z, CenterX, CenterZ), b.Id);
+        (FireAt, FireEnd) = (Tick + (long)(20 / Rules.TickSeconds), -1);
+    }
+
+    /// <summary>The house on fire right now, or -1.</summary>
+    public int Burning => FireEnd >= 0 && Tick < FireEnd ? FireBuilding : -1;
+
     private int MainsStage => Era >= 7 ? 2 : Era >= 6 ? 1 : 0;
 
     /// <summary>Up to three workers dig up one street tile at a time to lay water mains (Industrial era) and sewers (20th century).</summary>
@@ -2609,13 +2683,14 @@ public sealed class Simulation
         foreach (byte t in Tiles) Add(t);
         foreach (int t in RoadQueue) Add((ulong)t);
         foreach (byte pipe in Pipes) Add(pipe);
+        Add((ulong)(long)FireBuilding); Add((ulong)FireAt); Add((ulong)FireEnd); Add((ulong)FiresStarted);
         Add((ulong)(long)DigTile); Add((ulong)DigWork); Add((ulong)MainsWaitUntil); Add((ulong)MainsLogged);
         return h;
     }
 
     public void Save(BinaryWriter w)
     {
-        w.Write(14);
+        w.Write(15);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2665,12 +2740,13 @@ public sealed class Simulation
         w.Write(Landmarks.Count);
         foreach (Landmark l in Landmarks) { w.Write(l.Kind); w.Write(l.TileX); w.Write(l.TileZ); w.Write(l.HalfX); w.Write(l.HalfZ); w.Write(l.Yaw); }
         w.Write(Pipes); w.Write(DigTile); w.Write(DigWork); w.Write(MainsWaitUntil); w.Write(MainsLogged); w.Write(MainsVersion);
+        w.Write(FireBuilding); w.Write(FireAt); w.Write(FireEnd); w.Write(FiresStarted); w.Write(FiresPutOut);
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version is not (9 or 10 or 11 or 12 or 13 or 14)) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10 or 11 or 12 or 13 or 14 or 15)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
@@ -2731,6 +2807,10 @@ public sealed class Simulation
         {
             r.ReadBytes(s.Pipes.Length).CopyTo(s.Pipes, 0);
             s.DigTile = r.ReadInt32(); s.DigWork = r.ReadInt32(); s.MainsWaitUntil = r.ReadInt64(); s.MainsLogged = r.ReadInt32(); s.MainsVersion = r.ReadInt32();
+        }
+        if (version >= 15)
+        {
+            s.FireBuilding = r.ReadInt32(); s.FireAt = r.ReadInt64(); s.FireEnd = r.ReadInt64(); s.FiresStarted = r.ReadInt32(); s.FiresPutOut = r.ReadInt32();
         }
         return s;
     }

@@ -507,6 +507,10 @@ void fragment() {
     private readonly float[] _barrowBuffer = new float[HeroCapacity * 16];
     private ShaderMaterial _terrain;
     private StandardMaterial3D _glowMaterial;
+    /// <summary>Flames over a burning house, flickered every frame.</summary>
+    private MultiMesh _flames;
+    private Vector3? _fireAt;
+    private float _fireClock;
     private Node3D _glowNode;
     private ImageTexture _wearTexture;
     private byte[] _wearBytes;
@@ -584,6 +588,8 @@ void fragment() {
         _glowMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, AlbedoColor = new Color(1f, 0.68f, 0.28f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
         _glow = AddInstances(MeshKit.Glow(), _glowMaterial, false, 32);
         _glowNode = (Node3D)GetChild(GetChildCount() - 1);
+        var flameMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        _flames = AddInstances(MeshKit.Flame(), flameMaterial, false, 5);
         // Felled trees use the pine model and material, realistic or kit.
         _falling = AddInstances(_treeKinds[0].Mesh, ((MultiMeshInstance3D)GetChild(_treeNodeIndex)).MaterialOverride, false, MaxFalling, true);
         _fallingNodeIndex = GetChildCount() - 1;
@@ -719,10 +725,31 @@ void fragment() {
         }
     }
 
+    /// <summary>Flickers the flames on a burning house: each tongue grows and shrinks on its own rhythm.</summary>
+    private void AnimateFire(float delta)
+    {
+        if (_fireAt is not Vector3 fire)
+        {
+            _flames.VisibleInstanceCount = 0;
+            return;
+        }
+        _fireClock += delta;
+        Ensure(_flames, 5);
+        for (int k = 0; k < 5; k++)
+        {
+            float flicker = 0.75f + 0.25f * MathF.Sin(_fireClock * (5.3f + k * 1.7f) + k * 2.1f) + 0.1f * MathF.Sin(_fireClock * 13f + k);
+            var offset = new Vector3((k % 3 - 1) * 2.4f, (k % 2) * 1.4f, (k / 3 - 0.5f) * 2.6f);
+            var basis = new Basis(Vector3.Up, k * 0.7f + _fireClock * 0.4f).Scaled(new Vector3(1.7f, 1.8f * flicker, 1.7f));
+            _flames.SetInstanceTransform(k, new Transform3D(basis, fire + offset));
+        }
+        _flames.VisibleInstanceCount = 5;
+    }
+
     /// <summary>Animates felled trees between simulation snapshots.</summary>
     public void UpdateFallingTrees(float delta)
     {
         _wildlife?.Step(delta, _shown?.Tiles);
+        AnimateFire(delta);
         if (_fallingTrees.Count == 0)
         {
             _falling.VisibleInstanceCount = 0;
@@ -1370,6 +1397,18 @@ void fragment() {
         UpdateHedges(s);
 
         int puffs = 0;
+        // Flames lick out over the roof: houses grow taller era by era.
+        float roof = new[] { 3f, 3.5f, 4.5f, 5.5f, 7f, 7.5f, 9.5f, 10f }[Math.Clamp(s.Era, 0, 7)];
+        _fireAt = s.Burning ? new Vector3(s.FireX, _map.Height(s.FireX, s.FireZ) + roof * 0.7f, s.FireZ) : null;
+        if (_fireAt is Vector3 fire)
+        {
+            // A burning house sends up a thick column of smoke; it takes the budget first.
+            for (int k = 0; k < 14; k++)
+            {
+                _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 3.2f), fire + new Vector3((k % 3 - 1) * 1.5f, 4f, (k / 3 % 3 - 1) * 1.5f)));
+                _smoke.SetInstanceCustomData(puffs++, new Color(k / 14f, 0, 0));
+            }
+        }
         // In a harsh winter every hearth burns from late autumn.
         bool cold = s.Season == 3 || (s.ActiveEvent == 2 && s.YearFraction > 0.64f);
         // Bakeries and smithies take their smoke first, so a big winter town does not use the whole budget on huts.

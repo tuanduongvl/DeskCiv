@@ -34,6 +34,9 @@ public sealed class WorldSnapshot
     /// <summary>Pipes per tile (0 none, 1 water main, 2 plus sewer) and the street tile being dug, or -1.</summary>
     public byte[] Pipes = Array.Empty<byte>();
     public int DigTile = -1, MainsVersion;
+    /// <summary>The burning house, if any.</summary>
+    public bool Burning;
+    public float FireX, FireZ;
 }
 
 public sealed class PeopleFrame
@@ -96,6 +99,9 @@ public sealed class SimHost
             return null;
         }
     }
+
+    /// <summary>Test switch: sets a house on fire shortly. Call before Start.</summary>
+    public void IgniteForTest() => _sim.IgniteForTest();
 
     public void Start()
     {
@@ -326,6 +332,7 @@ public sealed class SimHost
             Wear = (byte[])_sim.Wear.Clone(), Tiles = (byte[])_sim.Tiles.Clone(), RoadVersion = _sim.RoadVersion, Graves = _sim.Graves.ToArray(), Spots = BuildSpots(),
             LastEvent = NewsEvent(), PolderDrain = DrainingPolder(), Landmarks = _sim.Landmarks.ToArray(),
             Pipes = _pipes, DigTile = _sim.DigTile, MainsVersion = _lastMainsVersion,
+            Burning = _sim.Burning >= 0, FireX = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].X : 0, FireZ = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].Z : 0,
         };
     }
 
