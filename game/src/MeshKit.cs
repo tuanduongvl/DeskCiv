@@ -979,6 +979,24 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A wooden wheelbarrow pushed in front of a porter from the Middle Ages. Local +Z is forward.</summary>
+    public static ArrayMesh Barrow()
+    {
+        var m = new MeshKit();
+        Color wood = new(0.5f, 0.35f, 0.21f), dark = new(0.3f, 0.21f, 0.13f);
+        // Wheel first: a prism along Y turned onto the X axis, centred at (0, 0.25, 1.55).
+        m.Prism(new Vector3(0.25f, -0.04f, 1.55f), 0.26f, 0.26f, 0.08f, 10, dark).Turned(new Basis(Vector3.Back, MathF.PI / 2));
+        m.Box(new Vector3(0, 0.5f, 1.0f), new Vector3(0.72f, 0.07f, 0.86f), wood);
+        foreach (int s in new[] { -1, 1 })
+        {
+            m.Box(new Vector3(s * 0.36f, 0.62f, 1.0f), new Vector3(0.05f, 0.22f, 0.86f), wood.Darkened(0.08f));
+            m.Beam(new Vector3(s * 0.26f, 0.45f, 1.6f), new Vector3(s * 0.3f, 0.86f, 0.3f), 0.035f, dark);
+            m.Box(new Vector3(s * 0.25f, 0.2f, 0.75f), new Vector3(0.05f, 0.42f, 0.05f), dark);
+        }
+        m.Box(new Vector3(0, 0.62f, 1.43f), new Vector3(0.72f, 0.22f, 0.05f), wood.Darkened(0.08f));
+        return m.Build();
+    }
+
     /// <summary>One unit of a storehouse's goods pile; a store shows up to four of each kind as its stock grows.</summary>
     public static ArrayMesh GoodsPile(int kind)
     {

@@ -464,6 +464,8 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
+    private MultiMesh _barrows;
+    private readonly float[] _barrowBuffer = new float[HeroCapacity * 16];
     private ShaderMaterial _terrain;
     private StandardMaterial3D _glowMaterial;
     private Node3D _glowNode;
@@ -565,6 +567,7 @@ void fragment() {
             _loads[i] = AddInstances(MeshKit.Load((Res)i), vertexColors, true, HeroCapacity);
             _loadBuffers[i] = new float[HeroCapacity * 16];
         }
+        _barrows = AddInstances(MeshKit.Barrow(), vertexColors, true, HeroCapacity, true);
 
         var puffMaterial = new ShaderMaterial { Shader = new Shader { Code = SmokeShader } };
         _smoke = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = MeshKit.Puff(), InstanceCount = MaxPuffs, VisibleInstanceCount = 0 };
@@ -1255,7 +1258,7 @@ void fragment() {
         int peopleLength = _people.InstanceCount * 16, cargoLength = _cargo.InstanceCount * 16;
         if (_peopleBuffer.Length != peopleLength) _peopleBuffer = new float[peopleLength];
         if (_cargoBuffer.Length != cargoLength) _cargoBuffer = new float[cargoLength];
-        int visible = 0, carried = 0, heroes = 0;
+        int visible = 0, carried = 0, heroes = 0, barrows = 0;
         Array.Clear(_heroCounts);
         Array.Clear(_toolCounts);
         Array.Clear(_loadCounts);
@@ -1305,7 +1308,13 @@ void fragment() {
                     if (tool >= 0) WriteHero(_toolBuffers[tool], _toolCounts[tool]++, size, sin, cos, x, y, z, Colors.White, start, length, phase);
                 }
                 if (current.Carry[i] > 0)
-                    WriteYawed(_loadBuffers[current.Carry[i] - 1], _loadCounts[current.Carry[i] - 1]++, CharacterScale * scale, sin, cos, x, y, z);
+                {
+                    // From the Middle Ages adults push their loads in a wheelbarrow; the goods ride in its tray.
+                    bool barrow = _clothEra >= 4 && kind is 1 or 2;
+                    float s = CharacterScale * scale, ahead = barrow ? 0.55f * s : 0, drop = barrow ? 0.4f * s : 0;
+                    WriteYawed(_loadBuffers[current.Carry[i] - 1], _loadCounts[current.Carry[i] - 1]++, s, sin, cos, x + sin * ahead, y - drop, z + cos * ahead);
+                    if (barrow) WriteYawed(_barrowBuffer, barrows++, s, sin, cos, x, y, z);
+                }
                 continue;
             }
             Color color = kind == 2 ? new Color(0.72f, 0.36f, 0.34f) : kind == 3 ? new Color(0.82f, 0.72f, 0.5f) : kind == 4 ? new Color(0.68f, 0.66f, 0.62f) : Clothes[i % Clothes.Length];
@@ -1322,6 +1331,7 @@ void fragment() {
         for (int i = 0; i < _heroes.Length; i++) Upload(_heroes[i], _heroBuffers[i], _heroCounts[i]);
         for (int i = 0; i < _tools.Length; i++) Upload(_tools[i], _toolBuffers[i], _toolCounts[i]);
         for (int i = 0; i < _loads.Length; i++) Upload(_loads[i], _loadBuffers[i], _loadCounts[i]);
+        Upload(_barrows, _barrowBuffer, barrows);
         foreach (TexturedRole role in _texturedRoles)
         {
             if (role == null) continue;
