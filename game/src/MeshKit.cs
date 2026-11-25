@@ -1023,6 +1023,7 @@ public sealed class MeshKit
     /// <summary>A 20th-century district heating boiler house: brick hall with a 24 m chimney at local (2.5, 0, -1.5).</summary>
     public static ArrayMesh BoilerHouse()
     {
+        if (LoadModel("prop_boilerhouse") is ArrayMesh real) return real;
         var m = new MeshKit();
         Color brick = new(0.52f, 0.29f, 0.22f), roof = new(0.3f, 0.31f, 0.33f), glass = new(0.3f, 0.42f, 0.5f);
         m.House(9f, 6f, 5f, 1.4f, brick, roof);

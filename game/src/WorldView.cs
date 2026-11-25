@@ -495,6 +495,7 @@ void fragment() {
     private readonly MultiMesh[] _piles = new MultiMesh[4];
     private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers, _boilers;
     private Vector3? _boilerAt;
+    private Vector3 _chimneyTop = new(2.5f, 24.3f, -1.5f);
     private ShaderMaterial _puffMaterial;
     private StandardMaterial3D _lanternMaterial;
     private int _lampPoolNode;
@@ -611,7 +612,9 @@ void fragment() {
         _wells = AddInstances(well, well.SurfaceGetMaterial(0) ?? vertexColors, false, 16, true);
         _fountains = AddInstances(fountain, fountain.SurfaceGetMaterial(0) ?? vertexColors, false, 16, true);
         _towers = AddInstances(tower, tower.SurfaceGetMaterial(0) ?? vertexColors, false, 2, true);
-        _boilers = AddInstances(MeshKit.BoilerHouse(), vertexColors, false, 2, true);
+        Mesh boiler = MeshKit.BoilerHouse();
+        _boilers = AddInstances(boiler, boiler.SurfaceGetMaterial(0) ?? vertexColors, false, 2, true);
+        _chimneyTop = HighestPoint(boiler);
 
         var puffMaterial = _puffMaterial = new ShaderMaterial { Shader = new Shader { Code = SmokeShader } };
         _smoke = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = MeshKit.Puff(), InstanceCount = MaxPuffs, VisibleInstanceCount = 0 };
@@ -985,6 +988,14 @@ void fragment() {
     /// Water supply by era: a well beside each storehouse from the New Stone Age, a fountain there from the Middle Ages,
     /// and from the Industrial era a water tower on the highest free ground near the centre.
     /// </summary>
+    /// <summary>The highest vertex of a mesh, for example the mouth of a chimney.</summary>
+    private static Vector3 HighestPoint(Mesh mesh)
+    {
+        Vector3 best = Vector3.Zero;
+        foreach (Vector3 v in (Vector3[])mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex]) if (v.Y > best.Y) best = v;
+        return best;
+    }
+
     private void UpdateWaterSupply(WorldSnapshot s)
     {
         int wells = 0, fountains = 0, towers = 0;
@@ -1310,7 +1321,7 @@ void fragment() {
         }
         if (_boilerAt is Vector3 plant)
         {
-            Vector3 top = plant + new Vector3(2.5f, 24.3f, -1.5f);
+            Vector3 top = plant + _chimneyTop + Vector3.Up * 0.3f;
             for (int k = 0; k < 8 && puffs < MaxPuffs; k++)
             {
                 _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 2.2f), top));
