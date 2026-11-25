@@ -994,7 +994,17 @@ void fragment() {
             foreach (BuildingView b in s.Buildings)
             {
                 if (b.Type != BType.Storehouse || !b.Built) continue;
-                Vector3 at = new Vector3(b.X, 0, b.Z) + new Vector3(7.6f, 0, 4.6f).Rotated(Vector3.Up, b.Rotation);
+                // The first spot around the store that is open ground, so the well never sits inside a neighbour.
+                Vector3? found = null;
+                foreach (Vector3 local in new[] { new Vector3(7.6f, 0, 4.6f), new Vector3(-7.6f, 0, 4.6f), new Vector3(7.6f, 0, -4.6f), new Vector3(-7.6f, 0, -4.6f), new Vector3(0, 0, 9f), new Vector3(9f, 0, 0), new Vector3(-9f, 0, 0), new Vector3(0, 0, -9f) })
+                {
+                    Vector3 p = new Vector3(b.X, 0, b.Z) + local.Rotated(Vector3.Up, b.Rotation);
+                    int tx = (int)((p.X + WorldMap.SizeX / 2) / Rules.TileSize), tz = (int)((p.Z + WorldMap.SizeZ / 2) / Rules.TileSize);
+                    if (tx < 0 || tz < 0 || tx >= Rules.TileNx || tz >= Rules.TileNz || s.Tiles[tx + tz * Rules.TileNx] != TileKind.Free) continue;
+                    found = p;
+                    break;
+                }
+                if (found is not Vector3 at) continue;
                 at.Y = _map.Height(at.X, at.Z);
                 var spot = new Transform3D(new Basis(Vector3.Up, b.Rotation), at);
                 if (s.Era >= 4) _fountains.SetInstanceTransform(fountains++, spot);
