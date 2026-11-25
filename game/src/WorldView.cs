@@ -1110,38 +1110,24 @@ void fragment() {
     }
 
     /// <summary>
-    /// From the Industrial era water mains are laid street by street, outwards from the centre over about 30 years.
-    /// The few road tiles just past the laid part are dug up: trench, pipe and spoil. Render-only.
+    /// The street tile the sim's diggers are working on gets a trench, pipe and spoil heap, laid along the street.
+    /// The sim lays water mains outwards from the water tower in the Industrial era and sewers in the 20th century.
     /// </summary>
     private void UpdateWaterMains(WorldSnapshot s)
     {
         int count = 0;
-        float years = s.Year - 6 * Eras.YearsEach;
-        if (s.Era >= 6 && years < 30)
+        int tile = s.DigTile, nx = Rules.TileNx;
+        if (tile >= 0 && tile < s.Tiles.Length && s.Tiles[tile] == TileKind.Road)
         {
-            var roads = new System.Collections.Generic.List<(float D, int Tile)>();
-            for (int i = 0; i < s.Tiles.Length; i++)
-            {
-                if (s.Tiles[i] != TileKind.Road) continue;
-                (float x, float z) = Simulation.TileCenter(i);
-                roads.Add(((x - s.CenterX) * (x - s.CenterX) + (z - s.CenterZ) * (z - s.CenterZ), i));
-            }
-            roads.Sort((a, b) => a.D != b.D ? a.D.CompareTo(b.D) : a.Tile.CompareTo(b.Tile));
-            int laid = (int)(roads.Count * Math.Clamp(years / 30f, 0f, 1f));
             Ensure(_trenches, 4);
-            for (int k = laid; k < Math.Min(roads.Count, laid + 4); k++)
-            {
-                int tile = roads[k].Tile, nx = Rules.TileNx;
-                (float x, float z) = Simulation.TileCenter(tile);
-                // Lay the trench along the street: across X if the neighbours left/right are road.
-                bool alongX = tile % nx > 0 && s.Tiles[tile - 1] == TileKind.Road || tile % nx < nx - 1 && s.Tiles[tile + 1] == TileKind.Road;
-                var basis = new Basis(Vector3.Up, alongX ? 0 : MathF.PI / 2);
-                _trenches.SetInstanceTransform(count++, new Transform3D(basis, new Vector3(x, _map.Height(x, z) + 0.02f, z)));
-            }
+            (float x, float z) = Simulation.TileCenter(tile);
+            // Lay the trench along the street: across X if the neighbours left/right are road.
+            bool alongX = tile % nx > 0 && s.Tiles[tile - 1] == TileKind.Road || tile % nx < nx - 1 && s.Tiles[tile + 1] == TileKind.Road;
+            var basis = new Basis(Vector3.Up, alongX ? 0 : MathF.PI / 2);
+            _trenches.SetInstanceTransform(count++, new Transform3D(basis, new Vector3(x, _map.Height(x, z) + 0.02f, z)));
         }
         _trenches.VisibleInstanceCount = count;
     }
-
     private void UpdateEraLook(int era)
     {
         if (era != _clothEra)

@@ -38,6 +38,10 @@ public sealed class Simulation
     public int NextPersonId, Births, Deaths, Migrants, ActiveEvent;
     /// <summary>Road tiles planned to widen busy streets (not saved; for tests and logs).</summary>
     public int StreetsWidened;
+    /// <summary>Per tile: 0 no pipes, 1 water main, 2 water main and sewer. Dug street by street from the water tower.</summary>
+    public readonly byte[] Pipes = new byte[Rules.TileNx * Rules.TileNz];
+    public int DigTile = -1, DigWork, MainsVersion, MainsLogged;
+    public long MainsWaitUntil;
     public int MilestoneMask;
     public long FloodAt = -1, FloodEnd = -1;
     public float ToolBonus = 1, WineBonus = 1;
@@ -546,6 +550,7 @@ public sealed class Simulation
                 p.Timer -= dt;
                 if (p.Timer > 0) break;
                 if (p.Phase == PolderPhase) FinishPolderWork();
+                if (p.Phase == MainsPhase) FinishMainsWork(p.A);
                 if (Tiles[p.A] == TileKind.PlannedRoad)
                 {
                     Tiles[p.A] = TileKind.Road;
@@ -580,9 +585,9 @@ public sealed class Simulation
         if (p.Age >= 14 && p.Age < 60)
         {
             if (p.Job >= 0 && StartWork(p)) return;
-            if (p.Role == Role.Builder && (TryBuild(p) || TryRoad(p) || TryPolderWork(p))) return;
+            if (p.Role == Role.Builder && (TryBuild(p) || TryRoad(p) || TryPolderWork(p) || TryMains(p))) return;
             // Farmers and other seasonal workers with nothing to do (winter, or full stores) lay roads and raise dikes.
-            if (p.Job >= 0 && (TryRoad(p) || TryPolderWork(p))) return;
+            if (p.Job >= 0 && (TryRoad(p) || TryPolderWork(p) || TryMains(p))) return;
         }
         Wander(p);
     }
@@ -2021,13 +2026,22 @@ public sealed class Simulation
                 ActiveEvent = 3;
                 (float sx, float sz) = (CenterX, CenterZ);
                 bool first = true;
-                // Clean water limits an outbreak: town fountains from the Middle Ages, mains from the water tower later.
-                float reach = Era >= 6 ? 0.08f : Era >= 4 ? 0.12f : 0.18f;
+                // Clean water limits an outbreak: town fountains from the Middle Ages, then homes on piped and sewered streets.
+                float town = Era >= 4 ? 0.12f : 0.18f;
                 foreach (Person p in People)
+                {
+                    float reach = town;
+                    if (Era >= 6 && p.Home >= 0)
+                    {
+                        int piped = PipedNear(Buildings[p.Home].DoorTile);
+                        reach = piped >= 2 ? 0.03f : piped == 1 ? 0.05f : 0.12f;
+                    }
                     if (Random.F() < reach)
                     {
-                        p.Health = Math.Max(0.08f, p.Health - 0.42f);                        if (first) (sx, sz, first) = (p.X, p.Z, false);
+                        p.Health = Math.Max(0.08f, p.Health - 0.42f);
+                        if (first) (sx, sz, first) = (p.X, p.Z, false);
                     }
+                }
                 Log("Sickness spreads through the village", sx, sz, 3);
             }
             else if (roll < 0.52f)
@@ -2171,6 +2185,7 @@ public sealed class Simulation
         }
     }
 
+    private const int MainsPhase = 8;
     private const int PolderPhase = 7, PolderRowTiles = 12, PolderWidthTiles = 13;
     private const float PolderLand = 1.4f, DikeTop = 2.3f, DrainYears = 2.5f;
 
@@ -2315,6 +2330,86 @@ public sealed class Simulation
         // Spread the dike workers over the tile instead of stacking them on its centre.
         GoTo(p, x + (p.Id % 3 - 1) * 1.2f, z + (p.Id / 3 % 3 - 1) * 1.2f);
         return true;
+    }
+
+    private int MainsStage => Era >= 7 ? 2 : Era >= 6 ? 1 : 0;
+
+    /// <summary>Up to three workers dig up one street tile at a time to lay water mains (Industrial era) and sewers (20th century).</summary>
+    private bool TryMains(Person p)
+    {
+        int stage = MainsStage;
+        if (stage == 0 || Tick < MainsWaitUntil) return false;
+        if (DigTile < 0 || Pipes[DigTile] >= stage || Tiles[DigTile] != TileKind.Road)
+        {
+            DigTile = NextDigTile(stage);
+            DigWork = 0;
+            if (DigTile < 0)
+            {
+                // Every street is done; look again for new streets in a month.
+                MainsWaitUntil = Tick + Rules.TicksPerYear / 12;
+                return false;
+            }
+            if (MainsLogged < stage)
+            {
+                MainsLogged = stage;
+                (float lx, float lz) = TileCenter(DigTile);
+                Log(stage == 1 ? "Workers dig up the streets to lay the first water mains" : "Workers dig up the streets again to lay sewers", lx, lz, 2);
+            }
+        }
+        int crew = 0;
+        foreach (Person q in People)
+            if (q.Act == Act.Road && q.Phase == MainsPhase) crew++;
+        if (crew >= 3) return false;
+        p.Act = Act.Road;
+        p.Phase = MainsPhase;
+        p.A = DigTile;
+        p.Timer = 20f;
+        (float x, float z) = TileCenter(DigTile);
+        GoTo(p, x + (p.Id % 3 - 1) * 1.1f, z + (p.Id / 3 % 3 - 1) * 1.1f);
+        return true;
+    }
+
+    /// <summary>The next street tile to dig: next to a finished one and nearest the water tower, so the network spreads outwards.</summary>
+    private int NextDigTile(int stage)
+    {
+        (float sx, float sz) = (CenterX, CenterZ);
+        if (Landmarks.FindIndex(l => l.Kind == 1) is int tower and >= 0)
+            (sx, sz) = TileCenter(Landmarks[tower].TileX + Landmarks[tower].TileZ * Rules.TileNx);
+        int nx = Rules.TileNx, best = -1, nearest = -1;
+        float bestD = float.MaxValue, nearestD = float.MaxValue;
+        for (int i = 0; i < Tiles.Length; i++)
+        {
+            if (Tiles[i] != TileKind.Road || Pipes[i] >= stage) continue;
+            (float x, float z) = TileCenter(i);
+            float d = Dist2(x, z, sx, sz);
+            if (d < nearestD) (nearestD, nearest) = (d, i);
+            int tx = i % nx;
+            bool touches = tx > 0 && Pipes[i - 1] >= stage || tx < nx - 1 && Pipes[i + 1] >= stage
+                || i >= nx && Pipes[i - nx] >= stage || i + nx < Tiles.Length && Pipes[i + nx] >= stage;
+            if (touches && d < bestD) (bestD, best) = (d, i);
+        }
+        return best >= 0 ? best : nearest;
+    }
+
+    private void FinishMainsWork(int tile)
+    {
+        int stage = MainsStage;
+        if (tile != DigTile || stage == 0 || Pipes[tile] >= stage) return;
+        if (++DigWork < 3) return;
+        Pipes[tile] = (byte)stage;
+        DigWork = 0;
+        DigTile = -1;
+        MainsVersion++;
+    }
+
+    /// <summary>The best pipes within two tiles of a door.</summary>
+    private int PipedNear(int door)
+    {
+        int nx = Rules.TileNx, cx = door % nx, cz = door / nx, best = 0;
+        for (int z = cz - 2; z <= cz + 2; z++)
+        for (int x = cx - 2; x <= cx + 2; x++)
+            if (InGrid(x, z)) best = Math.Max(best, Pipes[x + z * nx]);
+        return best;
     }
 
     private void SkipOccupiedRing(Polder polder)
@@ -2513,12 +2608,14 @@ public sealed class Simulation
         foreach (byte w in Wear) Add(w);
         foreach (byte t in Tiles) Add(t);
         foreach (int t in RoadQueue) Add((ulong)t);
+        foreach (byte pipe in Pipes) Add(pipe);
+        Add((ulong)(long)DigTile); Add((ulong)DigWork); Add((ulong)MainsWaitUntil); Add((ulong)MainsLogged);
         return h;
     }
 
     public void Save(BinaryWriter w)
     {
-        w.Write(13);
+        w.Write(14);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2567,12 +2664,13 @@ public sealed class Simulation
         foreach (Building b in Buildings) if (b.Renewed) w.Write(b.Id);
         w.Write(Landmarks.Count);
         foreach (Landmark l in Landmarks) { w.Write(l.Kind); w.Write(l.TileX); w.Write(l.TileZ); w.Write(l.HalfX); w.Write(l.HalfZ); w.Write(l.Yaw); }
+        w.Write(Pipes); w.Write(DigTile); w.Write(DigWork); w.Write(MainsWaitUntil); w.Write(MainsLogged); w.Write(MainsVersion);
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version is not (9 or 10 or 11 or 12 or 13)) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10 or 11 or 12 or 13 or 14)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
@@ -2629,6 +2727,11 @@ public sealed class Simulation
         if (version >= 11) s.Cosmetic.State = r.ReadUInt64();
         if (version >= 12) for (int n = r.ReadInt32(); n > 0; n--) s.Buildings[r.ReadInt32()].Renewed = true;
         if (version >= 13) for (int n = r.ReadInt32(); n > 0; n--) s.Landmarks.Add(new Landmark(r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadSingle()));
+        if (version >= 14)
+        {
+            r.ReadBytes(s.Pipes.Length).CopyTo(s.Pipes, 0);
+            s.DigTile = r.ReadInt32(); s.DigWork = r.ReadInt32(); s.MainsWaitUntil = r.ReadInt64(); s.MainsLogged = r.ReadInt32(); s.MainsVersion = r.ReadInt32();
+        }
         return s;
     }
 

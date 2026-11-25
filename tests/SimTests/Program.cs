@@ -139,8 +139,10 @@ Parallel.For(0, fullSeeds.Length, n =>
         Check(s.Buildings.Where(b => b.Type != BType.Hut && b.Type != BType.Storehouse).All(b => Eras.UnlockEra(b.Type) <= s.Era), $"full {fullSeeds[n]}: locked building");
         for (int i = 0; i < (int)BType.Count; i++)
             Check(s.Count((BType)i, true) > 0, $"full {fullSeeds[n]}: never built {(BType)i}");
+        int roadTiles = Enumerable.Range(0, s.Tiles.Length).Count(i => s.Tiles[i] == TileKind.Road);
+        Check(s.Pipes.Count(v => v >= 1) * 10 >= roadTiles * 7, $"full {fullSeeds[n]}: only {s.Pipes.Count(v => v >= 1)} of {roadTiles} road tiles got water mains");
     }
-    fullRows[n] = $"{fullSeeds[n],6} era-end pops: {string.Join(" ", pops)} floods={s.Floods} held={s.FloodsHeld} buildings={s.Buildings.Count} urban={s.Urbanized}/{s.Urbanized + s.UrbanSkips} polders={s.Polders.Count(p => p.Stage == Polder.Done)}/{s.Polders.Count} pumps={s.Buildings.Count(b => b.Pump)} widened={s.StreetsWidened} renewed={s.Buildings.Count(b => b.Renewed)} landmarks={string.Join("+", s.Landmarks.Select(l => l.Kind))} at={(s.Polders.Count > 0 ? $"{s.Polders[0].X0 * 4 - 480},{s.Polders[0].Z0 * 4 - 260}" : "-")}";
+    fullRows[n] = $"{fullSeeds[n],6} era-end pops: {string.Join(" ", pops)} floods={s.Floods} held={s.FloodsHeld} buildings={s.Buildings.Count} urban={s.Urbanized}/{s.Urbanized + s.UrbanSkips} polders={s.Polders.Count(p => p.Stage == Polder.Done)}/{s.Polders.Count} pumps={s.Buildings.Count(b => b.Pump)} widened={s.StreetsWidened} renewed={s.Buildings.Count(b => b.Renewed)} landmarks={string.Join("+", s.Landmarks.Select(l => l.Kind))} mains={s.Pipes.Count(v => v >= 1)}/{s.Pipes.Count(v => v >= 2)}/{Enumerable.Range(0, s.Tiles.Length).Count(i => s.Tiles[i] == TileKind.Road)} at={(s.Polders.Count > 0 ? $"{s.Polders[0].X0 * 4 - 480},{s.Polders[0].Z0 * 4 - 260}" : "-")}";
 });
 foreach (string row in fullRows) Console.WriteLine(row);
 Console.WriteLine($"full runs took {fullClock.Elapsed.TotalSeconds:F1}s");

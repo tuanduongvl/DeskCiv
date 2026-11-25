@@ -31,6 +31,9 @@ public sealed class WorldSnapshot
     public (float X, float Z, Clip Clip)[] Spots = Array.Empty<(float, float, Clip)>();
     public WorldEvent? LastEvent;
     public Simulation.Landmark[] Landmarks = Array.Empty<Simulation.Landmark>();
+    /// <summary>Pipes per tile (0 none, 1 water main, 2 plus sewer) and the street tile being dug, or -1.</summary>
+    public byte[] Pipes = Array.Empty<byte>();
+    public int DigTile = -1, MainsVersion;
 }
 
 public sealed class PeopleFrame
@@ -57,7 +60,8 @@ public sealed class SimHost
     private volatile bool _running, _night;
     private volatile bool _saveRequested;
     private readonly ManualResetEventSlim _saved = new(false);
-    private int _lastTreeVersion = -1;
+    private int _lastTreeVersion = -1, _lastMainsVersion = -1;
+    private byte[] _pipes;
     private bool[] _trees;
     private readonly float[] _yaw = new float[Rules.MaxPeople];
     private readonly float[] _lastX = new float[Rules.MaxPeople], _lastZ = new float[Rules.MaxPeople];
@@ -291,6 +295,11 @@ public sealed class SimHost
             _trees = (bool[])_sim.TreeAlive.Clone();
             _lastTreeVersion = _sim.TreeVersion;
         }
+        if (_sim.MainsVersion != _lastMainsVersion || _pipes == null)
+        {
+            _pipes = (byte[])_sim.Pipes.Clone();
+            _lastMainsVersion = _sim.MainsVersion;
+        }
         var buildings = new BuildingView[_sim.Buildings.Count];
         for (int i = 0; i < buildings.Length; i++)
         {
@@ -316,6 +325,7 @@ public sealed class SimHost
             CenterX = _sim.CenterX, CenterZ = _sim.CenterZ, RunComplete = _sim.RunComplete, Flooding = _sim.Flooding, TraderVisiting = _sim.TraderVisiting, Gathering = _sim.GatherUntil > _sim.Tick, History = _sim.History.ToArray(), Buildings = buildings, TreeAlive = _trees,
             Wear = (byte[])_sim.Wear.Clone(), Tiles = (byte[])_sim.Tiles.Clone(), RoadVersion = _sim.RoadVersion, Graves = _sim.Graves.ToArray(), Spots = BuildSpots(),
             LastEvent = NewsEvent(), PolderDrain = DrainingPolder(), Landmarks = _sim.Landmarks.ToArray(),
+            Pipes = _pipes, DigTile = _sim.DigTile, MainsVersion = _lastMainsVersion,
         };
     }
 
