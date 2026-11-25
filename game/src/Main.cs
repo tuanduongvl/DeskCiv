@@ -48,6 +48,7 @@ public partial class Main : Node3D
     private Vector2 _panLast;
     private Clip? _forcedClip;
     private BType? _lookType;
+    private Vector2? _focusPoint;
     private Clip _lastShotClip = Clip.Idle;
 
     private double _elapsed, _hostTimer, _worldTimer, _sunTimer, _metricTimer, _duration, _focusTimer;
@@ -73,6 +74,10 @@ public partial class Main : Node3D
         _forcedWeather = Option(args, "--weather", null);
         if (Enum.TryParse(Option(args, "--watch", ""), true, out Clip watched)) _forcedClip = watched;
         if (Enum.TryParse(Option(args, "--look", ""), true, out BType looked)) _lookType = looked; // test shots of one building type
+        // --focus=x,z keeps the camera on one world point, for test shots of props that are not buildings.
+        string[] focus = Option(args, "--focus", "").Split(',');
+        if (focus.Length == 2 && float.TryParse(focus[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fx)
+            && float.TryParse(focus[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fz)) _focusPoint = new Vector2(fx, fz);
         CloseDistance = (float)Number(args, "--distance", CloseDistance);
 
         _baseSpeed = Math.Max(1, (int)Number(args, "--speed", 1));
@@ -401,7 +406,7 @@ public partial class Main : Node3D
     {
         if (_manual) return;
         _focusTimer -= 1;
-        if (_forcedClip != null || _lookType != null)
+        if (_forcedClip != null || _lookType != null || _focusPoint != null)
         {
             if (_focusTimer <= 0) NextShot(s);
             return;
@@ -426,6 +431,14 @@ public partial class Main : Node3D
     private void NextShot(WorldSnapshot s)
     {
         _shotNumber++;
+        if (_focusPoint is Vector2 point)
+        {
+            _focusTarget = FocusAt(point.X, point.Y);
+            _distanceTarget = CloseDistance;
+            _azimuthTarget = ClearAzimuth(s, point.X, point.Y);
+            _focusTimer = 100000;
+            return;
+        }
         if (_lookType is BType look)
         {
             foreach (BuildingView b in s.Buildings)

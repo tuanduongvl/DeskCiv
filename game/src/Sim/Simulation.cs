@@ -1867,8 +1867,10 @@ public sealed class Simulation
                 ActiveEvent = 3;
                 (float sx, float sz) = (CenterX, CenterZ);
                 bool first = true;
+                // Clean water limits an outbreak: town fountains from the Middle Ages, mains from the water tower later.
+                float reach = Era >= 6 ? 0.08f : Era >= 4 ? 0.12f : 0.18f;
                 foreach (Person p in People)
-                    if (Random.F() < 0.18f)
+                    if (Random.F() < reach)
                     {
                         p.Health = Math.Max(0.08f, p.Health - 0.42f);                        if (first) (sx, sz, first) = (p.X, p.Z, false);
                     }
