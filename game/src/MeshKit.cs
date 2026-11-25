@@ -1196,6 +1196,22 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A market stall: a trestle table of goods under a striped awning, open towards local +Z.</summary>
+    public static ArrayMesh MarketStall()
+    {
+        var m = new MeshKit();
+        Color wood = new(0.48f, 0.34f, 0.22f), red = new(0.72f, 0.2f, 0.16f), cream = new(0.9f, 0.86f, 0.74f);
+        m.Box(new Vector3(0, 0.8f, 0.2f), new Vector3(2.6f, 0.1f, 1.1f), wood);
+        foreach (float x in new[] { -1.25f, 1.25f })
+        foreach (float z in new[] { -0.5f, 0.9f })
+            m.Box(new Vector3(x, z < 0 ? 1.25f : 1f, z), new Vector3(0.08f, z < 0 ? 2.5f : 2f, 0.08f), wood);
+        for (int s = 0; s < 6; s++)
+            m.Box(new Vector3(-1.3f + s * 0.52f + 0.26f, 2.3f, 0.2f), new Vector3(0.52f, 0.06f, 1.9f), s % 2 == 0 ? red : cream, 0);
+        Color[] goods = { new(0.8f, 0.5f, 0.15f), new(0.45f, 0.55f, 0.2f), new(0.6f, 0.2f, 0.25f), new(0.85f, 0.75f, 0.4f) };
+        for (int g = 0; g < 4; g++) m.Box(new Vector3(-0.9f + g * 0.6f, 0.95f, 0.2f), new Vector3(0.45f, 0.2f, 0.6f), goods[g]);
+        return m.Build();
+    }
+
     /// <summary>One 4 m length of railway along local X: ballast, sleepers and two rails.</summary>
     public static ArrayMesh RailTrack()
     {

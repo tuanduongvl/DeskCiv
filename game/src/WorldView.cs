@@ -516,7 +516,7 @@ void fragment() {
     /// <summary>Flames over a burning house, flickered every frame.</summary>
     private MultiMesh _flames;
     /// <summary>Railway track along the sim's rail row, and the train that runs on it (view only, on its own clock).</summary>
-    private MultiMesh _rails, _train, _portal;
+    private MultiMesh _rails, _train, _portal, _stalls;
     private float _trainClock, _trainStopX, _trainZ, _tunnelX;
     private bool _hasRail;
     private Vector3? _fireAt;
@@ -603,6 +603,7 @@ void fragment() {
         _rails = AddInstances(MeshKit.RailTrack(), vertexColors, false, 64, true);
         _train = AddInstances(MeshKit.Train(), vertexColors, false, 1, true);
         _portal = AddInstances(MeshKit.TunnelPortal(), vertexColors, false, 1, true);
+        _stalls = AddInstances(MeshKit.MarketStall(), vertexColors, false, 8, true);
         // Felled trees use the pine model and material, realistic or kit.
         _falling = AddInstances(_treeKinds[0].Mesh, ((MultiMeshInstance3D)GetChild(_treeNodeIndex)).MaterialOverride, false, MaxFalling, true);
         _fallingNodeIndex = GetChildCount() - 1;
@@ -736,6 +737,25 @@ void fragment() {
             }
             _scatter[kind].VisibleInstanceCount = visible;
         }
+    }
+
+    /// <summary>On market day, up to eight stalls stand in a ring round the church door, on open ground only, facing inwards.</summary>
+    private void UpdateMarket(WorldSnapshot s)
+    {
+        int count = 0;
+        if (s.MarketOpen)
+        {
+            for (int k = 0; k < 12 && count < 8; k++)
+            {
+                float a = k * MathF.Tau / 12f;
+                float x = s.MarketX + MathF.Sin(a) * 7.5f, z = s.MarketZ + MathF.Cos(a) * 7.5f;
+                int tx = Math.Clamp((int)((x + WorldMap.SizeX / 2) / Rules.TileSize), 0, Rules.TileNx - 1);
+                int tz = Math.Clamp((int)((z + WorldMap.SizeZ / 2) / Rules.TileSize), 0, Rules.TileNz - 1);
+                if (s.Tiles[tx + tz * Rules.TileNx] is TileKind.Building or TileKind.Rail || !_map.Walkable(x, z) || InsideChurch(x, z)) continue;
+                _stalls.SetInstanceTransform(count++, new Transform3D(new Basis(Vector3.Up, a + MathF.PI), new Vector3(x, _map.Height(x, z), z)));
+            }
+        }
+        _stalls.VisibleInstanceCount = count;
     }
 
     /// <summary>Lays track instances along the sim's rail row (built-over tiles are skipped) and finds where the train stops.</summary>
@@ -1060,6 +1080,7 @@ void fragment() {
         UpdateWaterSupply(s);
         UpdateWaterMains(s);
         UpdateRailway(s);
+        UpdateMarket(s);
     }
 
     /// <summary>From the Industrial era a lamp stands at the edge of every few road tiles, beside the verge.</summary>

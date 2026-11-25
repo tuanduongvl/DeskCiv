@@ -597,6 +597,16 @@ public sealed class Simulation
         }
     }
 
+    /// <summary>
+    /// Market day: from the Middle Ages, once every two months outside winter, stalls stand by the church door for 90
+    /// seconds of daylight. Null when there is no market on.
+    /// </summary>
+    public (float X, float Z)? MarketPlace()
+    {
+        if (Era < 4 || Night || Season == 3 || Tick % (Rules.TicksPerYear / 6) >= (long)(90 / Rules.TickSeconds)) return null;
+        return ChurchDoor();
+    }
+
     /// <summary>The point in front of the mill gate, or null before there is a mill.</summary>
     private (float X, float Z)? FactoryGate()
     {
@@ -682,6 +692,8 @@ public sealed class Simulation
         // A house fire brings every neighbour with a moment to spare, adults too: they pass the buckets.
         if (FireEnd >= 0 && Tick < FireEnd && Dist2(p.X, p.Z, GatherX, GatherZ) < 40 * 40) free = true;
         if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius) = (GatherX, GatherZ, 7);
+        // On market day the stalls by the church draw those with time on their hands, and some idle adults too.
+        else if ((free || p.Id % 3 == 1) && MarketPlace() is (float mx, float mz) && Dist2(p.X, p.Z, mx, mz) < 70 * 70) (cx, cz, radius) = (mx, mz, 8);
         // By day, adults with nothing to do go to the mill (Industrial era and later). A quarter of them are mill hands:
         // they walk in through the gate, work a shift, and stream out at dusk. The jobless stand about at the gate.
         else if (!Night && p.Age >= 14 && p.Age < 60 && (p.Job < 0 && p.Id % 2 == 0 || p.Id % 4 == 0) && p.Role is not (Role.Porter or Role.Builder)

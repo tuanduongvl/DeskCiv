@@ -461,6 +461,15 @@ public partial class Main : Node3D
             _focusTimer = 1;
             return;
         }
+        // On market day the camera drops by the stalls at the church.
+        if (_forcedClip == null && _shotNumber % 7 == 1 && s.MarketOpen)
+        {
+            _focusTarget = FocusAt(s.MarketX, s.MarketZ);
+            _distanceTarget = CloseDistance * 1.3f;
+            _azimuthTarget = ClearAzimuth(s, s.MarketX, s.MarketZ);
+            _focusTimer = 24;
+            return;
+        }
         // Now and then the camera watches a street being dug up for water mains or sewers.
         if (_forcedClip == null && (_watchDig || _shotNumber % 7 == 6) && s.DigTile >= 0)
         {
