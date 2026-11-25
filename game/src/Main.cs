@@ -49,6 +49,7 @@ public partial class Main : Node3D
     private Vector2 _panLast;
     private Clip? _forcedClip;
     private BType? _lookType;
+    private bool _watchDig;
     private Vector2? _focusPoint;
     private Clip _lastShotClip = Clip.Idle;
 
@@ -75,6 +76,7 @@ public partial class Main : Node3D
         _burst = (int)Number(args, "--burst", 0);
         _forcedWeather = Option(args, "--weather", null);
         if (Enum.TryParse(Option(args, "--watch", ""), true, out Clip watched)) _forcedClip = watched;
+        _watchDig = Array.IndexOf(args, "--watch-dig") >= 0; // test shots of the street being dug for water mains
         if (Enum.TryParse(Option(args, "--look", ""), true, out BType looked)) _lookType = looked; // test shots of one building type
         // --focus=x,z keeps the camera on one world point, for test shots of props that are not buildings.
         string[] focus = Option(args, "--focus", "").Split(',');
@@ -409,7 +411,7 @@ public partial class Main : Node3D
     {
         if (_manual) return;
         _focusTimer -= 1;
-        if (_forcedClip != null || _lookType != null || _focusPoint != null)
+        if (_forcedClip != null || _lookType != null || _focusPoint != null || _watchDig)
         {
             if (_focusTimer <= 0) NextShot(s);
             return;
@@ -455,6 +457,16 @@ public partial class Main : Node3D
                 return;
             }
             _focusTimer = 1;
+            return;
+        }
+        // Now and then the camera watches a street being dug up for water mains or sewers.
+        if (_forcedClip == null && (_watchDig || _shotNumber % 7 == 6) && s.DigTile >= 0)
+        {
+            (float dx, float dz) = Simulation.TileCenter(s.DigTile);
+            _focusTarget = FocusAt(dx, dz);
+            _distanceTarget = CloseDistance * 1.2f;
+            _azimuthTarget = ClearAzimuth(s, dx, dz);
+            _focusTimer = _watchDig ? 15 : 24;
             return;
         }
         // Now and then the camera visits a town landmark: a well or fountain, the water tower, the boiler house.
