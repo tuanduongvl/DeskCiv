@@ -2572,6 +2572,13 @@ public sealed class Simulation
         (FireBuilding, FireAt, FireEnd) = (-1, -1, -1);
     }
 
+    /// <summary>Test switch --test-harsh: this year becomes a harsh winter (snow, river ice, cold).</summary>
+    public void HarshWinterForTest()
+    {
+        ActiveEvent = 2;
+        ColdFactor = 1.5f;
+    }
+
     /// <summary>Test switch --test-fire: the occupied house nearest the centre catches fire in 20 seconds.</summary>
     public void IgniteForTest()
     {

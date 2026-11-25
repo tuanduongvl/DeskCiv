@@ -91,6 +91,7 @@ public partial class Main : Node3D
         _restartTimer = _restartEvery;
         _sim = new SimHost(seed, HasFlag(args, "--fresh"), _canSave, _baseSpeed, (float)Number(args, "--start-year", 0));
         if (HasFlag(args, "--test-fire")) _sim.IgniteForTest();
+        if (HasFlag(args, "--test-harsh")) _sim.HarshWinterForTest();
         BuildScene();
         // Test switches for measuring what the look costs.
         if (HasFlag(args, "--no-shadows")) _sun.ShadowEnabled = false;
@@ -459,6 +460,28 @@ public partial class Main : Node3D
                 return;
             }
             _focusTimer = 1;
+            return;
+        }
+        // While the train stands at the station, the camera goes to watch it.
+        if (_forcedClip == null && _shotNumber % 7 == 2 && s.TrainTick is >= 400 and < 900)
+            foreach (Simulation.Landmark l in s.Landmarks)
+                if (l.Kind == 4)
+                {
+                    (float sx, float sz) = Simulation.TileCenter(l.TileX + l.TileZ * Rules.TileNx);
+                    _focusTarget = FocusAt(sx, sz);
+                    _distanceTarget = CloseDistance * 1.8f;
+                    _azimuthTarget = ClearAzimuth(s, sx, sz);
+                    _focusTimer = 24;
+                    return;
+                }
+        // Late in a harsh winter, a wide look over the frozen river beside the village.
+        if (_forcedClip == null && _shotNumber % 7 == 4 && s.ActiveEvent == 2 && s.YearFraction > 0.8f)
+        {
+            float rx = s.CenterX + 30, river = _sim.Map.RiverCenter(rx);
+            _focusTarget = FocusAt(rx, (river + s.CenterZ) / 2);
+            _distanceTarget = CloseDistance * 3.5f;
+            _azimuthTarget = 0;
+            _focusTimer = 24;
             return;
         }
         // On market day the camera drops by the stalls at the church.

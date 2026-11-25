@@ -108,6 +108,9 @@ public sealed class SimHost
     /// <summary>Test switch: sets a house on fire shortly. Call before Start.</summary>
     public void IgniteForTest() => _sim.IgniteForTest();
 
+    /// <summary>Test switch: makes this year a harsh winter. Call before Start.</summary>
+    public void HarshWinterForTest() => _sim.HarshWinterForTest();
+
     public void Start()
     {
         _running = true;
