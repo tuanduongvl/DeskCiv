@@ -988,6 +988,16 @@ void fragment() {
     /// Water supply by era: a well beside each storehouse from the New Stone Age, a fountain there from the Middle Ages,
     /// and from the Industrial era a water tower on the highest free ground near the centre.
     /// </summary>
+    /// <summary>The n-th visible water or heating landmark (cycling), or null when there is none.</summary>
+    public Vector3? Landmark(int n)
+    {
+        var list = new System.Collections.Generic.List<Vector3>();
+        foreach (MultiMesh m in new[] { _towers, _boilers, _fountains, _wells })
+            if (m != null)
+                for (int i = 0; i < Math.Min(2, m.VisibleInstanceCount); i++) list.Add(m.GetInstanceTransform(i).Origin);
+        return list.Count == 0 ? null : list[n % list.Count];
+    }
+
     /// <summary>The highest vertex of a mesh, for example the mouth of a chimney.</summary>
     private static Vector3 HighestPoint(Mesh mesh)
     {

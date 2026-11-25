@@ -453,6 +453,15 @@ public partial class Main : Node3D
             _focusTimer = 1;
             return;
         }
+        // Now and then the camera visits a town landmark: a well or fountain, the water tower, the boiler house.
+        if (_forcedClip == null && _shotNumber % 7 == 3 && _view.Landmark(_shotNumber / 7) is Vector3 landmark)
+        {
+            _focusTarget = FocusAt(landmark.X, landmark.Z);
+            _distanceTarget = CloseDistance * 1.6f;
+            _azimuthTarget = ClearAzimuth(s, landmark.X, landmark.Z);
+            _focusTimer = 20;
+            return;
+        }
         if (_forcedClip == null && _shotNumber % 5 == 0)
         {
             _focusTarget = FocusAt(s.CenterX, s.CenterZ);
