@@ -49,6 +49,13 @@ public sealed class Simulation
     public long FireAt = -1, FireEnd = -1;
     /// <summary>The railway: one tile row from a tunnel mouth in the western hills (RailX0) to just past the station (RailX1). -1 when none.</summary>
     public int RailRow = -1, RailX0, RailX1;
+    /// <summary>Newcomers waiting to arrive on the next train (they step off while it stands at the station).</summary>
+    public bool MigrantsOnTrain;
+    /// <summary>
+    /// The train's timetable, in ticks into its 240 s round: out of the tunnel (0-400), standing at the station
+    /// (400-1000), back into the tunnel (1000-1400), away (1400-2400). -1 without a railway.
+    /// </summary>
+    public int TrainTick => RailRow >= 0 ? (int)(Tick % 2400) : -1;
     public int MilestoneMask;
     public long FloodAt = -1, FloodEnd = -1;
     public float ToolBonus = 1, WineBonus = 1;
@@ -2315,7 +2322,17 @@ public sealed class Simulation
         Support = ratio < 0.7f ? Math.Min(0.8f, Support + 0.02f) : Math.Max(0, Support - 0.01f);
 
         bool behind = ratio < 0.55f && Year > 3;
-        if (People.Count < 8 || (behind && Tick % 6000 == 0)) ArriveMigrants();
+        bool due = People.Count < 8 || (behind && Tick % 6000 == 0);
+        // Once a year in the 20th century, a family or two come by train if the town has room for them.
+        if (RailRow >= 0 && Tick % Rules.TicksPerYear == 3000 && People.Count < Eras.MaxPopulation(Era) - 8 && HousingRoom() >= 6) due = true;
+        if (due && RailRow >= 0) MigrantsOnTrain = true;
+        else if (due) ArriveMigrants();
+        // They step off a minute after the train pulls in.
+        if (MigrantsOnTrain && TrainTick == 600)
+        {
+            MigrantsOnTrain = false;
+            ArriveMigrants();
+        }
 
         // The ship enters the estuary at 5% of the year and anchors about a minute later; the crowd comes down to the
         // bank once it is in sight (240 s into the year, the Director's 4th call) and stays four minutes.
@@ -2794,6 +2811,14 @@ public sealed class Simulation
         History.Add(new EraRecord(Era, People.Count, Buildings.Count, births, deaths, floods));
     }
 
+    private int HousingRoom()
+    {
+        int room = 0;
+        foreach (Building b in Buildings)
+            if (b.Type == BType.Hut && b.Built) room += Math.Max(0, Capacity(b) - b.Occupants);
+        return room;
+    }
+
     private void ArriveMigrants()
     {
         int group = 4 + Random.N(4);
@@ -2860,7 +2885,7 @@ public sealed class Simulation
         foreach (byte t in Tiles) Add(t);
         foreach (int t in RoadQueue) Add((ulong)t);
         foreach (byte pipe in Pipes) Add(pipe);
-        Add((ulong)(long)RailRow); Add((ulong)RailX0); Add((ulong)RailX1);
+        Add((ulong)(long)RailRow); Add((ulong)RailX0); Add((ulong)RailX1); Add(MigrantsOnTrain ? 1UL : 0UL);
         Add((ulong)(long)FireBuilding); Add((ulong)FireAt); Add((ulong)FireEnd); Add((ulong)FiresStarted);
         Add((ulong)(long)DigTile); Add((ulong)DigWork); Add((ulong)MainsWaitUntil); Add((ulong)MainsLogged);
         return h;
@@ -2868,7 +2893,7 @@ public sealed class Simulation
 
     public void Save(BinaryWriter w)
     {
-        w.Write(16);
+        w.Write(17);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2920,12 +2945,13 @@ public sealed class Simulation
         w.Write(Pipes); w.Write(DigTile); w.Write(DigWork); w.Write(MainsWaitUntil); w.Write(MainsLogged); w.Write(MainsVersion);
         w.Write(FireBuilding); w.Write(FireAt); w.Write(FireEnd); w.Write(FiresStarted); w.Write(FiresPutOut);
         w.Write(RailRow); w.Write(RailX0); w.Write(RailX1);
+        w.Write(MigrantsOnTrain);
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version is not (9 or 10 or 11 or 12 or 13 or 14 or 15 or 16)) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 17)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
@@ -2992,6 +3018,7 @@ public sealed class Simulation
             s.FireBuilding = r.ReadInt32(); s.FireAt = r.ReadInt64(); s.FireEnd = r.ReadInt64(); s.FiresStarted = r.ReadInt32(); s.FiresPutOut = r.ReadInt32();
         }
         if (version >= 16) { s.RailRow = r.ReadInt32(); s.RailX0 = r.ReadInt32(); s.RailX1 = r.ReadInt32(); }
+        if (version >= 17) s.MigrantsOnTrain = r.ReadBoolean();
         return s;
     }
 

@@ -781,6 +781,9 @@ void fragment() {
             }
             (float sx, float sz) = Simulation.TileCenter(s.RailX1 - 4 + s.RailRow * Rules.TileNx);
             (_trainStopX, _trainZ) = (sx + 6f, sz);
+            // Follow the sim's timetable; between snapshots the clock runs on by itself.
+            float simClock = s.TrainTick * Rules.TickSeconds;
+            if (Math.Abs(simClock - _trainClock) > 2f && Math.Abs(simClock - _trainClock) < 238f) _trainClock = simClock;
             (float tx, float tz) = Simulation.TileCenter(s.RailX0 + s.RailRow * Rules.TileNx);
             _tunnelX = tx - 2f;
             _portal.SetInstanceTransform(0, new Transform3D(Basis.Identity, new Vector3(_tunnelX, _map.Height(tx, tz) - 0.2f, tz)));
@@ -790,7 +793,7 @@ void fragment() {
     }
 
     /// <summary>
-    /// The train keeps its own four-minute timetable: it steams out of the tunnel in the western hills, stands at the station for a
+    /// The train follows the sim's four-minute timetable: it steams out of the tunnel in the western hills, stands at the station for a
     /// minute, backs out and is gone for two minutes. View only.
     /// </summary>
     private void AnimateTrain(float delta)

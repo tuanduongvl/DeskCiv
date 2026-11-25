@@ -40,7 +40,7 @@ public sealed class WorldSnapshot
     public bool MarketOpen;
     public float MarketX, MarketZ;
     /// <summary>The railway row and its west and east tiles, or -1.</summary>
-    public int RailRow = -1, RailX0, RailX1;
+    public int RailRow = -1, RailX0, RailX1, TrainTick = -1;
     public float FireX, FireZ;
 }
 
@@ -338,7 +338,7 @@ public sealed class SimHost
             LastEvent = NewsEvent(), PolderDrain = DrainingPolder(), Landmarks = _sim.Landmarks.ToArray(),
             Pipes = _pipes, DigTile = _sim.DigTile, MainsVersion = _lastMainsVersion,
             MarketOpen = _sim.MarketPlace() != null, MarketX = _sim.MarketPlace()?.X ?? 0, MarketZ = _sim.MarketPlace()?.Z ?? 0,
-            RailRow = _sim.RailRow, RailX0 = _sim.RailX0, RailX1 = _sim.RailX1,
+            RailRow = _sim.RailRow, RailX0 = _sim.RailX0, RailX1 = _sim.RailX1, TrainTick = _sim.TrainTick,
             Burning = _sim.Burning >= 0, FireX = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].X : 0, FireZ = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].Z : 0,
         };
     }
