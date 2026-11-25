@@ -492,7 +492,9 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
-    private MultiMesh _barrows;
+    private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools;
+    private StandardMaterial3D _lanternMaterial;
+    private int _lampPoolNode;
     private readonly float[] _barrowBuffer = new float[HeroCapacity * 16];
     private ShaderMaterial _terrain;
     private StandardMaterial3D _glowMaterial;
@@ -596,6 +598,11 @@ void fragment() {
             _loadBuffers[i] = new float[HeroCapacity * 16];
         }
         _barrows = AddInstances(MeshKit.Barrow(), vertexColors, true, HeroCapacity, true);
+        _lampPosts = AddInstances(MeshKit.LampPost(), vertexColors, false, 64, true);
+        _lanternMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(0.35f, 0.33f, 0.28f) };
+        _lanterns = AddInstances(MeshKit.Lantern(), _lanternMaterial, false, 64);
+        _lampPools = AddInstances(MeshKit.Glow(), _glowMaterial, false, 64);
+        _lampPoolNode = GetChildCount() - 1;
 
         var puffMaterial = new ShaderMaterial { Shader = new Shader { Code = SmokeShader } };
         _smoke = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = MeshKit.Puff(), InstanceCount = MaxPuffs, VisibleInstanceCount = 0 };
@@ -927,6 +934,41 @@ void fragment() {
         // Dirt tracks, then cobbles from the Middle Ages, then asphalt in the 20th century.
         _terrain.SetShaderParameter("road_style", s.Era >= 7 ? 2f : s.Era >= 4 ? 1f : 0f);
         _terrain.SetShaderParameter("street_style", s.Era >= 6 ? 2f : s.Era >= 5 ? 1f : 0f);
+        UpdateStreetLamps(s);
+    }
+
+    /// <summary>From the Industrial era a lamp stands at the edge of every few road tiles, beside the verge.</summary>
+    private void UpdateStreetLamps(WorldSnapshot s)
+    {
+        int nx = Rules.TileNx, nz = Rules.TileNz, count = 0;
+        var spots = new System.Collections.Generic.List<Transform3D>();
+        if (s.Era >= 6)
+            for (int z = 1; z < nz - 1; z++)
+            for (int x = 1; x < nx - 1; x++)
+            {
+                int i = x + z * nx;
+                if (s.Tiles[i] != TileKind.Road || (x * 7 + z * 3) % 5 != 0) continue;
+                foreach ((int dx, int dz) in new[] { (0, 1), (1, 0), (0, -1), (-1, 0) })
+                {
+                    byte side = s.Tiles[i + dx + dz * nx];
+                    if (side is TileKind.Road or TileKind.PlannedRoad or TileKind.Blocked) continue;
+                    float cx = (x + 0.5f) * Rules.TileSize - WorldMap.SizeX / 2, cz = (z + 0.5f) * Rules.TileSize - WorldMap.SizeZ / 2;
+                    float px = cx + dx * 1.75f, pz = cz + dz * 1.75f;
+                    // The arm reaches back over the street.
+                    var basis = new Basis(Vector3.Up, MathF.Atan2(-dx, -dz));
+                    spots.Add(new Transform3D(basis, new Vector3(px, _map.Height(px, pz), pz)));
+                    break;
+                }
+            }
+        foreach (MultiMesh m in new[] { _lampPosts, _lanterns, _lampPools }) Ensure(m, spots.Count);
+        foreach (Transform3D spot in spots)
+        {
+            _lampPosts.SetInstanceTransform(count, spot);
+            _lanterns.SetInstanceTransform(count, spot);
+            _lampPools.SetInstanceTransform(count, new Transform3D(Basis.Identity.Scaled(Vector3.One * 1.3f), spot.Origin + spot.Basis * new Vector3(0, 0.07f, 0.55f)));
+            count++;
+        }
+        foreach (MultiMesh m in new[] { _lampPosts, _lanterns, _lampPools }) m.VisibleInstanceCount = count;
     }
 
     private void UpdateEraLook(int era)
@@ -1274,6 +1316,8 @@ void fragment() {
         _glowMaterial.AlbedoColor = new Color(1f, 0.68f, 0.28f) * Mathf.Clamp(amount, 0.05f, 1f) * 0.4f;
         // By day the unlit glow is near black and stood out as a dark block beside the realistic house models.
         if (_glowNode != null) _glowNode.Visible = amount > 0.15f;
+        _lanternMaterial?.Set("albedo_color", new Color(0.35f, 0.33f, 0.28f).Lerp(new Color(1f, 0.86f, 0.55f), Mathf.Clamp(amount * 1.4f, 0, 1)));
+        if (_lampPools != null) ((Node3D)GetChild(_lampPoolNode)).Visible = amount > 0.15f;
     }
 
     /// <summary>Uploads interpolated people and carried goods.</summary>

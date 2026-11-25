@@ -979,6 +979,20 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A cast-iron street lamp post, 4 m, with its arm over local +Z. The lantern is a separate mesh.</summary>
+    public static ArrayMesh LampPost()
+    {
+        var m = new MeshKit();
+        Color iron = new(0.16f, 0.17f, 0.18f);
+        m.Prism(Vector3.Zero, 0.16f, 0.12f, 0.35f, 8, iron).Prism(new Vector3(0, 0.35f, 0), 0.07f, 0.05f, 3.55f, 8, iron);
+        m.Beam(new Vector3(0, 3.7f, 0), new Vector3(0, 3.85f, 0.55f), 0.03f, iron);
+        m.Prism(new Vector3(0, 3.95f, 0.55f), 0.16f, 0.02f, 0.18f, 6, iron);
+        return m.Build();
+    }
+
+    /// <summary>The glass of a street lamp, hung at the end of <see cref="LampPost"/>'s arm; lit by its material at night.</summary>
+    public static ArrayMesh Lantern() => new MeshKit().Prism(new Vector3(0, 3.62f, 0.55f), 0.09f, 0.14f, 0.34f, 6, Colors.White).Build();
+
     /// <summary>A wooden wheelbarrow pushed in front of a porter from the Middle Ages. Local +Z is forward.</summary>
     public static ArrayMesh Barrow()
     {
