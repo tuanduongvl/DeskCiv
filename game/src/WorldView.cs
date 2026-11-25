@@ -1119,7 +1119,9 @@ void fragment() {
         // Shown only with an image-made model; the low-poly stand-in looked too crude beside the realistic town.
         if (s.Era >= 5 && MeshKit.LoadModel("landmark_quay") != null)
         {
-            float qx = s.CenterX + 25, river = _map.RiverCenter(qx), side = MathF.Sign(s.CenterZ - river);
+            // The ship anchors and the crowd gathers at CenterX + 25 (Simulation); the quay stands just downstream of them so
+            // the onlookers stand on the bank beside it, not inside its stonework.
+            float qx = s.CenterX + 41, river = _map.RiverCenter(qx), side = MathF.Sign(s.CenterZ - river);
             for (float d = 0; d <= 120; d += 1)
                 if (_map.Walkable(qx, river + side * d))
                 {
