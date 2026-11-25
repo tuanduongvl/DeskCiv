@@ -1043,6 +1043,16 @@ public sealed class MeshKit
         m.Box(new Vector3(-7f, 8f, 0), new Vector3(4.5f, 16f, 4.5f), stone.Darkened(0.05f)).Prism(new Vector3(-7f, 16f, 0), 3.2f, 0.05f, 6f, 4, slate);
         return m.Build();
     }
+    /// <summary>A harbour quay with a treadwheel crane (image-made if present); local +Z faces the water.</summary>
+    public static ArrayMesh Quay()
+    {
+        if (LoadModel("landmark_quay") is ArrayMesh real) return real;
+        var m = new MeshKit();
+        Color wood = new(0.45f, 0.32f, 0.2f), stone = new(0.6f, 0.58f, 0.52f);
+        m.Box(new Vector3(0, 0.9f, 0), new Vector3(12f, 0.3f, 6f), wood).Box(new Vector3(0, 0.45f, 2.9f), new Vector3(12f, 0.9f, 0.4f), stone);
+        m.Box(new Vector3(-4f, 4.5f, 0), new Vector3(3.5f, 7f, 3.5f), wood.Darkened(0.1f)).Beam(new Vector3(-4f, 7.5f, 0), new Vector3(-4f, 8.5f, 4.5f), 0.15f, wood);
+        return m.Build();
+    }
     /// <summary>A cast-iron street lamp post, 4 m, with its arm over local +Z. The lantern is a separate mesh.</summary>
     public static ArrayMesh LampPost()
     {

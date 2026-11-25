@@ -493,7 +493,7 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
-    private MultiMesh _rubble, _churches;
+    private MultiMesh _rubble, _churches, _quays;
     private Vector3 _churchShown;
     private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers, _boilers;
     private Vector3? _boilerAt;
@@ -551,6 +551,8 @@ void fragment() {
         _rubble = AddInstances(MeshKit.Rubble(), vertexColors, false, 4, true);
         Mesh church = MeshKit.Church();
         _churches = AddInstances(church, church.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
+        Mesh quay = MeshKit.Quay();
+        _quays = AddInstances(quay, quay.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
         for (int k = 0; k < _piles.Length; k++) _piles[k] = AddInstances(MeshKit.GoodsPile(k), vertexColors, false, 16, true);
         _stumps = AddInstances(MeshKit.Stump(), vertexColors, false, Math.Max(1, _host.TreePositions.X.Length));
         _treeMaterial = new ShaderMaterial { Shader = new Shader { Code = TreeShader } };
@@ -997,7 +999,7 @@ void fragment() {
     public Vector3? Landmark(int n)
     {
         var list = new System.Collections.Generic.List<Vector3>();
-        foreach (MultiMesh m in new[] { _churches, _towers, _boilers, _fountains, _wells })
+        foreach (MultiMesh m in new[] { _churches, _quays, _towers, _boilers, _fountains, _wells })
             if (m != null)
                 for (int i = 0; i < Math.Min(2, m.VisibleInstanceCount); i++) list.Add(m.GetInstanceTransform(i).Origin);
         return list.Count == 0 ? null : list[n % list.Count];
@@ -1104,6 +1106,22 @@ void fragment() {
         }
         if (churches != _churches.VisibleInstanceCount || (churches > 0 && _churches.GetInstanceTransform(0).Origin != _churchShown)) _graveCount = -1;
         _churches.VisibleInstanceCount = churches;
+        // From the Renaissance a quay with a treadwheel crane stands on the bank where the trading ship anchors.
+        int quays = 0;
+        // Shown only with an image-made model; the low-poly stand-in looked too crude beside the realistic town.
+        if (s.Era >= 5 && MeshKit.LoadModel("landmark_quay") != null)
+        {
+            float qx = s.CenterX + 25, river = _map.RiverCenter(qx), side = MathF.Sign(s.CenterZ - river);
+            for (float d = 0; d <= 120; d += 1)
+                if (_map.Walkable(qx, river + side * d))
+                {
+                    float bank = river + side * d;
+                    var at = new Vector3(qx, _map.Height(qx, bank + side * 3f), bank - side * 1.5f);
+                    _quays.SetInstanceTransform(quays++, new Transform3D(new Basis(Vector3.Up, side > 0 ? MathF.PI : 0), at));
+                    break;
+                }
+        }
+        _quays.VisibleInstanceCount = quays;
         if (churches > 0) _churchShown = _churches.GetInstanceTransform(0).Origin;
         _wells.VisibleInstanceCount = wells;
         _fountains.VisibleInstanceCount = fountains;
