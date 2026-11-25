@@ -739,16 +739,21 @@ void fragment() {
         }
     }
 
-    /// <summary>On market day, up to eight stalls stand in a ring round the church door, on open ground only, facing inwards.</summary>
+    /// <summary>On market day, up to eight stalls stand in rings round the church door, on open ground away from graves, facing inwards.</summary>
     private void UpdateMarket(WorldSnapshot s)
     {
         int count = 0;
         if (s.MarketOpen)
         {
-            for (int k = 0; k < 12 && count < 8; k++)
+            for (int k = 0; k < 24 && count < 8; k++)
             {
-                float a = k * MathF.Tau / 12f;
-                float x = s.MarketX + MathF.Sin(a) * 7.5f, z = s.MarketZ + MathF.Cos(a) * 7.5f;
+                // The inner ring first, then an outer one; never among the churchyard graves.
+                float a = k * MathF.Tau / 12f + (k >= 12 ? 0.26f : 0f), ring = k < 12 ? 7.5f : 11f;
+                float x = s.MarketX + MathF.Sin(a) * ring, z = s.MarketZ + MathF.Cos(a) * ring;
+                bool grave = false;
+                foreach ((float gx, float gz) in s.Graves)
+                    if ((gx - x) * (gx - x) + (gz - z) * (gz - z) < 9f) { grave = true; break; }
+                if (grave) continue;
                 int tx = Math.Clamp((int)((x + WorldMap.SizeX / 2) / Rules.TileSize), 0, Rules.TileNx - 1);
                 int tz = Math.Clamp((int)((z + WorldMap.SizeZ / 2) / Rules.TileSize), 0, Rules.TileNz - 1);
                 if (s.Tiles[tx + tz * Rules.TileNx] is TileKind.Building or TileKind.Rail || !_map.Walkable(x, z) || InsideChurch(x, z)) continue;
