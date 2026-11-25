@@ -1033,6 +1033,16 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A parish church (image-made if present): long nave along local Z with the bell tower at +Z (the fallback is drawn along X).</summary>
+    public static ArrayMesh Church()
+    {
+        if (LoadModel("landmark_church") is ArrayMesh real) return real;
+        var m = new MeshKit();
+        Color stone = new(0.62f, 0.6f, 0.55f), slate = new(0.3f, 0.33f, 0.38f);
+        m.House(14f, 8f, 7f, 4f, stone, slate, new Vector3(2f, 0, 0));
+        m.Box(new Vector3(-7f, 8f, 0), new Vector3(4.5f, 16f, 4.5f), stone.Darkened(0.05f)).Prism(new Vector3(-7f, 16f, 0), 3.2f, 0.05f, 6f, 4, slate);
+        return m.Build();
+    }
     /// <summary>A cast-iron street lamp post, 4 m, with its arm over local +Z. The lantern is a separate mesh.</summary>
     public static ArrayMesh LampPost()
     {

@@ -493,7 +493,8 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
-    private MultiMesh _rubble;
+    private MultiMesh _rubble, _churches;
+    private Vector3 _churchShown;
     private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers, _boilers;
     private Vector3? _boilerAt;
     private Vector3 _chimneyTop = new(2.5f, 24.3f, -1.5f);
@@ -548,6 +549,8 @@ void fragment() {
         _graves = AddInstances(MeshKit.Grave(), vertexColors, false, 32);
         _sites = AddInstances(MeshKit.Site(), vertexColors, false, 8, true);
         _rubble = AddInstances(MeshKit.Rubble(), vertexColors, false, 4, true);
+        Mesh church = MeshKit.Church();
+        _churches = AddInstances(church, church.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
         for (int k = 0; k < _piles.Length; k++) _piles[k] = AddInstances(MeshKit.GoodsPile(k), vertexColors, false, 16, true);
         _stumps = AddInstances(MeshKit.Stump(), vertexColors, false, Math.Max(1, _host.TreePositions.X.Length));
         _treeMaterial = new ShaderMaterial { Shader = new Shader { Code = TreeShader } };
@@ -994,7 +997,7 @@ void fragment() {
     public Vector3? Landmark(int n)
     {
         var list = new System.Collections.Generic.List<Vector3>();
-        foreach (MultiMesh m in new[] { _towers, _boilers, _fountains, _wells })
+        foreach (MultiMesh m in new[] { _churches, _towers, _boilers, _fountains, _wells })
             if (m != null)
                 for (int i = 0; i < Math.Min(2, m.VisibleInstanceCount); i++) list.Add(m.GetInstanceTransform(i).Origin);
         return list.Count == 0 ? null : list[n % list.Count];
@@ -1071,6 +1074,37 @@ void fragment() {
         }
         if (_boilerAt is Vector3 boiler) _boilers.SetInstanceTransform(0, new Transform3D(Basis.Identity, boiler));
         _boilers.VisibleInstanceCount = _boilerAt != null ? 1 : 0;
+        // From the Middle Ages a parish church stands on the open ground nearest the centre, facing it.
+        int churches = 0;
+        if (s.Era >= 4)
+        {
+            int nx = Rules.TileNx, cx = (int)((s.CenterX + WorldMap.SizeX / 2) / Rules.TileSize), cz = (int)((s.CenterZ + WorldMap.SizeZ / 2) / Rules.TileSize);
+            float bestDistance = float.MaxValue;
+            Vector3 spot = Vector3.Zero;
+            for (int z = Math.Max(2, cz - 30); z < Math.Min(Rules.TileNz - 2, cz + 30); z++)
+            for (int x = Math.Max(3, cx - 30); x < Math.Min(nx - 3, cx + 30); x++)
+            {
+                float d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
+                if (d >= bestDistance) continue;
+                bool free = true;
+                for (int dz = -3; dz <= 3 && free; dz++)
+                for (int dx = -1; dx <= 1 && free; dx++)
+                    free = z + dz > 0 && z + dz < Rules.TileNz && s.Tiles[x + dx + (z + dz) * nx] == TileKind.Free;
+                if (!free) continue;
+                float wx = (x + 0.5f) * Rules.TileSize - WorldMap.SizeX / 2, wz = (z + 0.5f) * Rules.TileSize - WorldMap.SizeZ / 2;
+                if (!_map.Walkable(wx, wz)) continue;
+                (bestDistance, spot) = (d, new Vector3(wx, _map.Height(wx, wz), wz));
+            }
+            if (bestDistance < float.MaxValue)
+            {
+                // The model's long axis is Z with the tower at +Z; turn the tower end away from the centre.
+                float yaw = spot.Z > s.CenterZ ? 0 : MathF.PI;
+                _churches.SetInstanceTransform(churches++, new Transform3D(new Basis(Vector3.Up, yaw), spot));
+            }
+        }
+        if (churches != _churches.VisibleInstanceCount || (churches > 0 && _churches.GetInstanceTransform(0).Origin != _churchShown)) _graveCount = -1;
+        _churches.VisibleInstanceCount = churches;
+        if (churches > 0) _churchShown = _churches.GetInstanceTransform(0).Origin;
         _wells.VisibleInstanceCount = wells;
         _fountains.VisibleInstanceCount = fountains;
         _towers.VisibleInstanceCount = towers;
@@ -1420,6 +1454,15 @@ void fragment() {
         _knownTrees = s.TreeAlive;
     }
 
+    /// <summary>True for a point under the church's walls (the churchyard around it keeps its stones).</summary>
+    private bool InsideChurch(float x, float z)
+    {
+        if (_churches == null || _churches.VisibleInstanceCount == 0) return false;
+        Transform3D church = _churches.GetInstanceTransform(0);
+        Vector3 local = church.AffineInverse() * new Vector3(x, church.Origin.Y, z);
+        return MathF.Abs(local.X) < 6f && MathF.Abs(local.Z) < 12.8f;
+    }
+
     private void UpdateGraves(WorldSnapshot s)
     {
         _graveCount = s.Graves.Length;
@@ -1431,7 +1474,7 @@ void fragment() {
             (float x, float z) = s.Graves[i];
             // A stone the town has since built over is hidden.
             byte tile = s.Tiles[Simulation.TileAt(x, z)];
-            float scale = tile is TileKind.Building or TileKind.Road or TileKind.Field ? 0f : 1f;
+            float scale = tile is TileKind.Building or TileKind.Road or TileKind.Field || InsideChurch(x, z) ? 0f : 1f;
             _graves.SetInstanceTransform(i, new Transform3D(new Basis(Vector3.Up, i * 0.7f).Scaled(Vector3.One * scale), new Vector3(x, _map.Height(x, z), z)));
         }
         _graves.VisibleInstanceCount = _graveCount;
