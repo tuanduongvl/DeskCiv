@@ -558,7 +558,8 @@ public sealed class Simulation
                 p.Timer -= dt;
                 if (p.Timer > 0) break;
                 if (p.Phase == PolderPhase) FinishPolderWork();
-                if (p.Phase == MainsPhase) FinishMainsWork(p.A);
+                // A digger only counts a stint if they actually reached the trench (a blocked walk can stop short).
+                if (p.Phase == MainsPhase && p.A >= 0 && Dist2(p.X, p.Z, TileCenter(p.A).X, TileCenter(p.A).Z) < 4f * 4f) FinishMainsWork(p.A);
                 if (Tiles[p.A] == TileKind.PlannedRoad)
                 {
                     Tiles[p.A] = TileKind.Road;
