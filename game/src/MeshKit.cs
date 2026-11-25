@@ -183,6 +183,8 @@ public sealed class MeshKit
             case BType.Watermill: return LoadModel("watermill_body");
         }
         // From the industrial era every craft workshop shares one brick workshop model (one texture in memory).
+        // A craft with its own Industrial-era model (for example bakery_t3) uses it; the others share it.
+        if (tier >= 3 && LoadModel($"{type.ToString().ToLowerInvariant()}_t3") is ArrayMesh own) return own;
         if (tier >= 3 && type is BType.Woodcutter or BType.Fisher or BType.Gatherer or BType.Bakery or BType.Mill or BType.Winery or BType.Smithy
             && LoadModel("workshop_t3") is ArrayMesh workshop) return workshop;
         // Models are named <type>_t<tier>. An era without its own model borrows the nearest era's, preferring the older one.
