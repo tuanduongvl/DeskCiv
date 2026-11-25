@@ -1130,16 +1130,44 @@ public sealed class Simulation
         // An elder's burial draws the village to the graveyard.
         if (p.Age >= 50 && Tick - LastGathering >= Rules.TicksPerYear / 2)
         {
-            (float gx, float gz) = Graves[^1];
+            // With a parish church the mourners gather at its door; before that, at the grave.
+            (float gx, float gz) = ChurchDoor() ?? Graves[^1];
             Gather(gx, gz, 70);
             Log("The village gathers to bury one of its elders", gx, gz, 2);
         }
+    }
+
+    /// <summary>A point a few metres in front of the church tower door, or null before there is a church.</summary>
+    private (float X, float Z)? ChurchDoor()
+    {
+        int at = Landmarks.FindIndex(l => l.Kind == 0);
+        if (at < 0) return null;
+        Landmark church = Landmarks[at];
+        (float cx, float cz) = TileCenter(church.TileX + church.TileZ * Rules.TileNx);
+        float reach = (Math.Max(church.HalfX, church.HalfZ) + 1.2f) * Rules.TileSize;
+        return (cx + MathF.Sin(church.Yaw) * reach, cz + MathF.Cos(church.Yaw) * reach);
     }
 
     private void AddGrave()
     {
         if (Graves.Count >= MaxGraves) Graves.RemoveAt(0);
         float angle = NextPersonId * 2.399963f + Deaths * 2.399963f, radius = 3 + MathF.Sqrt(Deaths) * 1.5f;
+        // Once there is a parish church, new graves go in its churchyard (a spiral around the church lot).
+        if (Landmarks.FindIndex(l => l.Kind == 0) is int churchAt and >= 0)
+        {
+            Landmark church = Landmarks[churchAt];
+            (float cx, float cz) = TileCenter(church.TileX + church.TileZ * Rules.TileNx);
+            float reach = (Math.Max(church.HalfX, church.HalfZ) + 1.5f) * Rules.TileSize;
+            for (int step = 0; step < 40; step++)
+            {
+                float a = angle + step * 2.399963f, r = reach + (step % 8) * 1.6f;
+                float x = cx + MathF.Cos(a) * r, z = cz + MathF.Sin(a) * r;
+                if (!Map.Walkable(x, z) || Tiles[TileAt(x, z)] != TileKind.Free) continue;
+                if (Graves.Count >= MaxGraves) Graves.RemoveAt(0);
+                Graves.Add((x, z));
+                return;
+            }
+        }
         float gx = CenterX - 46 + MathF.Cos(angle) * radius, gz = CenterZ + 30 + MathF.Sin(angle) * radius * 0.7f;
         if (!Map.Walkable(gx, gz)) (gx, gz) = (CenterX + MathF.Cos(angle) * 34, CenterZ + 18 + MathF.Sin(angle) * 10);
         // Step outwards along the spiral until the stone lands on open ground, not in a house, field or road.
@@ -2075,8 +2103,10 @@ public sealed class Simulation
         {
             RecordEra();
             Era = era;
-            Log($"The village enters the {Eras.Names[Era]}", CenterX, CenterZ, 3);
-            Gather(CenterX, CenterZ, 150, true);
+            // From the Middle Ages the era is celebrated on the church square.
+            (float ex, float ez) = ChurchDoor() ?? (CenterX, CenterZ);
+            Log($"The village enters the {Eras.Names[Era]}", ex, ez, 3);
+            Gather(ex, ez, 150, true);
         }
         if (!RunComplete && Year >= Eras.TotalYears)
         {
