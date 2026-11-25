@@ -276,6 +276,12 @@ public partial class Main : Node3D
                 UpdateSun();
             }
         }
+        else if ((_sunTimer -= delta) <= 0)
+        {
+            // While the wallpaper is covered nothing renders, but villagers still keep day and night.
+            _sunTimer = 3;
+            _sim.Night = IsNight(CurrentHour());
+        }
 
         _metricTimer -= delta;
         if (_metrics != null && _metricTimer <= 0)
@@ -571,11 +577,14 @@ public partial class Main : Node3D
         _view.UpdateFallingTrees(delta);
     }
 
+    private float CurrentHour() => _fixedHour ?? DateTime.Now.Hour + DateTime.Now.Minute / 60f;
+
+    private static bool IsNight(float hour) => hour < 6f || hour >= 20f;
+
     private void UpdateSun()
     {
-        DateTime now = DateTime.Now;
-        float hour = _fixedHour ?? now.Hour + now.Minute / 60f;
-        _sim.Night = hour < 6f || hour >= 20f;
+        float hour = CurrentHour();
+        _sim.Night = IsNight(hour);
         float arc = (hour - 6f) / 12f * Mathf.Pi;
         float height = MathF.Sin(arc), day = Mathf.SmoothStep(-0.12f, 0.2f, height);
         _sun.Rotation = new Vector3(-Mathf.Max(0.18f, MathF.Abs(height)) * 1.25f, MathF.Cos(arc) * 1.2f, 0);
