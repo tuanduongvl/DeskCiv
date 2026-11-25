@@ -160,7 +160,8 @@ void vertex() {
     VERTEX += vec3(sin(t * 5.0 + INSTANCE_CUSTOM.x * 40.0) * t * 0.7, t * 5.2, cos(t * 4.0 + INSTANCE_CUSTOM.x * 30.0) * t * 0.5);
     COLOR.a = smoothstep(0.0, 0.14, t) * (1.0 - t) * (1.0 - t) * 0.3;
 }
-void fragment() { ALBEDO = vec3(0.86, 0.85, 0.82); ALPHA = COLOR.a; }";
+uniform vec3 tone = vec3(0.86, 0.85, 0.82);
+void fragment() { ALBEDO = tone; ALPHA = COLOR.a; }";
 
     private const string MovingShader = @"
 shader_type spatial;
@@ -492,7 +493,9 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
-    private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers;
+    private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers, _boilers;
+    private Vector3? _boilerAt;
+    private ShaderMaterial _puffMaterial;
     private StandardMaterial3D _lanternMaterial;
     private int _lampPoolNode;
     private readonly float[] _barrowBuffer = new float[HeroCapacity * 16];
@@ -606,8 +609,9 @@ void fragment() {
         _wells = AddInstances(MeshKit.Well(), vertexColors, false, 16, true);
         _fountains = AddInstances(MeshKit.Fountain(), vertexColors, false, 16, true);
         _towers = AddInstances(MeshKit.WaterTower(), vertexColors, false, 2, true);
+        _boilers = AddInstances(MeshKit.BoilerHouse(), vertexColors, false, 2, true);
 
-        var puffMaterial = new ShaderMaterial { Shader = new Shader { Code = SmokeShader } };
+        var puffMaterial = _puffMaterial = new ShaderMaterial { Shader = new Shader { Code = SmokeShader } };
         _smoke = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = MeshKit.Puff(), InstanceCount = MaxPuffs, VisibleInstanceCount = 0 };
         AddChild(new MultiMeshInstance3D
         {
@@ -1013,6 +1017,25 @@ void fragment() {
             }
             if (bestHeight > float.MinValue) _towers.SetInstanceTransform(towers++, new Transform3D(Basis.Identity, best));
         }
+        // Heating by era: coal smoke is darker in the Industrial era; in the 20th century a district heating boiler
+        // house beside the water tower takes over from most hearths.
+        _puffMaterial?.SetShaderParameter("tone", s.Era == 6 ? new Vector3(0.42f, 0.41f, 0.4f) : s.Era >= 7 ? new Vector3(0.8f, 0.8f, 0.8f) : new Vector3(0.86f, 0.85f, 0.82f));
+        _boilerAt = null;
+        if (s.Era >= 7 && towers > 0)
+        {
+            Vector3 tower = _towers.GetInstanceTransform(0).Origin;
+            foreach (Vector3 offset in new[] { new Vector3(14, 0, 0), new Vector3(-14, 0, 0), new Vector3(0, 0, 14), new Vector3(0, 0, -14) })
+            {
+                Vector3 at = tower + offset;
+                int tx = (int)((at.X + WorldMap.SizeX / 2) / Rules.TileSize), tz = (int)((at.Z + WorldMap.SizeZ / 2) / Rules.TileSize);
+                if (tx < 1 || tz < 1 || tx >= Rules.TileNx - 1 || tz >= Rules.TileNz - 1 || s.Tiles[tx + tz * Rules.TileNx] != TileKind.Free) continue;
+                at.Y = _map.Height(at.X, at.Z);
+                _boilerAt = at;
+                break;
+            }
+        }
+        if (_boilerAt is Vector3 boiler) _boilers.SetInstanceTransform(0, new Transform3D(Basis.Identity, boiler));
+        _boilers.VisibleInstanceCount = _boilerAt != null ? 1 : 0;
         _wells.VisibleInstanceCount = wells;
         _fountains.VisibleInstanceCount = fountains;
         _towers.VisibleInstanceCount = towers;
@@ -1255,7 +1278,8 @@ void fragment() {
         {
             bool workshop = b.Type is BType.Bakery or BType.Smithy;
             if (workshop != (pass == 0)) continue;
-            bool hutFire = b.Type == BType.Hut && b.Occupants > 0 && (cold || (int)(b.X * 3 + b.Z * 5) % 3 == 0);
+            // With district heating in the 20th century only one hearth in four still smokes.
+            bool hutFire = b.Type == BType.Hut && b.Occupants > 0 && (cold || (int)(b.X * 3 + b.Z * 5) % 3 == 0) && (s.Era < 7 || _boilerAt == null || (int)(b.X * 5 + b.Z * 3) % 4 == 0);
             if (!b.Built || (!workshop && !hutFire)) continue;
             int count = b.Type == BType.Hut ? 3 : 5;
             Vector3 source = b.Type == BType.Hut && s.Era == 0
@@ -1270,6 +1294,15 @@ void fragment() {
                 _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity, source));
                 float phase = k / (float)count + b.X * 0.137f;
                 _smoke.SetInstanceCustomData(puffs++, new Color(phase - MathF.Floor(phase), 0, 0));
+            }
+        }
+        if (_boilerAt is Vector3 plant)
+        {
+            Vector3 top = plant + new Vector3(2.5f, 24.3f, -1.5f);
+            for (int k = 0; k < 8 && puffs < MaxPuffs; k++)
+            {
+                _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 2.2f), top));
+                _smoke.SetInstanceCustomData(puffs++, new Color(k / 8f, 0, 0));
             }
         }
         _smoke.VisibleInstanceCount = puffs;

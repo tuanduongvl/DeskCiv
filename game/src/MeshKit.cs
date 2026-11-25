@@ -1017,6 +1017,18 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A 20th-century district heating boiler house: brick hall with a 24 m chimney at local (2.5, 0, -1.5).</summary>
+    public static ArrayMesh BoilerHouse()
+    {
+        var m = new MeshKit();
+        Color brick = new(0.52f, 0.29f, 0.22f), roof = new(0.3f, 0.31f, 0.33f), glass = new(0.3f, 0.42f, 0.5f);
+        m.House(9f, 6f, 5f, 1.4f, brick, roof);
+        m.Windows(9f, 6f, 3.4f, glass);
+        m.Prism(new Vector3(2.5f, 0, -1.5f), 1.1f, 0.65f, 24f, 12, brick.Darkened(0.12f));
+        m.Prism(new Vector3(2.5f, 23.4f, -1.5f), 0.75f, 0.75f, 0.6f, 12, new Color(0.22f, 0.22f, 0.23f));
+        return m.Build();
+    }
+
     /// <summary>A cast-iron street lamp post, 4 m, with its arm over local +Z. The lantern is a separate mesh.</summary>
     public static ArrayMesh LampPost()
     {
