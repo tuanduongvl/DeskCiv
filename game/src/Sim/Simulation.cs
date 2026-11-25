@@ -1191,7 +1191,7 @@ public sealed class Simulation
             int wanted = -1;
             if (p.Mother >= 0 && p.Age < 16 && _byId.TryGetValue(p.Mother, out Person mother)) wanted = mother.Home;
             else if (p.Spouse >= 0 && _byId.TryGetValue(p.Spouse, out Person spouse)) wanted = spouse.Home;
-            if (wanted < 0 || Buildings[wanted].Occupants >= HomeSize) wanted = FreeHut();
+            if (wanted < 0 || !Buildings[wanted].Built || Buildings[wanted].Occupants >= Capacity(Buildings[wanted])) wanted = FreeHut();
             if (wanted < 0) continue;
             p.Home = wanted;
             Buildings[wanted].Occupants++;
@@ -1200,9 +1200,9 @@ public sealed class Simulation
 
     private int FreeHut()
     {
-        int best = -1, fewest = HomeSize;
+        int best = -1, fewest = int.MaxValue;
         foreach (Building b in Buildings)
-            if (b.Type == BType.Hut && b.Built && b.Occupants < fewest) (best, fewest) = (b.Id, b.Occupants);
+            if (b.Type == BType.Hut && b.Built && b.Occupants < Capacity(b) && b.Occupants < fewest) (best, fewest) = (b.Id, b.Occupants);
         return best;
     }
 
@@ -1210,7 +1210,7 @@ public sealed class Simulation
     private void RehouseCouple(Person mother)
     {
         int target = FreeHut();
-        if (target < 0 || target == mother.Home || Buildings[target].Occupants > HomeSize - 3) return;
+        if (target < 0 || target == mother.Home || Buildings[target].Occupants > Capacity(Buildings[target]) - 3) return;
         Buildings[mother.Home].Occupants--;
         mother.Home = target;
         Buildings[target].Occupants++;
@@ -1252,6 +1252,9 @@ public sealed class Simulation
     }
 
     /// <summary>Family-sized homes, so a large town shows many houses. Camp shelters and the last two eras hold a little more.</summary>
+    /// <summary>Places in a home: a house rebuilt larger in the Industrial era holds two more.</summary>
+    private int Capacity(Building b) => HomeSize + (b.Renewed && b.Built ? 2 : 0);
+
     private int HomeSize => Era switch { 0 => Rules.HutCapacity + 2, <= 6 => Rules.HutCapacity, _ => 7 };
 
     private int Batch => 2 + Era / 2;
@@ -1427,8 +1430,8 @@ public sealed class Simulation
         {
             Person mother = People[i];
             if (!mother.Female || mother.Spouse < 0 || mother.Age < 16 || mother.Age > 42 || mother.Home < 0) continue;
-            if (Buildings[mother.Home].Occupants >= HomeSize) RehouseCouple(mother);
-            if (Buildings[mother.Home].Occupants >= HomeSize || Random.F() >= chance) continue;
+            if (Buildings[mother.Home].Occupants >= Capacity(Buildings[mother.Home])) RehouseCouple(mother);
+            if (Buildings[mother.Home].Occupants >= Capacity(Buildings[mother.Home]) || Random.F() >= chance) continue;
             Person child = Spawn(mother.X, mother.Z, 0, Random.F() < 0.5f, mother.Id);
             child.Home = mother.Home;
             Buildings[mother.Home].Occupants++;
@@ -1449,7 +1452,7 @@ public sealed class Simulation
         foreach (Building b in Buildings)
         {
             if (!b.Built) pending++;
-            if (b.Type == BType.Hut) capacity += HomeSize;
+            if (b.Type == BType.Hut) capacity += Capacity(b);
         }
         if (pending >= 1 + pop / 40) return;
         foreach (Person p in People)
@@ -1830,12 +1833,21 @@ public sealed class Simulation
             if (d < best) (best, chosen) = (d, b);
         }
         if (chosen == null) return;
+        // The family moves out first, but only if the other homes have room for them.
+        int room = 0;
+        foreach (Building b in Buildings)
+            if (b.Type == BType.Hut && b.Built && b != chosen) room += Math.Max(0, Capacity(b) - b.Occupants);
+        if (room < chosen.Occupants) return;
+        foreach (Person p in People)
+            if (p.Home == chosen.Id) p.Home = -1;
+        chosen.Occupants = 0;
+        AssignHomes();
         chosen.Renewed = true;
         chosen.Built = false;
         chosen.Progress = 0.2f;
         chosen.Workers = 0;
         BuildingVersion++;
-        Log("An old house is pulled down and rebuilt larger", chosen.X, chosen.Z, 1);
+        Log("A family moves out and their old house is pulled down to be rebuilt larger", chosen.X, chosen.Z, 1);
     }
 
     /// <summary>Town landmarks on their own lots (0 church, 1 water tower, 2 boiler house). Not buildings: nobody works there.</summary>
