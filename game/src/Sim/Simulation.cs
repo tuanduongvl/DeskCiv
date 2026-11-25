@@ -44,6 +44,8 @@ public sealed class Simulation
     public long MainsWaitUntil;
     /// <summary>A house fire: the house, when it catches, and when the fire is over. -1 when none is due.</summary>
     public int FireBuilding = -1, FiresStarted, FiresPutOut;
+    /// <summary>Diagnostic: how many times a mill hand has walked in through the gate (not saved).</summary>
+    public int ShiftsWorked;
     public long FireAt = -1, FireEnd = -1;
     public int MilestoneMask;
     public long FloodAt = -1, FloodEnd = -1;
@@ -571,7 +573,28 @@ public sealed class Simulation
                     p.Act = Act.Idle;
                 }
                 break;
+            case Act.Shift:
+                // A mill hand works a shift inside, then comes out through the gate: at dusk, when hungry, or when it ends.
+                p.Indoors = true;
+                p.Timer -= dt;
+                if (Night || p.Timer <= 0 || p.Hunger >= 0.75f || p.Role is Role.Porter or Role.Builder)
+                {
+                    p.Indoors = false;
+                    p.Act = Act.Idle;
+                }
+                break;
         }
+    }
+
+    /// <summary>The point in front of the mill gate, or null before there is a mill.</summary>
+    private (float X, float Z)? FactoryGate()
+    {
+        int at = Landmarks.FindIndex(l => l.Kind == 3);
+        if (at < 0) return null;
+        Landmark factory = Landmarks[at];
+        (float fx, float fz) = TileCenter(factory.TileX + factory.TileZ * Rules.TileNx);
+        float gate = (factory.HalfZ + 1.3f) * Rules.TileSize;
+        return (fx + MathF.Sin(factory.Yaw) * gate, fz + MathF.Cos(factory.Yaw) * gate);
     }
 
     private bool RestsNow(Person p) => Night && p.Id % 5 == 0;
@@ -646,14 +669,21 @@ public sealed class Simulation
         // Workers, porters and builders keep the village running; children, elders and the jobless within reach go.
         bool free = p.Age < 14 || p.Age >= 60 || (p.Job < 0 && p.Role is not (Role.Porter or Role.Builder));
         if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius) = (GatherX, GatherZ, 7);
-        // By day, jobless adults stand about at the factory gate hoping for work (Industrial era and later).
-        else if (!Night && p.Age >= 14 && p.Age < 60 && p.Job < 0 && p.Role is not (Role.Porter or Role.Builder) && p.Id % 2 == 0
-                 && Landmarks.FindIndex(l => l.Kind == 3) is int factoryAt and >= 0)
+        // By day, adults with nothing to do go to the mill (Industrial era and later). A quarter of them are mill hands:
+        // they walk in through the gate, work a shift, and stream out at dusk. The jobless stand about at the gate.
+        else if (!Night && p.Age >= 14 && p.Age < 60 && (p.Job < 0 && p.Id % 2 == 0 || p.Id % 4 == 0) && p.Role is not (Role.Porter or Role.Builder)
+                 && FactoryGate() is (float gx, float gz))
         {
-            Landmark factory = Landmarks[factoryAt];
-            (float fx, float fz) = TileCenter(factory.TileX + factory.TileZ * Rules.TileNx);
-            float gate = (factory.HalfZ + 1.3f) * Rules.TileSize;
-            (cx, cz, radius) = (fx + MathF.Sin(factory.Yaw) * gate, fz + MathF.Cos(factory.Yaw) * gate, 5);
+            bool hand = p.Id % 4 == 0;
+            if (hand && Dist2(p.X, p.Z, gx, gz) < 4.5f * 4.5f)
+            {
+                p.Act = Act.Shift;
+                p.Indoors = true;
+                p.Timer = 120f;
+                ShiftsWorked++;
+                return;
+            }
+            (cx, cz, radius) = (gx, gz, hand ? 1.5f : 5);
         }
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         p.Act = Act.Wander;

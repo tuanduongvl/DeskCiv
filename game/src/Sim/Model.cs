@@ -4,7 +4,7 @@ public enum Res : byte { Wood, Stone, Berries, Fish, Grain, Flour, Bread, Grapes
 
 public enum BType : byte { Storehouse, Hut, Field, Gatherer, Fisher, Woodcutter, Quarry, Mill, Bakery, Windmill, Watermill, Vineyard, Winery, Smithy, Dike, TideGate, Count }
 
-public enum Act : byte { Idle, Wander, Eat, Haul, Build, Work, Rest, Road }
+public enum Act : byte { Idle, Wander, Eat, Haul, Build, Work, Rest, Road, Shift }
 
 public enum Role : byte { None, Porter, Builder, Worker }
 
