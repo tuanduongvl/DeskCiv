@@ -1981,7 +1981,8 @@ public sealed class Simulation
                     break;
                 }
             Gather(sx, bank, 240);
-            Log("A trading ship sails up the estuary", sx, river, 3);
+            // The story camera frames the crowd on the bank, with the anchored ship beyond.
+            Log("A trading ship sails up the estuary", sx, bank, 3);
         }
         int era = Eras.Index(Year);
         if (era > Era)

@@ -40,6 +40,7 @@ public partial class Main : Node3D
     private bool _renderEnabled = true, _ignoreOcclusion, _closed;
     private float? _fixedHour;
     private string _shotPath;
+    private double _shotAt;
     private int _baseSpeed = 1, _shotNumber, _shotFrames, _shotWait, _burst, _burstIndex;
     private float CloseDistance = 30f, _azimuth, _azimuthTarget, _driftAmount = 1;
     private const float MinZoom = 10f, MaxZoom = 270f, ManualSeconds = 60f;
@@ -70,6 +71,7 @@ public partial class Main : Node3D
         int? seed = seedText == null ? null : int.Parse(seedText, CultureInfo.InvariantCulture);
         string metricsPath = Option(args, "--metrics", null);
         _shotPath = Option(args, "--shot", null);
+        _shotAt = Number(args, "--shot-at", 0);
         _burst = (int)Number(args, "--burst", 0);
         _forcedWeather = Option(args, "--weather", null);
         if (Enum.TryParse(Option(args, "--watch", ""), true, out Clip watched)) _forcedClip = watched;
@@ -227,7 +229,8 @@ public partial class Main : Node3D
         }
 
         // A watched activity may not be happening yet, so wait for the camera to find it, up to about 40 seconds.
-        if (_shotPath != null && (_forcedClip == null || _focusTimer > 1000 || ++_shotWait >= 1200) && ++_shotFrames >= (_forcedClip == null ? 75 : 300))
+        // --shot-at=SEC delays the screenshot (it is normally taken after 75 frames), e.g. to catch a timed event.
+        if (_shotPath != null && _elapsed >= _shotAt && (_forcedClip == null || _focusTimer > 1000 || ++_shotWait >= 1200) && ++_shotFrames >= (_forcedClip == null ? 75 : 300))
         {
             // --burst=N saves N extra frames a few frames apart (name_1.png ...) to check motion in tests.
             string path = _burstIndex == 0 ? _shotPath : _shotPath.Replace(".png", $"_{_burstIndex}.png");
