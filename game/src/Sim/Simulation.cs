@@ -36,6 +36,8 @@ public sealed class Simulation
     public bool Night, RunComplete;
     public int Era;
     public int NextPersonId, Births, Deaths, Migrants, ActiveEvent;
+    /// <summary>Road tiles planned to widen busy streets (not saved; for tests and logs).</summary>
+    public int StreetsWidened;
     public int MilestoneMask;
     public long FloodAt = -1, FloodEnd = -1;
     public float ToolBonus = 1, WineBonus = 1;
@@ -1743,9 +1745,48 @@ public sealed class Simulation
     /// <summary>From the Iron Age a trading ship visits every third year, in its spring and early summer. Decorative: no goods change hands.</summary>
     public bool TraderVisiting => Era >= 3 && (int)Year % 3 == 1 && YearFraction is > 0.05f and < 0.45f;
 
+    /// <summary>
+    /// From the Middle Ages the most-trodden streets near the centre are widened: each year up to six busy road
+    /// tiles get a free neighbour across the street planned as road, so main streets grow to two lanes.
+    /// </summary>
+    private void WidenBusyStreets()
+    {
+        if (RoadQueue.Count > 24) return;
+        int cx = (int)((CenterX + WorldMap.SizeX / 2) / Rules.TileSize), cz = (int)((CenterZ + WorldMap.SizeZ / 2) / Rules.TileSize);
+        var busy = new List<(int Wear, int Tile)>();
+        for (int z = Math.Max(1, cz - 24); z < Math.Min(Rules.TileNz - 1, cz + 24); z++)
+        for (int x = Math.Max(1, cx - 24); x < Math.Min(Rules.TileNx - 1, cx + 24); x++)
+        {
+            int tile = x + z * Rules.TileNx;
+            if (Tiles[tile] != TileKind.Road) continue;
+            float wx = (x + 0.5f) * Rules.TileSize, wz = (z + 0.5f) * Rules.TileSize;
+            int cell = (int)(wx / (WorldMap.SizeX / (float)WearNx)) + (int)(wz / (WorldMap.SizeZ / (float)WearNz)) * WearNx;
+            if (cell >= 0 && cell < Wear.Length && Wear[cell] >= 90) busy.Add((Wear[cell], tile));
+        }
+        busy.Sort((a, b) => b.Wear != a.Wear ? b.Wear.CompareTo(a.Wear) : a.Tile.CompareTo(b.Tile));
+        int planned = 0;
+        foreach ((_, int tile) in busy)
+        {
+            if (planned >= 6) break;
+            int nx = Rules.TileNx;
+            bool alongX = Tiles[tile - 1] is TileKind.Road or TileKind.PlannedRoad || Tiles[tile + 1] is TileKind.Road or TileKind.PlannedRoad;
+            int[] across = alongX ? new[] { tile + nx, tile - nx } : new[] { tile + 1, tile - 1 };
+            // Already two lanes wide here.
+            if (Tiles[across[0]] is TileKind.Road or TileKind.PlannedRoad || Tiles[across[1]] is TileKind.Road or TileKind.PlannedRoad) continue;
+            foreach (int side in across)
+                if (Tiles[side] == TileKind.Free && Map.Walkable(TileCenter(side).X, TileCenter(side).Z))
+                {
+                    PlanRoad(side);
+                    planned++;
+                    StreetsWidened++;
+                    break;
+                }
+        }
+    }
+
     private void NewYear()
     {
-        if (Era >= 3 && (int)MathF.Round(Year) % 3 == 1)
+        if (Era >= 4) WidenBusyStreets();        if (Era >= 3 && (int)MathF.Round(Year) % 3 == 1)
         {
             float sx = CenterX + 25;
             // Children, elders and the jobless go down to the bank to watch the ship come in.
