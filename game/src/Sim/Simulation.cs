@@ -610,12 +610,13 @@ public sealed class Simulation
     }
 
     /// <summary>Draws idle villagers to one place for a while. Gatherings are at least half a year apart.</summary>
-    private void Gather(float x, float z, float seconds, bool force = false)
+    private bool Gather(float x, float z, float seconds, bool force = false)
     {
-        if (!force && Tick - LastGathering < Rules.TicksPerYear / 2) return;
+        if (!force && Tick - LastGathering < Rules.TicksPerYear / 2) return false;
         (GatherX, GatherZ) = (x, z);
         GatherUntil = Tick + (long)(seconds / Rules.TickSeconds);
         LastGathering = Tick;
+        return true;
     }
 
     private void Wander(Person p)
@@ -1141,8 +1142,8 @@ public sealed class Simulation
         {
             // With a parish church the mourners gather at its door; before that, at the grave.
             (float gx, float gz) = ChurchDoor() ?? Graves[^1];
-            Gather(gx, gz, 70);
-            Log("The village gathers to bury one of its elders", gx, gz, 2);
+            if (Gather(gx, gz, 70))
+                Log("The village gathers to bury one of its elders", gx, gz, 2);
         }
     }
 
@@ -2034,8 +2035,8 @@ public sealed class Simulation
                 HarvestFactor = 1.35f;
                 ActiveEvent = 4;
                 (float hx, float hz) = PlaceOf(BType.Storehouse);
-                Gather(hx, hz, 120);
-                Log("A bumper harvest: the village holds a feast", hx, hz, 2);
+                if (Gather(hx, hz, 120))
+                    Log("A bumper harvest: the village holds a feast", hx, hz, 2);
             }
         }
         HarvestFactor *= 1 + Support;
@@ -2147,7 +2148,8 @@ public sealed class Simulation
                     bank = river + side * (d + 4);
                     break;
                 }
-            Gather(sx, bank, 240);
+            // The ship is the rarest sight of all, so it outranks a recent funeral or feast.
+            Gather(sx, bank, 240, true);
             // The story camera frames the crowd on the bank, with the anchored ship beyond.
             Log("A trading ship sails up the estuary", sx, bank, 3);
         }
