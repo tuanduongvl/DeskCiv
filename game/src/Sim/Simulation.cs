@@ -1478,10 +1478,20 @@ public sealed class Simulation
             if (single.Female == p.Female) continue;
             single.Spouse = p.Id;
             p.Spouse = single.Id;
-            single = null;
-            // Once there is a parish church, a wedding draws the village to its door (if no gathering was held lately).
+            // Once there is a parish church, a wedding draws the village to its door (if no gathering was held lately),
+            // and the couple themselves walk there unless they are busy with a load or a build.
             if (!Night && ChurchDoor() is (float wx, float wz) && Gather(wx, wz, 90))
+            {
                 Log("Wedding bells: the village gathers at the church", wx, wz, 2);
+                foreach (Person partner in new[] { single, p })
+                    if (partner.Act is Act.Idle or Act.Wander)
+                    {
+                        partner.Act = Act.Wander;
+                        partner.Timer = 60f;
+                        GoTo(partner, wx + (partner.Female ? 0.7f : -0.7f), wz, 300);
+                    }
+            }
+            single = null;
         }
 
         int food = FoodInStores();
@@ -2738,6 +2748,14 @@ public sealed class Simulation
         float edgeX = Math.Clamp(CenterX - 130, -WorldMap.SizeX / 2 + 10, WorldMap.SizeX / 2 - 10);
         float edgeZ = Map.RiverCenter(edgeX) + WorldMap.EstuaryWidth(edgeX) + 45;
         if (!Map.Walkable(edgeX, edgeZ)) (edgeX, edgeZ) = (CenterX, CenterZ + 12);
+        // Once the railway runs, newcomers come by train and step out of the station gate.
+        bool byTrain = false;
+        if (RailRow >= 0 && Landmarks.FindIndex(l => l.Kind == 4) is int at and >= 0)
+        {
+            Landmark station = Landmarks[at];
+            (float gx, float gz) = TileCenter(station.TileX + (station.TileZ + (station.Yaw == 0 ? 2 : -2)) * Rules.TileNx);
+            if (Map.Walkable(gx, gz)) (edgeX, edgeZ, byTrain) = (gx, gz, true);
+        }
         for (int i = 0; i < group && People.Count < Eras.MaxPopulation(Era); i++)
         {
             float x = edgeX + Random.R(-5, 5), z = edgeZ + Random.R(-5, 5);
@@ -2745,7 +2763,7 @@ public sealed class Simulation
             Spawn(x, z, Random.R(16, 34), i % 2 == 0, -1);
             Migrants++;
         }
-        Log("A group of newcomers arrives at the estuary", edgeX, edgeZ, 2);
+        Log(byTrain ? "Newcomers step off the train at the station" : "A group of newcomers arrives at the estuary", edgeX, edgeZ, 2);
     }
 
     public long TotalGoods(Res r)
