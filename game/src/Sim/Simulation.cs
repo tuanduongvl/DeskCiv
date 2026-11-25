@@ -442,7 +442,7 @@ public sealed class Simulation
                     }
                     b.BurnDebt = Math.Min(b.BurnDebt, 2);
                 }
-                b.Warm = b.Stock[(int)Res.Wood] > 0;
+                b.Warm = b.Stock[(int)Res.Wood] > 0 || DistrictHeated(b);
             }
         }
     }
@@ -598,8 +598,8 @@ public sealed class Simulation
     }
 
     /// <summary>
-    /// Market day: from the Middle Ages, once every two months outside winter, stalls stand by the church door for 90
-    /// seconds of daylight. Null when there is no market on.
+    /// Market day: from the Middle Ages, at the start of every sixth of a year (two months) outside winter, stalls stand
+    /// by the church door for 90 seconds of daylight. Null when there is no market on.
     /// </summary>
     public (float X, float Z)? MarketPlace()
     {
@@ -681,9 +681,10 @@ public sealed class Simulation
             (cx, cz) = DoorPoint(Buildings[p.Job]);
             radius = 6;
         }
-        else if (p.Role == Role.Porter && TraderVisiting && p.Id % 2 == 0 && Landmarks.FindIndex(l => l.Kind == 5) is int quayAt and >= 0)
+        else if (p.Role == Role.Porter && p.Id % 4 == 0 && Tick % Rules.TicksPerYear is >= 2400 and < 4800 && TraderVisiting
+                 && Landmarks.FindIndex(l => l.Kind == 5) is int quayAt and >= 0)
         {
-            // While the trading ship lies at anchor, half the idle porters wait on the quay for its cargo.
+            // While the crowd watches the trading ship come in, a quarter of the idle porters wait on the quay for its cargo.
             (cx, cz) = TileCenter(Landmarks[quayAt].TileX + Landmarks[quayAt].TileZ * Rules.TileNx);
             radius = 6;
         }
@@ -698,8 +699,8 @@ public sealed class Simulation
         // A house fire brings every neighbour with a moment to spare, adults too: they pass the buckets.
         if (FireEnd >= 0 && Tick < FireEnd && Dist2(p.X, p.Z, GatherX, GatherZ) < 40 * 40) free = true;
         if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius) = (GatherX, GatherZ, 7);
-        // On market day the stalls by the church draw those with time on their hands, and some idle adults too.
-        else if ((free || p.Id % 3 == 1) && MarketPlace() is (float mx, float mz) && Dist2(p.X, p.Z, mx, mz) < 70 * 70) (cx, cz, radius) = (mx, mz, 8);
+        // On market day the stalls by the church draw those with time on their hands; working adults stay at work.
+        else if (free && MarketPlace() is (float mx, float mz) && Dist2(p.X, p.Z, mx, mz) < 70 * 70) (cx, cz, radius) = (mx, mz, 8);
         // By day, adults with nothing to do go to the mill (Industrial era and later). A quarter of them are mill hands:
         // they walk in through the gate, work a shift, and stream out at dusk. The jobless stand about at the gate.
         else if (!Night && p.Age >= 14 && p.Age < 60 && (p.Job < 0 && p.Id % 2 == 0 || p.Id % 4 == 0) && p.Role is not (Role.Porter or Role.Builder)
@@ -1786,6 +1787,8 @@ public sealed class Simulation
             if (b.Type != BType.Field) continue;
             fields++;
             if (!b.Built || InPolder(b.TileX, b.TileZ) || HomesNear(b.X, b.Z, 32f) < 3) continue;
+            // A field the railway runs through stays a field: houses would stand on the line.
+            if (RailRow >= 0 && b.TileZ <= RailRow && RailRow < b.TileZ + Rules.Footprint(BType.Field)) continue;
             bool busy = false;
             for (int r = 0; r < b.In.Length && !busy; r++) busy = b.In[r] != 0 || b.Out[r] != 0 || b.Stock[r] != 0; // grain must be carried away first
             foreach (Person p in People)
@@ -2084,7 +2087,8 @@ public sealed class Simulation
                     for (int shift = 0; shift <= 20 && !placed; shift++)
                     {
                         int x = tx + (shift % 2 == 0 ? shift / 2 : -(shift + 1) / 2), z = tz + (side > 0 ? back : -back);
-                        if (!LotFree(x, z, 2, 0, false)) continue;
+                        // Keep clear of the crowd at CenterX + 25: the 18 m quay must start downstream of it.
+                        if (TileCenter(x + z * Rules.TileNx).X < CenterX + 36 || !LotFree(x, z, 2, 0, false)) continue;
                         AddLandmark(5, x, z, 2, 0, side > 0 ? MathF.PI : 0);
                         placed = true;
                     }
