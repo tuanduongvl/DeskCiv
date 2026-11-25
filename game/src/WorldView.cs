@@ -493,7 +493,7 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
-    private MultiMesh _rubble, _churches, _quays, _trenches, _factories;
+    private MultiMesh _rubble, _churches, _quays, _trenches, _factories, _stations;
     private Vector3? _factoryAt;
     private Vector3 _factoryChimney;
     private float _factoryYaw;
@@ -558,6 +558,7 @@ void fragment() {
             _factories = AddInstances(factory, factory.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
             _factoryChimney = HighestPoint(factory);
         }
+        if (MeshKit.Station() is ArrayMesh station) _stations = AddInstances(station, station.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
         Mesh church = MeshKit.Church();
         _churches = AddInstances(church, church.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true);
         Mesh quay = MeshKit.Quay();
@@ -1009,7 +1010,7 @@ void fragment() {
     public Vector3? Landmark(int n)
     {
         var list = new System.Collections.Generic.List<Vector3>();
-        foreach (MultiMesh m in new[] { _churches, _factories, _quays, _towers, _boilers, _fountains, _wells })
+        foreach (MultiMesh m in new[] { _churches, _factories, _stations, _quays, _towers, _boilers, _fountains, _wells })
             if (m != null)
                 for (int i = 0; i < Math.Min(2, m.VisibleInstanceCount); i++) list.Add(m.GetInstanceTransform(i).Origin);
         return list.Count == 0 ? null : list[n % list.Count];
@@ -1064,6 +1065,13 @@ void fragment() {
         _factoryAt = null;
         foreach (Simulation.Landmark l in s.Landmarks)
             if (l.Kind == 3 && _factories != null) (_factoryAt, _factoryYaw) = (LotCentre(l), l.Yaw);
+        if (_stations != null)
+        {
+            int stations = 0;
+            foreach (Simulation.Landmark l in s.Landmarks)
+                if (l.Kind == 4 && stations == 0) _stations.SetInstanceTransform(stations++, new Transform3D(new Basis(Vector3.Up, l.Yaw), LotCentre(l)));
+            _stations.VisibleInstanceCount = stations;
+        }
         if (_factories != null)
         {
             if (_factoryAt is Vector3 mill) _factories.SetInstanceTransform(0, new Transform3D(new Basis(Vector3.Up, _factoryYaw), mill));

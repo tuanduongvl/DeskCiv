@@ -1067,6 +1067,9 @@ public sealed class MeshKit
     /// <summary>An Industrial-era factory (image-made only), 23 m along local X, gate at +Z, chimney at a back corner.</summary>
     public static ArrayMesh Factory() => LoadModel("landmark_factory");
 
+    /// <summary>A 20th-century railway station (image-made only), 22 m along local X, entrance at +Z.</summary>
+    public static ArrayMesh Station() => LoadModel("landmark_station");
+
     /// <summary>A cast-iron street lamp post, 4 m, with its arm over local +Z. The lantern is a separate mesh.</summary>
     public static ArrayMesh LampPost()
     {

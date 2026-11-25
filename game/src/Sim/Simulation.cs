@@ -1850,7 +1850,7 @@ public sealed class Simulation
         Log("A family moves out and their old house is pulled down to be rebuilt larger", chosen.X, chosen.Z, 1);
     }
 
-    /// <summary>Town landmarks on their own lots (0 church, 1 water tower, 2 boiler house, 3 factory). Not buildings: nobody works there.</summary>
+    /// <summary>Town landmarks on their own lots (0 church, 1 water tower, 2 boiler house, 3 factory, 4 railway station). Not buildings: nobody works there.</summary>
     public readonly record struct Landmark(int Kind, int TileX, int TileZ, int HalfX, int HalfZ, float Yaw);
     public readonly List<Landmark> Landmarks = new();
 
@@ -1933,6 +1933,19 @@ public sealed class Simulation
                 if (d < best && LotFree(x, z, 3, 1, pass == 0)) (best, bx, bz) = (d, x, z);
             }
             if (best < int.MaxValue) AddLandmark(3, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
+        }
+        // A railway station in the 20th century, laid out like the factory: east-west, entrance facing the centre.
+        if (Era >= 7 && !Has(4))
+        {
+            int best = int.MaxValue, bx = 0, bz = 0;
+            for (int pass = 0; pass < 2 && best == int.MaxValue; pass++)
+            for (int z = cz - 45; z <= cz + 45; z++)
+            for (int x = cx - 45; x <= cx + 45; x++)
+            {
+                int d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
+                if (d < best && LotFree(x, z, 3, 1, pass == 0)) (best, bx, bz) = (d, x, z);
+            }
+            if (best < int.MaxValue) AddLandmark(4, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
         }
         if (Era >= 7 && !Has(2) && Landmarks.Find(l => l.Kind == 1) is { Kind: 1 } tower)
         {
