@@ -2445,10 +2445,12 @@ public sealed class Simulation
             Add((ulong)p.Id);
             AddF(p.X); AddF(p.Z); AddF(p.Age); AddF(p.Hunger); AddF(p.Health); AddF(p.Timer);
             Add((ulong)p.Act); Add((ulong)p.Role); Add(p.Phase); Add(p.CarryN);
+            Add((ulong)(long)p.Home); Add((ulong)(long)p.Job);
         }
         foreach (Building b in Buildings)
         {
             Add((ulong)b.Type); AddF(b.Progress); AddF(b.Growth); Add((ulong)b.Yield);
+            Add(b.Built ? 1UL : 0UL); Add(b.Renewed ? 1UL : 0UL);
             foreach (int s in b.Stock) Add((ulong)s);
             foreach (int s in b.In) Add((ulong)s);
             foreach (int s in b.Out) Add((ulong)s);
