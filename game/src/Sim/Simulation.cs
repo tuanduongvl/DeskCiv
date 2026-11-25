@@ -681,6 +681,12 @@ public sealed class Simulation
             (cx, cz) = DoorPoint(Buildings[p.Job]);
             radius = 6;
         }
+        else if (p.Role == Role.Porter && TraderVisiting && p.Id % 2 == 0 && Landmarks.FindIndex(l => l.Kind == 5) is int quayAt and >= 0)
+        {
+            // While the trading ship lies at anchor, half the idle porters wait on the quay for its cargo.
+            (cx, cz) = TileCenter(Landmarks[quayAt].TileX + Landmarks[quayAt].TileZ * Rules.TileNx);
+            radius = 6;
+        }
         else if (p.Role == Role.Porter && NearestStore(p.X, p.Z) is Building store)
         {
             (cx, cz) = DoorPoint(store);

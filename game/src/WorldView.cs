@@ -516,7 +516,7 @@ void fragment() {
     /// <summary>Flames over a burning house, flickered every frame.</summary>
     private MultiMesh _flames;
     /// <summary>Railway track along the sim's rail row, and the train that runs on it (view only, on its own clock).</summary>
-    private MultiMesh _rails, _train, _portal, _stalls;
+    private MultiMesh _rails, _train, _portal, _stalls, _cargo2;
     private float _trainClock, _trainStopX, _trainZ, _tunnelX;
     private bool _hasRail;
     private Vector3? _fireAt;
@@ -604,6 +604,7 @@ void fragment() {
         _train = AddInstances(MeshKit.Train(), vertexColors, false, 1, true);
         _portal = AddInstances(MeshKit.TunnelPortal(), vertexColors, false, 1, true);
         _stalls = AddInstances(MeshKit.MarketStall(), vertexColors, false, 8, true);
+        _cargo2 = AddInstances(MeshKit.GoodsPile(3), vertexColors, false, 4, true);
         // Felled trees use the pine model and material, realistic or kit.
         _falling = AddInstances(_treeKinds[0].Mesh, ((MultiMeshInstance3D)GetChild(_treeNodeIndex)).MaterialOverride, false, MaxFalling, true);
         _fallingNodeIndex = GetChildCount() - 1;
@@ -1225,6 +1226,15 @@ void fragment() {
                     float bank = river + side * d;
                     var at = new Vector3(qx, _map.Height(qx, bank + side * 3f), bank - side * 1.5f);
                     _quays.SetInstanceTransform(quays++, new Transform3D(new Basis(Vector3.Up, side > 0 ? MathF.PI : 0), at));
+                    // While the trading ship is in, its cargo stands in piles on the quay.
+                    int piles = 0;
+                    if (s.TraderVisiting)
+                        foreach (float dx in new[] { -5f, -2.5f, 3f })
+                        {
+                            var pile = new Vector3(qx + dx, _map.Height(qx, bank) + 0.05f, bank + side * 1.2f);
+                            _cargo2.SetInstanceTransform(piles++, new Transform3D(new Basis(Vector3.Up, dx), pile));
+                        }
+                    _cargo2.VisibleInstanceCount = piles;
                     break;
                 }
         }
