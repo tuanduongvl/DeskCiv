@@ -1364,6 +1364,7 @@ void fragment() {
         _terrain.SetShaderParameter("snow", snowLevel);
         // Only a harsh winter freezes the river: ice spreads out from the shallow banks.
         _waterMaterial.SetShaderParameter("ice", harsh);
+        _wildlife.Frozen = harsh > 0.3f;
         Color leaf = leaves[a].Lerp(leaves[b], t).Lerp(new Color(0.46f, 0.46f, 0.2f), drought * 0.35f).Lerp(leaves[3], harsh * 0.8f);
         Color sea = water[a].Lerp(water[b], t);
         _treeMaterial.SetShaderParameter("leaf", new Vector3(leaf.R, leaf.G, leaf.B));

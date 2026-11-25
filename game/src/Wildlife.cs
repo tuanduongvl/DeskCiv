@@ -63,6 +63,18 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     private Flock _gulls, _boats, _trader;
     /// <summary>True while a trading ship visits (from the simulation); it sails in, anchors off the village, then leaves.</summary>
     public bool TraderVisiting { get; set; }
+    private bool _frozen;
+
+    /// <summary>The river is frozen (harsh winter): the fishing boats stay ashore.</summary>
+    public bool Frozen
+    {
+        set
+        {
+            if (value == _frozen) return;
+            _frozen = value;
+            ApplyCounts();
+        }
+    }
     private float _boatDraft;
     private float _clock;
 
@@ -136,7 +148,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         bool farming = _era >= 1;
         int[] wanted = { 4 + 3 * _fields, 1 + _fields, 4 + _huts / 2 };
         for (int i = 0; i < 3; i++) _herds[i].Mesh.VisibleInstanceCount = farming ? Math.Clamp(wanted[i], 0, _herds[i].Agents.Length) : 0;
-        _boats.Mesh.VisibleInstanceCount = _era >= 2 ? Math.Clamp(_fishers, 1, _boats.Agents.Length) : 0;
+        _boats.Mesh.VisibleInstanceCount = _era >= 2 && !_frozen ? Math.Clamp(_fishers, 1, _boats.Agents.Length) : 0;
     }
 
     /// <summary>Texture and leg layout of a herd or boat model.</summary>
