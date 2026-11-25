@@ -13,6 +13,8 @@ public sealed class Simulation
 
     public readonly WorldMap Map;
     public Rng Random;
+    /// <summary>Draws for cosmetic behaviour (idle wandering, path wear), kept apart so they cannot shift the economy's stream.</summary>
+    public Rng Cosmetic;
     public long Tick;
     /// <summary>Where idle villagers gather until GatherUntil (a tick), and when the last gathering began.</summary>
     public float GatherX, GatherZ;
@@ -60,6 +62,7 @@ public sealed class Simulation
     {
         Map = new WorldMap(seed);
         Random = new Rng(unchecked((ulong)(uint)seed * 0x9E3779B97F4A7C15UL + 11));
+        Cosmetic = new Rng(unchecked((ulong)(uint)seed * 0xD1B54A32D192ED03UL + 29));
         for (int i = Rules.MaxPeople - 1; i >= 0; i--) _freeSlots.Push(i);
         GenerateTrees();
         InitTiles();
@@ -630,9 +633,9 @@ public sealed class Simulation
         // Workers, porters and builders keep the village running; children, elders and the jobless within reach go.
         bool free = p.Age < 14 || p.Age >= 60 || (p.Job < 0 && p.Role is not (Role.Porter or Role.Builder));
         if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius) = (GatherX, GatherZ, 7);
-        float x = cx + Random.R(-radius, radius), z = cz + Random.R(-radius, radius);
+        float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         p.Act = Act.Wander;
-        p.Timer = Random.R(3, 11);
+        p.Timer = Cosmetic.R(3, 11);
         if (Map.Walkable(x, z)) GoTo(p, x, z, 300);
     }
 
@@ -1733,7 +1736,7 @@ public sealed class Simulation
             int x = (int)((p.X + WorldMap.SizeX / 2) / 5f), z = (int)((p.Z + WorldMap.SizeZ / 2) / 5f);
             if (x < 0 || z < 0 || x >= WearNx || z >= WearNz) continue;
             int i = x + z * WearNx;
-            if (Wear[i] < 255 && Random.F() < 0.25f) Wear[i]++;
+            if (Wear[i] < 255 && Cosmetic.F() < 0.25f) Wear[i]++;
         }
     }
 
@@ -1997,7 +2000,8 @@ public sealed class Simulation
         if (start < 0)
         {
             int tries = 0;
-            for (int i = 0; i < ring.Length && tries < 4; i += 3)
+            // A town that has grown up to the shore can wall off the first few ring tiles, so keep looking further round.
+            for (int i = 0; i < ring.Length && tries < 16; i += 3)
             {
                 if (Tiles[ring[i]] != TileKind.Free) continue;
                 tries++;
@@ -2007,6 +2011,7 @@ public sealed class Simulation
                 break;
             }
         }
+        if (start < 0 || link == null) (start, link) = ShoreStart(ring);
         if (start < 0 || link == null) return false;
         polder.Start = start;
         polder.Ring = RingOf(polder);
@@ -2015,6 +2020,31 @@ public sealed class Simulation
         foreach (int tile in link) PlanRoad(tile);
         RoadVersion++;
         return true;
+    }
+
+    /// <summary>
+    /// For a ring lying wholly in the sea: the first ring tile beside a road, or beside free land a road can reach.
+    /// Returns the ring index and the road link to plan, or (-1, null).
+    /// </summary>
+    private (int Start, int[] Link) ShoreStart(int[] ring)
+    {
+        int tries = 0;
+        for (int i = 0; i < ring.Length; i++)
+        {
+            int tile = ring[i], x = tile % Rules.TileNx, z = tile / Rules.TileNx;
+            foreach ((int dx, int dz) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+            {
+                int nx = x + dx, nz = z + dz;
+                if (!InGrid(nx, nz)) continue;
+                int next = nx + nz * Rules.TileNx;
+                if (Tiles[next] is TileKind.Road or TileKind.PlannedRoad) return (i, Array.Empty<int>());
+                if (Tiles[next] != TileKind.Free || Array.IndexOf(ring, next) >= 0 || tries >= 16) continue;
+                tries++;
+                int[] path = FindPath(next, -1, true, Rules.TileNx * Rules.TileNz);
+                if (path != null) return (i, path);
+            }
+        }
+        return (-1, null);
     }
 
     private bool TryPolderWork(Person p)
@@ -2205,6 +2235,7 @@ public sealed class Simulation
         void AddF(float v) => Add(BitConverter.SingleToUInt32Bits(v));
         Add((ulong)Tick);
         Add(Random.State);
+        Add(Cosmetic.State);
         Add((ulong)Era);
         Add((ulong)PlanWait);
         foreach (Polder p in Polders) { Add((ulong)p.Built); Add((ulong)p.Stage); AddF(p.Drain); }
@@ -2231,7 +2262,7 @@ public sealed class Simulation
 
     public void Save(BinaryWriter w)
     {
-        w.Write(10);
+        w.Write(11);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2273,12 +2304,13 @@ public sealed class Simulation
             w.Write(p.Female); w.Write(p.Moving); w.Write(p.Indoors); w.Write((byte)p.Act); w.Write(p.Phase); w.Write(p.Amount); w.Write(p.CarryN); w.Write(p.CarryRes); w.Write(p.Stuck); w.Write(p.PathIndex); w.Write((byte)p.Role); w.Write(p.Path?.Length ?? -1); if (p.Path != null) foreach (int tile in p.Path) w.Write(tile);
         }
         w.Write(GatherX); w.Write(GatherZ); w.Write(GatherUntil); w.Write(LastGathering);
+        w.Write(Cosmetic.State);
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version is not (9 or 10)) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10 or 11)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
@@ -2332,6 +2364,7 @@ public sealed class Simulation
         for (int i = Rules.MaxPeople - 1; i >= 0; i--)
             if (!used[i]) s._freeSlots.Push(i);
         if (version >= 10) { s.GatherX = r.ReadSingle(); s.GatherZ = r.ReadSingle(); s.GatherUntil = r.ReadInt64(); s.LastGathering = r.ReadInt64(); }
+        if (version >= 11) s.Cosmetic.State = r.ReadUInt64();
         return s;
     }
 
