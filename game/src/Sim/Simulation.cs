@@ -1813,20 +1813,6 @@ public sealed class Simulation
     {
         if (Era >= 4) WidenBusyStreets();
         if (Era >= 6) RenewOldHouse();
-        if (Era >= 3 && (int)MathF.Round(Year) % 3 == 1)
-        {
-            float sx = CenterX + 25;
-            // Children, elders and the jobless go down to the bank to watch the ship come in.
-            float river = Map.RiverCenter(sx), side = MathF.Sign(CenterZ - river), bank = CenterZ;
-            for (float d = 0; d <= 120; d += 2)
-                if (Map.Walkable(sx, river + side * d))
-                {
-                    bank = river + side * (d + 4);
-                    break;
-                }
-            Gather(sx, bank, 150);
-            Log("A trading ship sails up the estuary", sx, river, 2);
-        }
         foreach (Building b in Buildings)
         {
             if (b.Type != BType.Field) continue;
@@ -1981,6 +1967,22 @@ public sealed class Simulation
         bool behind = ratio < 0.55f && Year > 3;
         if (People.Count < 8 || (behind && Tick % 6000 == 0)) ArriveMigrants();
 
+        // The ship enters the estuary at 5% of the year and anchors about a minute later; the crowd comes down to the
+        // bank once it is in sight (240 s into the year, the Director's 4th call) and stays four minutes.
+        if (Era >= 3 && (int)Year % 3 == 1 && Tick % Rules.TicksPerYear == 2400)
+        {
+            float sx = CenterX + 25;
+            // Children, elders and the jobless go down to the bank to watch the ship come in.
+            float river = Map.RiverCenter(sx), side = MathF.Sign(CenterZ - river), bank = CenterZ;
+            for (float d = 0; d <= 120; d += 2)
+                if (Map.Walkable(sx, river + side * d))
+                {
+                    bank = river + side * (d + 4);
+                    break;
+                }
+            Gather(sx, bank, 240);
+            Log("A trading ship sails up the estuary", sx, river, 3);
+        }
         int era = Eras.Index(Year);
         if (era > Era)
         {
