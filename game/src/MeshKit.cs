@@ -1065,6 +1065,20 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>Demolition rubble: broken brick and plaster heaped with a few old beams.</summary>
+    public static ArrayMesh Rubble()
+    {
+        var m = new MeshKit();
+        Color brick = new(0.55f, 0.32f, 0.24f), plaster = new(0.72f, 0.68f, 0.6f), beam = new(0.32f, 0.23f, 0.15f);
+        m.Prism(Vector3.Zero, 1.6f, 0.25f, 0.9f, 7, brick.Darkened(0.1f)).Prism(new Vector3(1.1f, 0, 0.6f), 1.0f, 0.2f, 0.6f, 6, plaster);
+        for (int i = 0; i < 9; i++)
+        {
+            float a = i * 2.39f, r = 0.4f + (i % 4) * 0.35f;
+            m.Box(new Vector3(MathF.Cos(a) * r, 0.15f + (i % 3) * 0.12f, MathF.Sin(a) * r), new Vector3(0.28f, 0.14f, 0.18f), i % 2 == 0 ? brick : plaster.Darkened(0.1f), a);
+        }
+        m.Beam(new Vector3(-1.4f, 0.1f, -0.6f), new Vector3(0.9f, 0.55f, 0.4f), 0.09f, beam).Beam(new Vector3(-0.6f, 0.1f, 1.0f), new Vector3(1.5f, 0.35f, -0.5f), 0.08f, beam);
+        return m.Build();
+    }
     /// <summary>One unit of a storehouse's goods pile; a store shows up to four of each kind as its stock grows.</summary>
     public static ArrayMesh GoodsPile(int kind)
     {

@@ -493,6 +493,7 @@ void fragment() {
     private NoiseTexture2D _noiseTexture;
     private MultiMesh _crops, _people, _cargo, _graves, _sites, _glow, _stumps, _hedges;
     private readonly MultiMesh[] _piles = new MultiMesh[4];
+    private MultiMesh _rubble;
     private MultiMesh _barrows, _lampPosts, _lanterns, _lampPools, _wells, _fountains, _towers, _boilers;
     private Vector3? _boilerAt;
     private Vector3 _chimneyTop = new(2.5f, 24.3f, -1.5f);
@@ -546,6 +547,7 @@ void fragment() {
         _crops = AddInstances(MeshKit.Crops(), vertexColors, true, 32);
         _graves = AddInstances(MeshKit.Grave(), vertexColors, false, 32);
         _sites = AddInstances(MeshKit.Site(), vertexColors, false, 8, true);
+        _rubble = AddInstances(MeshKit.Rubble(), vertexColors, false, 4, true);
         for (int k = 0; k < _piles.Length; k++) _piles[k] = AddInstances(MeshKit.GoodsPile(k), vertexColors, false, 16, true);
         _stumps = AddInstances(MeshKit.Stump(), vertexColors, false, Math.Max(1, _host.TreePositions.X.Length));
         _treeMaterial = new ShaderMaterial { Shader = new Shader { Code = TreeShader } };
@@ -1207,7 +1209,8 @@ void fragment() {
         var variantCounts = new int[_buildings.Length];
         var olderCounts = new int[_buildings.Length];
         float renovated = (s.Year - _renovationStart) / RenovationYears;
-        int crops = 0, glows = 0, sites = 0;
+        int crops = 0, glows = 0, sites = 0, rubble = 0;
+        Ensure(_rubble, 4);
         var piles = new int[_piles.Length];
         foreach (MultiMesh pile in _piles) Ensure(pile, counts[(int)BType.Storehouse] * 4 + 4);
         foreach (BuildingView b in s.Buildings)
@@ -1285,6 +1288,13 @@ void fragment() {
             {
                 float plot = Rules.Footprint(b.Type) / 2f;
                 _sites.SetInstanceTransform(sites++, new Transform3D(new Basis(Vector3.Up, yaw).Scaled(new Vector3(plot, 1, plot)), new Vector3(b.X, y, b.Z)));
+                // A house being rebuilt has the rubble of the old one heaped beside it.
+                if (b.Renewed && rubble < 4)
+                {
+                    Vector3 heap = new Vector3(b.X, 0, b.Z) + new Vector3(-4.2f * plot, 0, -2.5f).Rotated(Vector3.Up, yaw);
+                    heap.Y = _map.Height(heap.X, heap.Z);
+                    _rubble.SetInstanceTransform(rubble++, new Transform3D(new Basis(Vector3.Up, yaw + 0.7f), heap));
+                }
             }
             if (b.Type == BType.Hut && b.Built && b.Occupants > 0)
                 _glow.SetInstanceTransform(glows++, new Transform3D(Basis.Identity, new Vector3(b.X, y + 0.06f, b.Z) + new Vector3(0, 0, s.Era == 0 ? 3.5f : 2.72f).Rotated(Vector3.Up, yaw)));
@@ -1299,6 +1309,7 @@ void fragment() {
         _crops.VisibleInstanceCount = crops;
         _glow.VisibleInstanceCount = glows;
         _sites.VisibleInstanceCount = sites;
+        _rubble.VisibleInstanceCount = rubble;
         for (int k = 0; k < _piles.Length; k++) _piles[k].VisibleInstanceCount = piles[k];
         UpdateHedges(s);
 

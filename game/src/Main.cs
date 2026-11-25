@@ -718,6 +718,7 @@ public partial class Main : Node3D
             BType.Dike => "a dike",
             _ => "a " + System.Text.RegularExpressions.Regex.Replace(site.Type.ToString(), "(?<=[a-z])(?=[A-Z])", " ").ToLowerInvariant(),
         };
+        if (site.Renewed) return $"  ·  Rebuilding an old house {(int)(site.Progress * 100)}%";
         return site.Progress < 0.01f ? $"  ·  Marking out {name}" : $"  ·  Building {name} {(int)(site.Progress * 100)}%";
     }
 
