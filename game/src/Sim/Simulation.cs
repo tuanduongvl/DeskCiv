@@ -1467,6 +1467,9 @@ public sealed class Simulation
             single.Spouse = p.Id;
             p.Spouse = single.Id;
             single = null;
+            // Once there is a parish church, a wedding draws the village to its door (if no gathering was held lately).
+            if (!Night && ChurchDoor() is (float wx, float wz) && Gather(wx, wz, 90))
+                Log("Wedding bells: the village gathers at the church", wx, wz, 2);
         }
 
         int food = FoodInStores();
