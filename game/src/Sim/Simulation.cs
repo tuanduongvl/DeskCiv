@@ -581,6 +581,14 @@ public sealed class Simulation
                 {
                     p.Indoors = false;
                     p.Act = Act.Idle;
+                    if (p.Home >= 0)
+                    {
+                        // Out through the gate and home, so the hand does not step straight back in.
+                        (float hx, float hz) = DoorPoint(Buildings[p.Home]);
+                        p.Act = Act.Wander;
+                        p.Timer = 40f;
+                        GoTo(p, hx, hz, 300);
+                    }
                 }
                 break;
         }
@@ -668,6 +676,8 @@ public sealed class Simulation
         // During a gathering (funeral, feast, era celebration) everyone with time on their hands joins the crowd.
         // Workers, porters and builders keep the village running; children, elders and the jobless within reach go.
         bool free = p.Age < 14 || p.Age >= 60 || (p.Job < 0 && p.Role is not (Role.Porter or Role.Builder));
+        // A house fire brings every neighbour with a moment to spare, adults too: they pass the buckets.
+        if (FireEnd >= 0 && Tick < FireEnd && Dist2(p.X, p.Z, GatherX, GatherZ) < 40 * 40) free = true;
         if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius) = (GatherX, GatherZ, 7);
         // By day, adults with nothing to do go to the mill (Industrial era and later). A quarter of them are mill hands:
         // they walk in through the gate, work a shift, and stream out at dusk. The jobless stand about at the gate.
@@ -675,7 +685,7 @@ public sealed class Simulation
                  && FactoryGate() is (float gx, float gz))
         {
             bool hand = p.Id % 4 == 0;
-            if (hand && Dist2(p.X, p.Z, gx, gz) < 4.5f * 4.5f)
+            if (hand && Dist2(p.X, p.Z, gx, gz) < 2.5f * 2.5f)
             {
                 p.Act = Act.Shift;
                 p.Indoors = true;
@@ -2089,7 +2099,7 @@ public sealed class Simulation
                 if (Gather(hx, hz, 120))
                     Log("A bumper harvest: the village holds a feast", hx, hz, 2);
             }
-            else if (roll < 0.58f && Era >= 3 && FireBuilding < 0)
+            else if (roll < 0.58f && Era >= 4 && FireBuilding < 0)
             {
                 // Some time between late spring and autumn a house catches fire. The same roll picks which one.
                 float share = (roll - 0.52f) / 0.06f;
@@ -2404,17 +2414,27 @@ public sealed class Simulation
             return;
         }
         if (Tick < FireEnd) return;
+        int room = 0;
+        foreach (Building h in Buildings)
+            if (h.Type == BType.Hut && h.Built && h != b) room += Math.Max(0, Capacity(h) - h.Occupants);
         if (PipedNear(b.DoorTile) >= 1)
         {
             FiresPutOut++;
             Log("A hydrant on the new water main saves the burning house", b.X, b.Z, 2);
+        }
+        else if (room < b.Occupants)
+        {
+            // Nowhere to send the family: the bucket chain saves the house, scorched.
+            FiresPutOut++;
+            Log("The bucket chain saves the house just in time", b.X, b.Z, 2);
         }
         else
         {
             foreach (Person p in People)
                 if (p.Home == b.Id) p.Home = -1;
             b.Occupants = 0;
-            b.Renewed = true;
+            // From the Industrial era the new house goes up larger; before that it is rebuilt as it was.
+            if (Era >= 6) b.Renewed = true;
             b.Built = false;
             b.Warm = false;
             b.Progress = 0.2f;
@@ -2429,6 +2449,7 @@ public sealed class Simulation
     /// <summary>Test switch --test-fire: the occupied house nearest the centre catches fire in 20 seconds.</summary>
     public void IgniteForTest()
     {
+        if (FireEnd >= 0) return;
         float best = float.MaxValue;
         foreach (Building b in Buildings)
             if (b.Type == BType.Hut && b.Built && b.Occupants > 0 && Dist2(b.X, b.Z, CenterX, CenterZ) < best)
