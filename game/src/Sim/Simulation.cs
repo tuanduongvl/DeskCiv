@@ -1746,7 +1746,12 @@ public sealed class Simulation
         chosen.Yield = 0;
         for (int z = hz; z < hz + hutSize; z++)
         for (int x = hx; x < hx + hutSize; x++)
-            Tiles[x + z * Rules.TileNx] = TileKind.Building;
+        {
+            // The other houses' road links may have planned a road across this lot before it was claimed.
+            int lot = x + z * Rules.TileNx;
+            if (Tiles[lot] == TileKind.PlannedRoad) RoadQueue.Remove(lot);
+            Tiles[lot] = TileKind.Building;
+        }
         PlanRoad(chosen.DoorTile);
         int[] link = FindPath(chosen.DoorTile, -1, true);
         if (link != null)
@@ -1853,6 +1858,7 @@ public sealed class Simulation
         AssignHomes();
         chosen.Renewed = true;
         chosen.Built = false;
+        chosen.Warm = false;
         chosen.Progress = 0.2f;
         chosen.Workers = 0;
         BuildingVersion++;
