@@ -1285,6 +1285,10 @@ void fragment() {
             // From the New Stone Age a plot under construction gets stakes, scaffold and materials, and the house rises inside it.
             bool site = !b.Built && s.Era >= 1 && b.Type is not (BType.Field or BType.Vineyard or BType.Quarry or BType.Dike or BType.TideGate);
             float rise = b.Built ? 1 : site ? 0.03f + b.Progress * 0.97f : 0.18f + b.Progress * 0.82f;
+            // A house being rebuilt is first knocked down (its walls sink as builders work from 20% to 30%),
+            // then the new house rises from the ground over the rest of the work.
+            if (b.Renewed && !b.Built)
+                rise = b.Progress < 0.3f ? Math.Max(0.03f, 1f - (b.Progress - 0.2f) * 9.7f) : 0.03f + (b.Progress - 0.3f) / 0.7f * 0.97f;
             float yaw = b.Type == BType.Field ? MathF.Round(b.Rotation / (MathF.PI / 2)) * (MathF.PI / 2) : b.Rotation;
             // The windmill's cap and sails turn into the south-east sea wind, the same yaw as its moving part below.
             if (b.Type == BType.Windmill) yaw = MathF.PI * 0.3f;
