@@ -1748,7 +1748,16 @@ public sealed class Simulation
         if (Era >= 3 && (int)MathF.Round(Year) % 3 == 1)
         {
             float sx = CenterX + 25;
-            Log("A trading ship sails up the estuary", sx, Map.RiverCenter(sx), 2);
+            // Children, elders and the jobless go down to the bank to watch the ship come in.
+            float river = Map.RiverCenter(sx), side = MathF.Sign(CenterZ - river), bank = CenterZ;
+            for (float d = 0; d <= 120; d += 2)
+                if (Map.Walkable(sx, river + side * d))
+                {
+                    bank = river + side * (d + 4);
+                    break;
+                }
+            Gather(sx, bank, 150);
+            Log("A trading ship sails up the estuary", sx, river, 2);
         }
         foreach (Building b in Buildings)
         {
