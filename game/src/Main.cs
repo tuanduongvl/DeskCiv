@@ -423,8 +423,9 @@ public partial class Main : Node3D
             _lastEventTick = e.Tick;
             if (!first && e.Importance >= 2)
             {
-                _focusTarget = FocusAt(e.X, e.Z);
-                _distanceTarget = CloseDistance * 1.35f;
+                // A burning house is framed from further back, aimed at the flames over its roof.
+                _focusTarget = FocusAt(e.X, e.Z) + (s.Burning ? Vector3.Up * 5f : Vector3.Zero);
+                _distanceTarget = CloseDistance * (s.Burning ? 1.9f : 1.35f);
                 _azimuthTarget = ClearAzimuth(s, e.X, e.Z);
                 // A funeral, feast or era celebration takes the crowd most of a minute to walk in; stay for it.
                 _focusTimer = s.Gathering ? 75 : 30;
