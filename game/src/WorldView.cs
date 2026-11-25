@@ -27,6 +27,7 @@ uniform sampler2D sand_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rock_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D cobble_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D asphalt_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform float street_style = 0.0;
 varying vec3 world_pos;
 // Two scales, the second rotated, blended by noise, so a tile does not repeat visibly.
 vec3 photo(sampler2D t, vec2 p, float metres, float blend) {
@@ -102,6 +103,33 @@ void fragment() {
     if (road_style > 1.5) roadColor = photo(asphalt_tex, world_pos.xz, 6.0, mixer) * 0.85;
     else if (road_style > 0.5) roadColor = photo(cobble_tex, world_pos.xz, 2.6, 0.0);
     c = mix(c, roadColor, road * 0.94);
+    // Street dressing by era: stone kerbs from the Renaissance; from the Industrial era paved sidewalks,
+    // a gutter at the carriageway edge and round drain covers along the middle of the street.
+    if (street_style > 0.5) {
+        float r = use.r;
+        vec3 stone = photo(rock_tex, world_pos.xz, 3.0, 0.0) * vec3(0.95, 0.93, 0.88);
+        if (street_style > 1.5) {
+            vec2 slab = fract(world_pos.xz / 1.4);
+            float joint = 1.0 - smoothstep(0.0, 0.05, min(min(slab.x, 1.0 - slab.x), min(slab.y, 1.0 - slab.y)));
+            vec3 pave = vec3(0.66, 0.64, 0.6) * mix(vec3(1.0), dirt, 0.25) * (1.0 - joint * 0.25);
+            float walk = smoothstep(0.42, 0.47, r) * (1.0 - smoothstep(0.6, 0.63, r));
+            c = mix(c, pave, walk);
+            float kerb = smoothstep(0.6, 0.62, r) * (1.0 - smoothstep(0.65, 0.67, r));
+            c = mix(c, stone * 0.92, kerb);
+            float gutter = smoothstep(0.66, 0.67, r) * (1.0 - smoothstep(0.69, 0.71, r));
+            c = mix(c, c * 0.55, gutter * 0.8);
+            vec2 cell = floor(world_pos.xz / 13.0);
+            vec2 spot = (cell + 0.5) * 13.0;
+            float d = length(world_pos.xz - spot);
+            float centre = texture(road_tex, (spot + vec2(480.0, 260.0)) / vec2(960.0, 520.0)).r;
+            float cover = (1.0 - smoothstep(0.32, 0.36, d)) * step(0.95, centre) * step(0.95, r);
+            float rim = smoothstep(0.24, 0.27, d);
+            c = mix(c, mix(vec3(0.17, 0.17, 0.18), vec3(0.3, 0.29, 0.28), rim) * (0.9 + 0.1 * sin(world_pos.x * 40.0)), cover);
+        } else {
+            float kerb = smoothstep(0.43, 0.46, r) * (1.0 - smoothstep(0.5, 0.53, r));
+            c = mix(c, stone, kerb * 0.9);
+        }
+    }
     // Wet ground darkens in rain; drifting cloud shadows dim the sunlit land.
     c = mix(c, c * vec3(0.7, 0.72, 0.76), rain * 0.65);
     float cloud = texture(noise_tex, world_pos.xz / 300.0 + TIME * vec2(0.0035, 0.002)).r;
@@ -898,6 +926,7 @@ void fragment() {
         _roadTexture.Update(Image.CreateFromData(nx, nz, false, Image.Format.Rgb8, _roadBytes));
         // Dirt tracks, then cobbles from the Middle Ages, then asphalt in the 20th century.
         _terrain.SetShaderParameter("road_style", s.Era >= 7 ? 2f : s.Era >= 4 ? 1f : 0f);
+        _terrain.SetShaderParameter("street_style", s.Era >= 6 ? 2f : s.Era >= 5 ? 1f : 0f);
     }
 
     private void UpdateEraLook(int era)
