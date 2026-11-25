@@ -1943,7 +1943,7 @@ public sealed class Simulation
         Log("A family moves out and their old house is pulled down to be rebuilt larger", chosen.X, chosen.Z, 1);
     }
 
-    /// <summary>Town landmarks on their own lots (0 church, 1 water tower, 2 boiler house, 3 factory, 4 railway station). Not buildings: nobody works there.</summary>
+    /// <summary>Town landmarks on their own lots (0 church, 1 water tower, 2 boiler house, 3 factory, 4 railway station, 5 quay). Not buildings: nobody works there.</summary>
     public readonly record struct Landmark(int Kind, int TileX, int TileZ, int HalfX, int HalfZ, float Yaw);
     public readonly List<Landmark> Landmarks = new();
 
@@ -2061,6 +2061,29 @@ public sealed class Simulation
                 if (d < best && LotFree(x, z, 3, 1, pass == 0)) (best, bx, bz) = (d, x, z);
             }
             if (best < int.MaxValue) AddLandmark(3, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
+        }
+        // A quay from the Renaissance: the strip of bank just downstream of where the trading ship anchors and the crowd
+        // watches (CenterX + 25), so nothing else is built where the quay stands.
+        if (Era >= 5 && !Has(5))
+        {
+            float qx = CenterX + 41, river = Map.RiverCenter(qx), side = MathF.Sign(CenterZ - river);
+            for (float d = 0; d <= 120; d += 2)
+                if (Map.Walkable(qx, river + side * d))
+                {
+                    int tile = TileAt(qx, river + side * (d + 2));
+                    int tx = tile % Rules.TileNx, tz = tile / Rules.TileNx;
+                    // Nearest free strip: along the bank first, then a row or two further inland.
+                    bool placed = false;
+                    for (int back = 0; back <= 2 && !placed; back++)
+                    for (int shift = 0; shift <= 20 && !placed; shift++)
+                    {
+                        int x = tx + (shift % 2 == 0 ? shift / 2 : -(shift + 1) / 2), z = tz + (side > 0 ? back : -back);
+                        if (!LotFree(x, z, 2, 0, false)) continue;
+                        AddLandmark(5, x, z, 2, 0, side > 0 ? MathF.PI : 0);
+                        placed = true;
+                    }
+                    break;
+                }
         }
         // A railway station in the 20th century, laid out like the factory: east-west, entrance facing the centre.
         // The line runs west along the row behind it into a tunnel in the hills, so the station goes where that row is

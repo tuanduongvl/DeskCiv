@@ -1214,7 +1214,11 @@ void fragment() {
         {
             // The ship anchors and the crowd gathers at CenterX + 25 (Simulation); the quay stands just downstream of them so
             // the onlookers stand on the bank beside it, not inside its stonework.
-            float qx = s.CenterX + 41, river = _map.RiverCenter(qx), side = MathF.Sign(s.CenterZ - river);
+            float qx = s.CenterX + 41;
+            // The sim reserves the quay's strip of bank (landmark kind 5); older saves fall back to the fixed spot.
+            foreach (Simulation.Landmark l in s.Landmarks)
+                if (l.Kind == 5) qx = Simulation.TileCenter(l.TileX + l.TileZ * Rules.TileNx).X;
+            float river = _map.RiverCenter(qx), side = MathF.Sign(s.CenterZ - river);
             for (float d = 0; d <= 120; d += 1)
                 if (_map.Walkable(qx, river + side * d))
                 {
