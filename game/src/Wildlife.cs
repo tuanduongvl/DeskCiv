@@ -387,9 +387,10 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             _lights.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.9f), new Vector3(b.X, 2.6f, b.Z)));
             _lights.SetInstanceColor(n++, lantern);
         }
-        foreach (Flock f in new[] { _carts, _lorries })
+        for (int which = 0; which < 2; which++)
         {
-            bool lorry = f == _lorries;
+            Flock f = which == 0 ? _carts : _lorries;
+            bool lorry = which == 1;
             var lamp = lorry ? new Color(1f, 0.95f, 0.8f) : new Color(1f, 0.7f, 0.35f);
             for (int i = 0; i < f.Mesh.VisibleInstanceCount && n + 1 < _lights.InstanceCount; i++)
             {
@@ -399,9 +400,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 var right = new Vector3(forward.Z, 0, -forward.X);
                 float y = _map.Height(a.HomeX, a.HomeZ) + (lorry ? 0.9f : 1.6f);
                 var nose = new Vector3(a.HomeX, y, a.HomeZ) + forward * (lorry ? 2.65f : 2.5f);
-                foreach (float s in new[] { -0.7f, 0.7f })
+                for (int side = -1; side <= 1; side += 2)
                 {
-                    _lights.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.55f), nose + right * s));
+                    _lights.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.55f), nose + right * (0.7f * side)));
                     _lights.SetInstanceColor(n++, lamp);
                 }
             }
@@ -575,7 +576,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             }
             else
             {
-                b.X += b.TX * 2.3f * delta;
+                // Each boat keeps its own pace, so the fleet spreads out again after mooring together.
+                b.X += b.TX * (1.9f + (i * 0.37f) % 1f * 0.8f) * delta;
                 if (b.X > far) b.TX = -1;
                 if (b.X < near) b.TX = 1;
                 // By day each boat drifts back to its own fishing lane.

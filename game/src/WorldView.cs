@@ -521,7 +521,9 @@ void fragment() {
     private MultiMesh _stooks;
     /// <summary>In December (by the PC's clock) a lit fir stands by the church from the Industrial era on.</summary>
     private MultiMesh _yuleTree, _yuleLights;
-    private Vector3? _yuleAt;
+    private Vector3? _yuleAt, _yulePlaced;
+    private static readonly Color[] YuleBulbs = { new(1f, 0.25f, 0.2f), new(1f, 0.8f, 0.3f), new(0.35f, 0.6f, 1f), new(0.4f, 1f, 0.5f) };
+    private static readonly Color[] FireworkColors = { new(1f, 0.35f, 0.25f), new(0.4f, 0.8f, 1f), new(1f, 0.85f, 0.3f), new(0.6f, 1f, 0.45f), new(1f, 0.45f, 0.9f) };
     public bool ForceDecember { get; set; }
     private Vector3? _festiveAt;
     private bool _fireworks;
@@ -845,17 +847,21 @@ void fragment() {
             _yuleLights.VisibleInstanceCount = 0;
             return;
         }
-        Color[] bulbs = { new(1f, 0.25f, 0.2f), new(1f, 0.8f, 0.3f), new(0.35f, 0.6f, 1f), new(0.4f, 1f, 0.5f) };
-        float clock = (float)Time.GetTicksMsec() / 1000f;
-        for (int k = 0; k < 24; k++)
+        // Wrapped so the float clock keeps its precision however long the wallpaper runs.
+        float clock = (Time.GetTicksMsec() % 600000) / 1000f;
+        if (_yulePlaced != at)
         {
-            // A spiral up the cone: wide near the bottom, narrow at the top.
-            float h = k / 24f, angle = k * 2.1f, radius = 2.4f * (1f - h) + 0.3f;
-            var pos = at + new Vector3(MathF.Cos(angle) * radius, 1.2f + h * 7.5f, MathF.Sin(angle) * radius);
-            float twinkle = 0.55f + 0.45f * MathF.Sin(clock * 2.3f + k * 1.7f);
-            _yuleLights.SetInstanceTransform(k, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.8f), pos));
-            _yuleLights.SetInstanceColor(k, bulbs[k % 4] * twinkle);
+            for (int k = 0; k < 24; k++)
+            {
+                // A spiral up the cone: wide near the bottom, narrow at the top.
+                float h = k / 24f, angle = k * 2.1f, radius = 2.4f * (1f - h) + 0.3f;
+                var pos = at + new Vector3(MathF.Cos(angle) * radius, 1.2f + h * 7.5f, MathF.Sin(angle) * radius);
+                _yuleLights.SetInstanceTransform(k, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.8f), pos));
+            }
+            _yulePlaced = at;
         }
+        for (int k = 0; k < 24; k++)
+            _yuleLights.SetInstanceColor(k, YuleBulbs[k % 4] * (0.55f + 0.45f * MathF.Sin(clock * 2.3f + k * 1.7f)));
         _yuleLights.VisibleInstanceCount = 24;
     }
 
@@ -884,7 +890,7 @@ void fragment() {
             _sparks.VisibleInstanceCount = 0;
             return;
         }
-        Color[] palette = { new(1f, 0.35f, 0.25f), new(0.4f, 0.8f, 1f), new(1f, 0.85f, 0.3f), new(0.6f, 1f, 0.45f), new(1f, 0.45f, 0.9f) };
+        Color[] palette = FireworkColors;
         int n = 0;
         for (int r = 0; r < Rockets; r++)
         {

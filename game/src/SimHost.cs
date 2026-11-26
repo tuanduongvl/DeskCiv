@@ -74,6 +74,8 @@ public sealed class SimHost
     private volatile bool _saveRequested;
     private readonly ManualResetEventSlim _saved = new(false);
     private int _lastTreeVersion = -1, _lastMainsVersion = -1;
+    /// <summary>Each ripe field's yield when it ripened, so the view can tell how much has been cut.</summary>
+    private readonly System.Collections.Generic.Dictionary<int, int> _ripeYield = new();
     private byte[] _pipes;
     private bool[] _trees;
     private readonly float[] _yaw = new float[Rules.MaxPeople];
@@ -310,6 +312,18 @@ public sealed class SimHost
         return spots.ToArray();
     }
 
+    /// <summary>Share of a ripe field cut so far: its yield now against its yield when it ripened.</summary>
+    private float HarvestedShare(Building b)
+    {
+        if (b.Type != BType.Field || !b.Sown || b.Growth < 1)
+        {
+            _ripeYield.Remove(b.Id);
+            return 0f;
+        }
+        if (!_ripeYield.TryGetValue(b.Id, out int peak) || b.Yield > peak) _ripeYield[b.Id] = peak = b.Yield;
+        return peak <= 0 ? 1f : 1f - Math.Clamp(b.Yield / (float)peak, 0f, 1f);
+    }
+
     private WorldSnapshot BuildSnapshot()
     {
         if (_sim.TreeVersion != _lastTreeVersion || _trees == null)
@@ -329,7 +343,7 @@ public sealed class SimHost
             buildings[i] = new BuildingView
             {
                 Type = b.Type, X = b.X, Z = b.Z, Rotation = b.Rotation, Progress = b.Progress, Growth = b.Growth,
-                Built = b.Built, Sown = b.Sown, Warm = b.Warm, Renewed = b.Renewed, DistrictHeated = _sim.DistrictHeated(b), Harvested = b.Type == BType.Field && b.Sown && b.Growth >= 1 ? 1f - Math.Clamp(b.Yield / (56f * (1 + 0.28f * Math.Max(0, _sim.Era - 1)) * 1.1f), 0f, 1f) : 0f, Occupants = b.Occupants,
+                Built = b.Built, Sown = b.Sown, Warm = b.Warm, Renewed = b.Renewed, DistrictHeated = _sim.DistrictHeated(b), Harvested = HarvestedShare(b), Occupants = b.Occupants,
             };
             if (b.Type == BType.Storehouse && b.Built)
             {
