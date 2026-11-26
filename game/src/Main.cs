@@ -49,7 +49,7 @@ public partial class Main : Node3D
     private Vector2 _panLast;
     private Clip? _forcedClip;
     private BType? _lookType;
-    private bool _watchDig;
+    private bool _watchDig, _watchGate;
     private Vector2? _focusPoint;
     private Clip _lastShotClip = Clip.Idle;
 
@@ -76,7 +76,8 @@ public partial class Main : Node3D
         _burst = (int)Number(args, "--burst", 0);
         _forcedWeather = Option(args, "--weather", null);
         if (Enum.TryParse(Option(args, "--watch", ""), true, out Clip watched)) _forcedClip = watched;
-        _watchDig = Array.IndexOf(args, "--watch-dig") >= 0; // test shots of the street being dug for water mains
+        _watchDig = Array.IndexOf(args, "--watch-dig") >= 0;
+        _watchGate = Array.IndexOf(args, "--watch-gate") >= 0; // test shots of the mill gate // test shots of the street being dug for water mains
         if (Enum.TryParse(Option(args, "--look", ""), true, out BType looked)) _lookType = looked; // test shots of one building type
         // --focus=x,z keeps the camera on one world point, for test shots of props that are not buildings.
         string[] focus = Option(args, "--focus", "").Split(',');
@@ -413,7 +414,7 @@ public partial class Main : Node3D
     {
         if (_manual) return;
         _focusTimer -= 1;
-        if (_forcedClip != null || _lookType != null || _focusPoint != null || _watchDig)
+        if (_forcedClip != null || _lookType != null || _focusPoint != null || _watchDig || _watchGate)
         {
             if (_focusTimer <= 0) NextShot(s);
             return;
@@ -462,6 +463,23 @@ public partial class Main : Node3D
             _focusTimer = 1;
             return;
         }
+        // At the shift change (after dawn, and at dusk) the camera looks at the mill gate from the gate side.
+        float hour = CurrentHour();
+        bool shiftChange = hour is >= 6f and < 7.5f or >= 19.5f and < 20.5f;
+        if (_forcedClip == null && (_watchGate || _shotNumber % 7 == 5 && shiftChange))
+            foreach (Simulation.Landmark l in s.Landmarks)
+                if (l.Kind == 3)
+                {
+                    (float fx, float fz) = Simulation.TileCenter(l.TileX + l.TileZ * Rules.TileNx);
+                    float gate = (l.HalfZ + 1.3f) * Rules.TileSize;
+                    float gx = fx + MathF.Sin(l.Yaw) * gate, gz = fz + MathF.Cos(l.Yaw) * gate;
+                    _focusTarget = FocusAt(gx, gz);
+                    _distanceTarget = CloseDistance * 1.5f;
+                    _azimuthTarget = l.Yaw;
+                    _liftTarget = 0.4f;
+                    _focusTimer = _watchGate ? 100000 : 24;
+                    return;
+                }
         // While the train stands at the station, the camera goes to watch it.
         if (_forcedClip == null && _shotNumber % 7 == 2 && s.TrainTick is >= 400 and < 900)
             foreach (Simulation.Landmark l in s.Landmarks)
