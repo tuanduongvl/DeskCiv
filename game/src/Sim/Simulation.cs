@@ -395,6 +395,14 @@ public sealed class Simulation
             }
     }
 
+    /// <summary>True for the tiles under the cave's rock (kept blocked for good, even if a polder drains around it).</summary>
+    private bool UnderCave(int tile)
+    {
+        if (CaveX == 0 && CaveZ == 0) return false;
+        (float x, float z) = TileCenter(tile);
+        return Dist2(x, z, CaveX - MathF.Sin(CaveYaw) * 5, CaveZ - MathF.Cos(CaveYaw) * 5) < 7f * 7f;
+    }
+
     private void UpdateWild()
     {
         if (Year >= WildYears)
@@ -3081,7 +3089,7 @@ public sealed class Simulation
         {
             int tile = x + z * Rules.TileNx;
             (float wx, float wz) = TileCenter(tile);
-            if (Tiles[tile] == TileKind.Blocked && Map.Walkable(wx, wz) && Map.Slope(wx, wz) < 0.7f) Tiles[tile] = TileKind.Free;
+            if (Tiles[tile] == TileKind.Blocked && Map.Walkable(wx, wz) && Map.Slope(wx, wz) < 0.7f && !UnderCave(tile)) Tiles[tile] = TileKind.Free;
         }
         int midZ = (p.Z0 + p.Z1) / 2;
         for (int x = p.X0; x < p.X1 - 1; x++) PlanRoad(x + midZ * Rules.TileNx);
