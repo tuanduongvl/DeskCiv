@@ -956,7 +956,9 @@ void fragment() {
             _caveMouth.SetInstanceTransform(0, new Transform3D(new Basis(Vector3.Up, s.CaveYaw).Scaled(new Vector3(open, open, 1)), rock + face * 5.45f));
         }
         _cave.VisibleInstanceCount = _caveMouth.VisibleInstanceCount = hasCave ? 1 : 0;
-        _campAt = s.Wild ? new Vector3(s.CenterX, _map.Height(s.CenterX, s.CenterZ), s.CenterZ) : null;
+        // The fire moves to the cave mouth once the cave can be entered (the same point the sim gathers people at).
+        float fx = s.CaveDug >= 0.3f ? s.CaveX + MathF.Sin(s.CaveYaw) * 6 : s.CenterX, fz = s.CaveDug >= 0.3f ? s.CaveZ + MathF.Cos(s.CaveYaw) * 6 : s.CenterZ;
+        _campAt = s.Wild ? new Vector3(fx, _map.Height(fx, fz), fz) : null;
         if (_campAt is Vector3 camp)
         {
             Ensure(_hearth, 1);

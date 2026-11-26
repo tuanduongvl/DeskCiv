@@ -73,6 +73,9 @@ public sealed class Simulation
     public bool HuntWon;
     public int Hunts, HuntsWon;
     public bool Hunting => Tick < HuntUntil;
+    /// <summary>The band's fire: by the food cache at first, then 6 m in front of the cave mouth once it can be entered.</summary>
+    public float CampX => CaveDug >= 0.3f ? CaveX + MathF.Sin(CaveYaw) * 6 : CenterX;
+    public float CampZ => CaveDug >= 0.3f ? CaveZ + MathF.Cos(CaveYaw) * 6 : CenterZ;
     /// <summary>The moment the hunters break cover (the deer flee, one falls if the hunt is won).</summary>
     public long HuntStrike => HuntUntil - (long)(70 / Rules.TickSeconds);
     /// <summary>
@@ -382,9 +385,14 @@ public sealed class Simulation
         // The rock mass stands 5 m behind the mouth; its tiles are taken out of the town plan.
         float rx = CaveX - MathF.Sin(CaveYaw) * 5, rz = CaveZ - MathF.Cos(CaveYaw) * 5;
         int tile = TileAt(rx, rz), tx = tile % Rules.TileNx, tz = tile / Rules.TileNx;
+        int mouth = TileAt(CaveX, CaveZ), sleep = TileAt(CaveX - MathF.Sin(CaveYaw) * 1.5f, CaveZ - MathF.Cos(CaveYaw) * 1.5f);
         for (int dz = -1; dz <= 1; dz++)
             for (int dx = -1; dx <= 1; dx++)
-                if (InGrid(tx + dx, tz + dz) && Tiles[tx + dx + (tz + dz) * Rules.TileNx] == TileKind.Free) Tiles[tx + dx + (tz + dz) * Rules.TileNx] = TileKind.Blocked;
+            {
+                int t = tx + dx + (tz + dz) * Rules.TileNx;
+                // The mouth and the sleeping spot just inside stay open, so people can path into the cave.
+                if (InGrid(tx + dx, tz + dz) && t != mouth && t != sleep && Tiles[t] == TileKind.Free) Tiles[t] = TileKind.Blocked;
+            }
     }
 
     private void UpdateWild()
@@ -394,11 +402,11 @@ public sealed class Simulation
             EndWild();
             return;
         }
-        if (Tick >= NextHunt && !Hunting) StartHunt();
-        if (Hunting && HuntWon && Tick >= HuntStrike && Tick < HuntStrike + 10)
+        if (!Night && Tick >= NextHunt && !Hunting) StartHunt();
+        if (Hunting && Tick >= HuntStrike && Tick < HuntStrike + 10)
         {
-            HuntsWon++;
-            if (HuntsWon % 4 == 1) Log("The hunters bring down a red deer and carry the meat home", HuntX, HuntZ, 1);
+            if (HuntWon && ++HuntsWon % 4 == 1) Log("The hunters bring down a red deer and carry the meat home", HuntX, HuntZ, 1);
+            else if (!HuntWon && (Hunts - HuntsWon) % 4 == 1) Log("The deer scatter before the hunters can close in", HuntX, HuntZ, 1);
         }
     }
 
@@ -435,6 +443,9 @@ public sealed class Simulation
     {
         Wild = false;
         HuntUntil = -1;
+        HuntWon = false;
+        // The whole band gathers at the fire to see the first stone axes.
+        Gather(CampX, CampZ, 90, true);
         foreach (Building b in Buildings)
             if (b.Type == BType.Storehouse)
             {
@@ -446,7 +457,8 @@ public sealed class Simulation
 
     /// <summary>
     /// A day's foraging for a wild band member with bare hands: join the hunt, dig at the cave, pick berries, or
-    /// gather shellfish on the shore. Returns false at night or now and then, so some stay by the fire.
+    /// gather shellfish on the shore. By night nobody hunts or goes berrying: they dig or gather on the shore near
+    /// camp. Returns false now and then, so some stay by the fire.
     /// </summary>
     private bool TryForage(Person p)
     {
@@ -471,7 +483,7 @@ public sealed class Simulation
             kind = 3;
             (x, z) = (CaveX + Random.R(-1.2f, 1.2f), CaveZ + Random.R(-1.2f, 1.2f));
         }
-        else if (Season == 3 || Random.F() < 0.35f)
+        else if (Season == 3 || Night || Random.F() < 0.35f)
         {
             kind = 2;
             (x, z) = BankPoint(CenterX + Random.R(-35, 35));
@@ -910,7 +922,7 @@ public sealed class Simulation
 
     private void Wander(Person p)
     {
-        float cx = CenterX, cz = CenterZ, radius = Wild ? (Night ? 6 : 14) : 26;
+        float cx = Wild ? CampX : CenterX, cz = Wild ? CampZ : CenterZ, radius = Wild ? (Night ? 6 : 14) : 26;
         if (p.Home >= 0) (cx, cz, radius) = (Buildings[p.Home].X, Buildings[p.Home].Z, p.Age < 14 ? 11 : 16);
         if (p.Age >= 14 && p.Age < 60 && p.Job >= 0)
         {

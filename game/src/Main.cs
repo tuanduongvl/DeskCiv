@@ -510,7 +510,7 @@ void fragment() {
         if (_forcedClip == null && s.Wild && (s.CaveX != 0 || s.CaveZ != 0))
         {
             // Only once the hunters have closed in (the last minute and a half before they strike).
-            if (s.Hunting && s.HuntStalk && (_watchHunt || _shotNumber % 3 == 1))
+            if (s.Hunting && s.HuntStalk && (_watchHunt || _shotNumber % 3 == 1) && CurrentHour() is >= 6f and < 20f)
             {
                 _focusTarget = FocusAt(s.HuntX, s.HuntZ);
                 _distanceTarget = CloseDistance * 1.25f;

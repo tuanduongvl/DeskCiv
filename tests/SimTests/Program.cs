@@ -101,7 +101,9 @@ Parallel.For(0, seeds.Length, n =>
             {
                 // The wild band: no buildings but the founding store, a dug cave, hunts that brought meat home.
                 Check(s.Wild && s.Buildings.Count == 1, $"seed {seeds[n]}: built {s.Buildings.Count - 1} buildings in the wild years");
-                Check(s.CaveDug >= 1 && s.HuntsWon > 0 && s.Produced[(int)Res.Meat] > 0, $"seed {seeds[n]}: wild years without a dug cave or a won hunt");
+                // Nobody hunts by night, so the always-night pattern lives on shellfish alone.
+                Check(s.CaveDug >= 1 && (pattern == 1 || s.HuntsWon > 0 && s.Produced[(int)Res.Meat] > 0), $"seed {seeds[n]}: wild years without a dug cave or a won hunt");
+                Check(s.Deaths == 0 || pattern != 1, $"seed {seeds[n]}: the wild band lost people on shellfish alone");
                 wild = $"wild: pop={s.Population} cave={s.CaveDug:F2} hunts={s.HuntsWon}/{s.Hunts} meat={s.Produced[(int)Res.Meat]} berries={s.Produced[(int)Res.Berries]} shore={s.Produced[(int)Res.Fish]} births={s.Births} deaths={s.Deaths}";
             }
         if (t % Rules.TicksPerYear == 0)
