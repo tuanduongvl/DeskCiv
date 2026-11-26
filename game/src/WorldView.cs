@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using DeskCiv.Sim;
 using Godot;
 
@@ -958,7 +958,11 @@ void fragment() {
         _cave.VisibleInstanceCount = _caveMouth.VisibleInstanceCount = hasCave ? 1 : 0;
         // The fire moves to the cave mouth once the cave can be entered (the same point the sim gathers people at).
         float fx = s.CaveDug >= 0.3f ? s.CaveX + MathF.Sin(s.CaveYaw) * 6 : s.CenterX, fz = s.CaveDug >= 0.3f ? s.CaveZ + MathF.Cos(s.CaveYaw) * 6 : s.CenterZ;
-        _campAt = s.Wild ? new Vector3(fx, _map.Height(fx, fz), fz) : null;
+        // The fire keeps burning after the wild years until the band's first hut is finished.
+        bool firstHut = false;
+        foreach (BuildingView b in s.Buildings) if (b.Type == BType.Hut && b.Built) { firstHut = true; break; }
+        bool burning = s.Wild || (s.Era == 0 && (s.CaveX != 0 || s.CaveZ != 0) && !firstHut);
+        _campAt = burning ? new Vector3(fx, _map.Height(fx, fz), fz) : null;
         if (_campAt is Vector3 camp)
         {
             Ensure(_hearth, 1);
