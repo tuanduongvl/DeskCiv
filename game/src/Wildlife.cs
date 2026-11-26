@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using DeskCiv.Sim;
 using Godot;
 
@@ -401,9 +401,11 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 a.Wait -= delta;
                 if (a.Wait <= 0)
                 {
-                    (float x, float z) = LandNear(a.HomeX, a.HomeZ, flock.Roam);
+                    // At night the farm animals bunch up close round their resting place and stand longer between steps.
+                    bool folded = _night && _herds.Length > 3 && flock != _herds[3];
+                    (float x, float z) = LandNear(a.HomeX, a.HomeZ, folded ? flock.Roam * 0.25f : flock.Roam);
                     if (Open(tiles, x, z)) (a.TX, a.TZ) = (x, z);
-                    a.Wait = R(3, 13);
+                    a.Wait = R(3, 13) * (folded ? 3f : 1f);
                 }
             }
             else
