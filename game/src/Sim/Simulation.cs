@@ -1932,9 +1932,7 @@ public sealed class Simulation
             if (!busy) (best, chosen) = (bank, b);
         }
         if (chosen == null || fields < 4 + People.Count / 25) return false;
-        foreach (Person p in People)
-            if (p.Job == chosen.Id) p.Job = -1;
-        chosen.Workers = 0;
+        var was = (chosen.TileX, chosen.TileZ, chosen.Direction, chosen.Rotation, chosen.X, chosen.Z, chosen.DoorTile, chosen.Built, chosen.Progress, chosen.Yield, chosen.Sown, chosen.Growth);
         for (int z = chosen.TileZ; z < chosen.TileZ + fieldSize; z++)
         for (int x = chosen.TileX; x < chosen.TileX + fieldSize; x++)
             Tiles[x + z * Rules.TileNx] = TileKind.Free;
@@ -1953,10 +1951,22 @@ public sealed class Simulation
             if (Tiles[lot] == TileKind.PlannedRoad) RoadQueue.Remove(lot);
             Tiles[lot] = TileKind.Building;
         }
-        PlanRoad(chosen.DoorTile);
         int[] link = FindPath(chosen.DoorTile, -1, true);
-        if (link != null)
-            foreach (int tile in link) PlanRoad(tile);
+        if (link == null)
+        {
+            // No way for the builders to reach the new dike: the field stays as it was.
+            chosen.Type = BType.Field;
+            (chosen.TileX, chosen.TileZ, chosen.Direction, chosen.Rotation, chosen.X, chosen.Z, chosen.DoorTile, chosen.Built, chosen.Progress, chosen.Yield, chosen.Sown, chosen.Growth) = was;
+            for (int z = was.TileZ; z < was.TileZ + fieldSize; z++)
+            for (int x = was.TileX; x < was.TileX + fieldSize; x++)
+                Tiles[x + z * Rules.TileNx] = TileKind.Field;
+            return false;
+        }
+        foreach (Person p in People)
+            if (p.Job == chosen.Id) p.Job = -1;
+        chosen.Workers = 0;
+        PlanRoad(chosen.DoorTile);
+        foreach (int tile in link) PlanRoad(tile);
         Log("A riverside field gives way to a new stretch of dike", chosen.X, chosen.Z, 1);
         BuildingVersion++;
         RoadVersion++;

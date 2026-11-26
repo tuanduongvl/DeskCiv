@@ -2,6 +2,13 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — DikeOnField keeps the field when the dike cannot be reached
+
+- **Changed:** `Simulation.DikeOnField` now looks for the road link to the dike's door before committing the change. With no link, the building goes back to the field it was (position, door, growth and grain kept) and nothing is logged. Workers are unassigned and the roads planned only once the link exists.
+- **Verified:**
+  - `dotnet build` succeeds.
+  - SimTests: ALL PASSED, with the same era-end numbers as before. The no-link branch did not come up in these seeds, so it has not been exercised.
+
 ## 2026-11-27 — Hunted deer is carried off
 
 - **Changed:** `Wildlife`. The fallen deer shrinks away between 9 and 12 s after the strike, as the hunters carry the meat off. When the hunt ends, that deer is moved back to its herd home instead of getting up at the kill site.
