@@ -1515,7 +1515,7 @@ public sealed class Simulation
                     {
                         partner.Act = Act.Wander;
                         partner.Timer = 60f;
-                        GoTo(partner, wx + (partner.Female ? 0.7f : -0.7f), wz, 300);
+                        GoTo(partner, wx + (partner.Female ? 0.7f : -0.7f), wz);
                     }
             }
             single = null;
@@ -1988,7 +1988,8 @@ public sealed class Simulation
         {
             int tile = x + row * Rules.TileNx;
             (float wx, float wz) = TileCenter(tile);
-            if (!Map.Walkable(wx, wz)) return x1 - x >= 25 ? x + 1 : -1;
+            // The line ends where the hills begin, in a tunnel; never at a river bank or creek.
+            if (!Map.Walkable(wx, wz)) return x1 - x >= 25 && Map.Height(wx, wz) > 3f ? x + 1 : -1;
             if (Tiles[tile] is not (TileKind.Free or TileKind.Road or TileKind.PlannedRoad or TileKind.Field or TileKind.Blocked)) return -1;
         }
         return x1 >= 25 ? 0 : -1;
