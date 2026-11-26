@@ -511,13 +511,23 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
 
     private void StepGulls(float delta)
     {
+        int boats = _boats.Mesh.VisibleInstanceCount;
         for (int i = 0; i < _gulls.Agents.Length; i++)
         {
             ref Agent g = ref _gulls.Agents[i];
+            // X/Z keep each gull's own haunt. By day a third of the flock trails the fishing boats, wheeling low over
+            // one boat each; by night, or with no boats out, they drift back to their haunts.
+            if (g.X == 0 && g.Z == 0) (g.X, g.Z) = (g.HomeX, g.HomeZ);
+            bool follow = !_night && boats > 0 && i % 3 == 0;
+            float tx = follow ? _boats.Agents[i / 3 % boats].X : g.X, tz = follow ? _boats.Agents[i / 3 % boats].Z : g.Z;
+            float ease = Math.Min(1f, delta * (follow ? 0.6f : 0.15f));
+            g.HomeX += (tx - g.HomeX) * ease;
+            g.HomeZ += (tz - g.HomeZ) * ease;
             g.Yaw += g.TZ * delta;
-            float x = g.HomeX + MathF.Cos(g.Yaw) * g.TX, z = g.HomeZ + MathF.Sin(g.Yaw) * g.TX;
+            float r = follow ? g.TX * 0.4f : g.TX;
+            float x = g.HomeX + MathF.Cos(g.Yaw) * r, z = g.HomeZ + MathF.Sin(g.Yaw) * r;
             float heading = g.TZ > 0 ? -g.Yaw : -g.Yaw + MathF.PI;
-            float height = g.Wait + MathF.Sin(_clock * 0.3f + g.Phase) * 1.6f;
+            float height = (follow ? g.Wait * 0.6f : g.Wait) + MathF.Sin(_clock * 0.3f + g.Phase) * 1.6f;
             Write(_gulls.Buffer, i, 1, heading, x, height, z, 1, g.Phase);
         }
         _gulls.Mesh.Buffer = _gulls.Buffer;
