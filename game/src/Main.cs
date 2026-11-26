@@ -51,6 +51,22 @@ public partial class Main : Node3D
     private BType? _lookType;
     private bool _watchDig, _watchGate, _testDecember;
     private StandardMaterial3D _rainDrop;
+    /// <summary>A rainbow after a shower by day: a faint additive arc in front of the camera that fades in and out.</summary>
+    private MeshInstance3D _rainbow;
+    private ShaderMaterial _rainbowMaterial;
+    private float _prevRain, _rainbowStrength;
+    private double _rainbowUntil = -1;
+    private bool _testRainbow;
+    private const string RainbowShader = @"
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
+uniform float strength = 0.0;
+void fragment() {
+    // UV.x runs across the band: red outside, violet inside, soft at both edges.
+    float u = UV.x;
+    vec3 hue = clamp(vec3(abs(u * 6.0 - 3.0) - 1.0, 2.0 - abs(u * 6.0 - 2.0), 2.0 - abs(u * 6.0 - 4.0)), 0.0, 1.0);
+    ALBEDO = hue * strength * 0.45 * sin(u * 3.14159);
+}";
     private Vector2? _focusPoint;
     private Clip _lastShotClip = Clip.Idle;
 
@@ -96,6 +112,7 @@ public partial class Main : Node3D
         if (HasFlag(args, "--test-harsh")) _sim.HarshWinterForTest();
         if (HasFlag(args, "--test-fireworks")) _sim.FireworksForTest();
         _testDecember = HasFlag(args, "--test-december");
+        _testRainbow = HasFlag(args, "--test-rainbow");
         BuildScene();
         // Test switches for measuring what the look costs.
         if (HasFlag(args, "--no-shadows")) _sun.ShadowEnabled = false;
@@ -729,6 +746,7 @@ public partial class Main : Node3D
         RenderingServer.GlobalShaderParameterSet("rain", rain);
         RenderingServer.GlobalShaderParameterSet("daylight", day);
         SetRain(rain);
+        UpdateRainbow(rain, day);
         // Rain streaks are unshaded too: dim them with the light.
         if (_rainDrop != null) _rainDrop.AlbedoColor = new Color(0.8f, 0.85f, 0.92f, 0.35f) * new Color(0.35f + 0.65f * day, 0.35f + 0.65f * day, 0.35f + 0.65f * day, 1f);
         if (_sound != null)
@@ -743,6 +761,58 @@ public partial class Main : Node3D
     /// Slowly changing weather from the wall clock: clear spells, cloudy spells and occasional rain, so the
     /// wallpaper looks different through the day. --weather=clear|cloudy|rain fixes it for tests.
     /// </summary>
+    private void UpdateRainbow(float rain, float day)
+    {
+        // A shower ending by day leaves a rainbow for two minutes.
+        if (_prevRain > 0.2f && rain <= 0.2f && day > 0.6f) _rainbowUntil = _elapsed + 120;
+        _prevRain = rain;
+        bool on = _testRainbow || (_elapsed < _rainbowUntil && day > 0.5f);
+        _rainbowStrength = _testRainbow ? 1f : Mathf.MoveToward(_rainbowStrength, on ? 1f : 0f, 0.02f);
+        if (_rainbowStrength <= 0.001f)
+        {
+            if (_rainbow != null) _rainbow.Visible = false;
+            return;
+        }
+        if (_rainbow == null)
+        {
+            _rainbowMaterial = new ShaderMaterial { Shader = new Shader { Code = RainbowShader } };
+            _rainbow = new MeshInstance3D { Mesh = RainbowArc(55f, 4.5f), MaterialOverride = _rainbowMaterial, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            AddChild(_rainbow);
+        }
+        _rainbow.Visible = true;
+        _rainbowMaterial.SetShaderParameter("strength", _rainbowStrength);
+        // Stand it well beyond the focus, facing the camera, its feet sunk below the ground so the hills hide them.
+        Vector3 forward = _focus - _camera.GlobalPosition;
+        forward.Y = 0;
+        forward = forward.LengthSquared() > 1 ? forward.Normalized() : Vector3.Forward;
+        Vector3 centre = _focus + forward * 60f + Vector3.Down * 22f;
+        // Face the camera squarely (the wallpaper looks down steeply), so the bow fills the upper part of the view.
+        _rainbow.GlobalTransform = new Transform3D(Basis.LookingAt(centre - _camera.GlobalPosition, Vector3.Up), centre);
+    }
+
+    /// <summary>A half ring in the local XY plane: radius r, band width w; UV.x runs from the outer edge (0) to the inner (1).</summary>
+    private static ArrayMesh RainbowArc(float r, float w)
+    {
+        const int segments = 48;
+        var verts = new System.Collections.Generic.List<Vector3>();
+        var uvs = new System.Collections.Generic.List<Vector2>();
+        for (int i = 0; i < segments; i++)
+        {
+            float a0 = MathF.PI * i / segments, a1 = MathF.PI * (i + 1) / segments;
+            Vector3 o0 = new(MathF.Cos(a0) * r, MathF.Sin(a0) * r, 0), o1 = new(MathF.Cos(a1) * r, MathF.Sin(a1) * r, 0);
+            Vector3 i0 = o0 * ((r - w) / r), i1 = o1 * ((r - w) / r);
+            verts.AddRange(new[] { o0, o1, i1, o0, i1, i0 });
+            uvs.AddRange(new[] { new Vector2(0, 0), new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0) });
+        }
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = verts.ToArray();
+        arrays[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
+        var mesh = new ArrayMesh();
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+        return mesh;
+    }
+
     private (float Cover, float Rain) Weather()
     {
         if (_forcedWeather is string forced)
