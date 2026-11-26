@@ -2,6 +2,18 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Update clip 17 published
+
+- **Done:** 0:56, 4.8 MB. Three scenes:
+  - the camp fire with smoke at dusk, year 3
+  - a red deer hunt with the kill fading as the meat is carried off; cut from a 250 s `--watch-hunt` recording at 218–244 s
+  - the first storehouse rising in scaffolding at year 6
+
+  Published publicly (not made for kids) as "DeskCiv update 17 – camp fire smoke, the hunt's kill carried off, first storehouse rises": https://youtu.be/yzOTI8jAixQ. The description lists the camp smoke and glow, the band facing its fire, the hunt fixes, the night hunts, the storehouse rise, and the cave and dike fixes.
+- **Limitations:**
+  - The dusk scene is shot from behind the cave rock.
+  - In the storehouse scene only the first ~20% of the rise is visible.
+
 ## 2026-11-27 — DikeOnField keeps the field when the dike cannot be reached
 
 - **Changed:** `Simulation.DikeOnField` now looks for the road link to the dike's door before committing the change. With no link, the building goes back to the field it was (position, door, growth and grain kept) and nothing is logged. Workers are unassigned and the roads planned only once the link exists.
