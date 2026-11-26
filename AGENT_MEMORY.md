@@ -2,6 +2,18 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Tide on the estuary
+
+- **Changed:**
+  - `WorldView`: the water shader has a `tide` uniform that raises the water plane, and the shore foam depth now uses `tide - ground`. `SetTide(hours)` sets the level to -0.09 + 0.21·cos(2π·h/12.42): low water is -0.30 m, high water +0.12 m, which stays below the 0.25 m walkable/farmland line together with the existing ±0.1 swell.
+  - `Main.UpdateSun` calls `SetTide` with the hour plus DayOfYear·24 on the real clock, so the tides drift about 50 min a day. With `--hour` the day offset is 0, which puts high water at 0:00/12:25 and low water at 6:13/18:38.
+  - `Wildlife.Tide`: fishing boats, the trading ship and skaters ride on the tide level.
+- **Verified:**
+  - `dotnet build` succeeds.
+  - Godot shots, seed 1000, year 3, hours 12.4 and 18.6, at the river (60,150) and the estuary mouth (230,120): low water shows a wider mud and sand strip along the near shore, with no water-plane artefacts.
+  - A fishing-camp shot at year 34.4, hour 18.4 had no boat in view, so boats riding the tide were not checked on screen.
+- **Limitations:** the change is small on the steep river banks. The sim (floods, dikes) does not know about the tide; it is view-only.
+
 ## 2026-11-27 — Update clip 17 published
 
 - **Done:** 0:56, 4.8 MB. Three scenes:

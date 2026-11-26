@@ -291,6 +291,8 @@ uniform sampler2D ground_tex : filter_linear, repeat_disable;
 uniform vec3 deep = vec3(0.14, 0.36, 0.5);
 uniform vec3 shallow = vec3(0.34, 0.62, 0.62);
 uniform float surge = 0.0;
+// The tide, in metres above mean water: about -0.3 at low water and +0.12 at high water.
+uniform float tide = 0.0;
 // Winter ice along the shallow river banks (not the open sea): 0 none, 1 at the depth of a harsh winter.
 uniform float ice = 0.0;
 uniform sampler2D noise_tex : filter_linear_mipmap, repeat_enable;
@@ -302,12 +304,12 @@ void vertex() {
     world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     float sea = smoothstep(180.0, 340.0, world.x);
     VERTEX.y += (sin(world.x * 0.05 + TIME * 0.9) + sin(world.z * 0.07 + world.x * 0.02 + TIME * 1.25)) * (0.03 + 0.2 * sea);
-    VERTEX.y += sin(TIME * 0.05) * 0.1 + surge * 1.05;
+    VERTEX.y += sin(TIME * 0.05) * 0.1 + surge * 1.05 + tide;
 }
 void fragment() {
     vec2 uv = (world.xz + vec2(480.0, 260.0)) / vec2(960.0, 520.0);
     float ground = texture(ground_tex, uv).r * 12.0 - 6.0;
-    float depth = clamp(-ground / 4.2, 0.0, 1.0);
+    float depth = clamp((tide - ground) / 4.2, 0.0, 1.0);
     float ripple = sin(world.x * 0.42 + TIME * 0.8 + sin(world.z * 0.31) * 1.6) * sin(world.z * 0.53 - TIME * 0.6 + sin(world.x * 0.23));
     float foam = smoothstep(0.2, 0.03, depth) * (0.45 + 0.55 * sin(depth * 34.0 - TIME * 1.3 + ripple * 1.4));
     vec3 c = mix(shallow, deep, smoothstep(0.05, 0.9, depth));
@@ -1209,6 +1211,17 @@ void fragment() {
             Position = new Vector3(0, WorldMap.WaterLevel, 0),
             MaterialOverride = _waterMaterial,
         });
+    }
+
+    /// <summary>
+    /// Sets the tide from the clock: two tides a day (12.42 h), drifting about 50 minutes later each day. Low water
+    /// bares a strip of the mudflats; high water stays below the lowest farmland.
+    /// </summary>
+    public void SetTide(float hours)
+    {
+        float level = -0.09f + 0.21f * MathF.Cos(hours / 12.42f * MathF.Tau);
+        _waterMaterial?.SetShaderParameter("tide", level);
+        if (_wildlife != null) _wildlife.Tide = level;
     }
 
     /// <summary>Applies the latest world snapshot. Cheap when nothing changed.</summary>

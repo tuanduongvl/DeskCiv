@@ -101,6 +101,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         }
     }
     private float _boatDraft;
+    /// <summary>The water level set by the tide; boats, the trader and skaters ride on it.</summary>
+    public float Tide;
     private float _clock;
 
     public Wildlife() { }
@@ -397,7 +399,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         float heading = gap < -0.5f ? -MathF.PI / 2 : MathF.PI / 2;
         if (MathF.Abs(gap) <= 0.5f) heading = -MathF.PI / 2 + MathF.Sin(_clock * 0.07f) * 0.12f;
         float z = _map.RiverCenter(t.X) - 6;
-        Write(_trader.Buffer, 0, 2.2f, heading, t.X, 0.03f - _boatDraft * 2.2f / 1.15f, z, 0, 0);
+        Write(_trader.Buffer, 0, 2.2f, heading, t.X, Tide + 0.03f - _boatDraft * 2.2f / 1.15f, z, 0, 0);
         _trader.Mesh.Buffer = _trader.Buffer;
     }
 
@@ -630,7 +632,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             float x = s.HomeX + MathF.Cos(s.Phase) * s.TX, z = cz + MathF.Sin(s.Phase) * s.TX * 0.6f;
             // Face along the loop, the way they are going.
             float heading = MathF.Atan2(-MathF.Sin(s.Phase) * MathF.Sign(s.TZ), MathF.Cos(s.Phase) * 0.6f * MathF.Sign(s.TZ));
-            Write(_skaters.Buffer, i, 1f, heading, x, 0.05f, z, 1, s.Phase);
+            Write(_skaters.Buffer, i, 1f, heading, x, Tide + 0.05f, z, 1, s.Phase);
         }
         _skaters.Mesh.Buffer = _skaters.Buffer;
     }
@@ -673,7 +675,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             float z = _map.RiverCenter(b.X) + lane;
             b.Z = z;
             b.Yaw = heading;
-            Write(_boats.Buffer, i, 1.15f, heading, b.X, 0.03f - _boatDraft, z, moving, b.Phase);
+            Write(_boats.Buffer, i, 1.15f, heading, b.X, Tide + 0.03f - _boatDraft, z, moving, b.Phase);
         }
         _boats.Mesh.Buffer = _boats.Buffer;
     }

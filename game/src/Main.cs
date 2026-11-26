@@ -757,6 +757,7 @@ void fragment() {
     {
         float hour = CurrentHour();
         _sim.Night = IsNight(hour);
+        _view?.SetTide(hour + (_fixedHour == null ? DateTime.Now.DayOfYear * 24f : 0f));
         float arc = (hour - 6f) / 12f * Mathf.Pi;
         float height = MathF.Sin(arc), day = Mathf.SmoothStep(-0.12f, 0.2f, height);
         _sun.Rotation = new Vector3(-Mathf.Max(0.18f, MathF.Abs(height)) * 1.25f, MathF.Cos(arc) * 1.2f, 0);
