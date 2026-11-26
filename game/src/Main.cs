@@ -93,6 +93,7 @@ public partial class Main : Node3D
         _sim = new SimHost(seed, HasFlag(args, "--fresh"), _canSave, _baseSpeed, (float)Number(args, "--start-year", 0));
         if (HasFlag(args, "--test-fire")) _sim.IgniteForTest();
         if (HasFlag(args, "--test-harsh")) _sim.HarshWinterForTest();
+        if (HasFlag(args, "--test-fireworks")) _sim.FireworksForTest();
         BuildScene();
         // Test switches for measuring what the look costs.
         if (HasFlag(args, "--no-shadows")) _sun.ShadowEnabled = false;
@@ -426,8 +427,9 @@ public partial class Main : Node3D
             if (!first && e.Importance >= 2)
             {
                 // A burning house is framed from further back, aimed at the flames over its roof.
-                _focusTarget = FocusAt(e.X, e.Z) + (s.Burning ? Vector3.Up * 5f : Vector3.Zero);
-                _distanceTarget = CloseDistance * (s.Burning ? 1.9f : 1.35f);
+                _focusTarget = FocusAt(e.X, e.Z) + (s.Burning ? Vector3.Up * 5f : s.Festive == 2 ? Vector3.Up * 16f : Vector3.Zero);
+                // A new era is celebrated with fireworks high above the crowd: stand well back to take them in.
+                _distanceTarget = CloseDistance * (s.Burning ? 1.9f : s.Festive == 2 ? 2.6f : 1.35f);
                 _azimuthTarget = ClearAzimuth(s, e.X, e.Z);
                 // A funeral, feast or era celebration takes the crowd most of a minute to walk in; stay for it.
                 _focusTimer = s.Gathering ? 75 : 30;

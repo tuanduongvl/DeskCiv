@@ -49,6 +49,12 @@ public sealed class Simulation
     public long FireAt = -1, FireEnd = -1;
     /// <summary>The railway: one tile row from a tunnel mouth in the western hills (RailX0) to just past the station (RailX1). -1 when none.</summary>
     public int RailRow = -1, RailX0, RailX1;
+    /// <summary>
+    /// View-only festivities: until this tick the village celebrates at the gathering point (1 a feast, 2 a new era).
+    /// Not saved and not hashed: it only drives the bonfire and fireworks.
+    /// </summary>
+    public long FestiveUntil = -1;
+    public int FestiveKind;
     /// <summary>Newcomers waiting to arrive on the next train (they step off while it stands at the station).</summary>
     public bool MigrantsOnTrain;
     /// <summary>
@@ -2214,7 +2220,10 @@ public sealed class Simulation
                 ActiveEvent = 4;
                 (float hx, float hz) = PlaceOf(BType.Storehouse);
                 if (Gather(hx, hz, 120))
+                {
                     Log("A bumper harvest: the village holds a feast", hx, hz, 2);
+                    (FestiveUntil, FestiveKind) = (GatherUntil, 1);
+                }
             }
             else if (roll < 0.58f && Era >= 4 && FireBuilding < 0)
             {
@@ -2362,6 +2371,7 @@ public sealed class Simulation
             (float ex, float ez) = ChurchDoor() ?? (CenterX, CenterZ);
             Log($"The village enters the {Eras.Names[Era]}", ex, ez, 3);
             Gather(ex, ez, 150, true);
+            (FestiveUntil, FestiveKind) = (GatherUntil, 2);
         }
         if (!RunComplete && Year >= Eras.TotalYears)
         {
@@ -2571,6 +2581,15 @@ public sealed class Simulation
             Log("The house burns down; the family moves in with neighbours and it will be rebuilt", b.X, b.Z, 2);
         }
         (FireBuilding, FireAt, FireEnd) = (-1, -1, -1);
+    }
+
+    /// <summary>Test switch --test-fireworks: an era celebration starts at the church door (or the centre) now.</summary>
+    public void FireworksForTest()
+    {
+        (float ex, float ez) = ChurchDoor() ?? (CenterX, CenterZ);
+        Gather(ex, ez, 150, true);
+        (FestiveUntil, FestiveKind) = (GatherUntil, 2);
+        Log("The village celebrates (test)", ex, ez, 3);
     }
 
     /// <summary>Test switch --test-harsh: this year becomes a harsh winter (snow, river ice, cold).</summary>

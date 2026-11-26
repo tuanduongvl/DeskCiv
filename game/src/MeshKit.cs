@@ -1196,6 +1196,14 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>One firework spark: a small white cube, tinted per instance and drawn additively.</summary>
+    public static ArrayMesh Spark()
+    {
+        var m = new MeshKit();
+        m.Box(Vector3.Zero, new Vector3(0.5f, 0.5f, 0.5f), Colors.White);
+        return m.Build();
+    }
+
     /// <summary>A horse and two-wheeled cart, facing local +Z (horse in front).</summary>
     public static ArrayMesh Cart()
     {

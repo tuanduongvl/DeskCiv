@@ -38,6 +38,9 @@ public sealed class WorldSnapshot
     public bool Burning;
     /// <summary>Market day: stalls by the church door.</summary>
     public bool MarketOpen;
+    /// <summary>A feast (1) or era celebration (2) under way at the gathering point, or 0.</summary>
+    public int Festive;
+    public float FestiveX, FestiveZ;
     public float MarketX, MarketZ;
     /// <summary>The railway row and its west and east tiles, or -1.</summary>
     public int RailRow = -1, RailX0, RailX1, TrainTick = -1;
@@ -110,6 +113,9 @@ public sealed class SimHost
 
     /// <summary>Test switch: makes this year a harsh winter. Call before Start.</summary>
     public void HarshWinterForTest() => _sim.HarshWinterForTest();
+
+    /// <summary>Test switch: starts an era celebration with fireworks. Call before Start.</summary>
+    public void FireworksForTest() => _sim.FireworksForTest();
 
     public void Start()
     {
@@ -340,6 +346,7 @@ public sealed class SimHost
             Wear = (byte[])_sim.Wear.Clone(), Tiles = (byte[])_sim.Tiles.Clone(), RoadVersion = _sim.RoadVersion, Graves = _sim.Graves.ToArray(), Spots = BuildSpots(),
             LastEvent = NewsEvent(), PolderDrain = DrainingPolder(), Landmarks = _sim.Landmarks.ToArray(),
             Pipes = _pipes, DigTile = _sim.DigTile, MainsVersion = _lastMainsVersion,
+            Festive = _sim.FestiveUntil > _sim.Tick ? _sim.FestiveKind : 0, FestiveX = _sim.GatherX, FestiveZ = _sim.GatherZ,
             MarketOpen = _sim.MarketPlace() != null, MarketX = _sim.MarketPlace()?.X ?? 0, MarketZ = _sim.MarketPlace()?.Z ?? 0,
             RailRow = _sim.RailRow, RailX0 = _sim.RailX0, RailX1 = _sim.RailX1, TrainTick = _sim.TrainTick,
             Burning = _sim.Burning >= 0, FireX = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].X : 0, FireZ = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].Z : 0,

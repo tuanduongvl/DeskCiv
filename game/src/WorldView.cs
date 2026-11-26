@@ -515,6 +515,12 @@ void fragment() {
     private StandardMaterial3D _glowMaterial;
     /// <summary>Flames over a burning house, flickered every frame.</summary>
     private MultiMesh _flames;
+    /// <summary>Feasts and era celebrations: a bonfire at the gathering point and, for a new era, fireworks above it.</summary>
+    private MultiMesh _bonfire, _sparks;
+    private Vector3? _festiveAt;
+    private bool _fireworks;
+    private float _festClock;
+    private const int Rockets = 5, SparksPerRocket = 28;
     /// <summary>Railway track along the sim's rail row, and the train that runs on it (view only, on its own clock).</summary>
     private MultiMesh _rails, _train, _portal, _stalls, _cargo2;
     private float _trainClock, _trainStopX, _trainZ, _tunnelX;
@@ -600,6 +606,9 @@ void fragment() {
         _glowNode = (Node3D)GetChild(GetChildCount() - 1);
         var flameMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
         _flames = AddInstances(MeshKit.Flame(), flameMaterial, false, 5);
+        _bonfire = AddInstances(MeshKit.Flame(), flameMaterial, false, 3);
+        var sparkMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
+        _sparks = AddInstances(MeshKit.Spark(), sparkMaterial, true, Rockets * SparksPerRocket);
         _rails = AddInstances(MeshKit.RailTrack(), vertexColors, false, 64, true);
         _train = AddInstances(MeshKit.Train(), vertexColors, false, 1, true);
         _portal = AddInstances(MeshKit.TunnelPortal(), vertexColors, false, 1, true);
@@ -819,6 +828,69 @@ void fragment() {
         _train.VisibleInstanceCount = 1;
     }
 
+    /// <summary>
+    /// A bonfire burns at the gathering point of a feast or era celebration. For a new era (from the Middle Ages)
+    /// rockets go up in turn and burst into coloured stars that fall and fade. View only, on its own clock.
+    /// </summary>
+    private void AnimateFestivities(float delta)
+    {
+        if (_festiveAt is not Vector3 at)
+        {
+            _bonfire.VisibleInstanceCount = 0;
+            _sparks.VisibleInstanceCount = 0;
+            return;
+        }
+        _festClock += delta;
+        for (int k = 0; k < 3; k++)
+        {
+            float flicker = 0.7f + 0.3f * MathF.Sin(_festClock * (6f + k * 2.3f) + k);
+            var basis = new Basis(Vector3.Up, k * 1.1f + _festClock * 0.5f).Scaled(new Vector3(0.55f, 0.6f * flicker, 0.55f));
+            _bonfire.SetInstanceTransform(k, new Transform3D(basis, at + new Vector3((k - 1) * 0.6f, 0.1f, (k % 2) * 0.5f + 4f)));
+        }
+        _bonfire.VisibleInstanceCount = 3;
+        if (!_fireworks)
+        {
+            _sparks.VisibleInstanceCount = 0;
+            return;
+        }
+        Color[] palette = { new(1f, 0.35f, 0.25f), new(0.4f, 0.8f, 1f), new(1f, 0.85f, 0.3f), new(0.6f, 1f, 0.45f), new(1f, 0.45f, 0.9f) };
+        int n = 0;
+        for (int r = 0; r < Rockets; r++)
+        {
+            float cycle = 3.6f, t = _festClock + r * 0.72f, p = t % cycle;
+            int round = (int)(t / cycle) * 7 + r * 13;
+            // Each round bursts at a slightly different spot and height above the crowd.
+            var burst = at + new Vector3(MathF.Sin(round * 1.7f) * 12f, 30f + MathF.Sin(round * 2.3f) * 6f, MathF.Cos(round * 1.3f) * 12f);
+            Color color = palette[(round / 7 + r) % palette.Length];
+            if (p < 0.9f)
+            {
+                // The rocket climbs: one bright spark with a short trail.
+                for (int s = 0; s < 3; s++)
+                {
+                    float rise = Math.Max(0f, p - s * 0.05f) / 0.9f;
+                    var pos = at.Lerp(burst, rise);
+                    _sparks.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * (0.6f - s * 0.15f)), pos));
+                    _sparks.SetInstanceColor(n++, new Color(1f, 0.85f, 0.6f));
+                }
+            }
+            else if (p < 2.8f)
+            {
+                float age = p - 0.9f, fade = 1f - age / 1.9f;
+                for (int s = 0; s < SparksPerRocket; s++)
+                {
+                    // Directions spread over a sphere (golden-angle spiral), slowing and dropping as they fall.
+                    float y = 1f - 2f * (s + 0.5f) / SparksPerRocket, ring = MathF.Sqrt(1f - y * y), a = s * 2.39996f;
+                    var dir = new Vector3(MathF.Cos(a) * ring, y, MathF.Sin(a) * ring);
+                    float reach = 9f * (1f - MathF.Exp(-age * 2.2f));
+                    var pos = burst + dir * reach + Vector3.Down * (2.2f * age * age);
+                    _sparks.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * (0.9f * fade + 0.15f)), pos));
+                    _sparks.SetInstanceColor(n++, color * fade);
+                }
+            }
+        }
+        _sparks.VisibleInstanceCount = n;
+    }
+
     /// <summary>Flickers the flames on a burning house: each tongue grows and shrinks on its own rhythm.</summary>
     private void AnimateFire(float delta)
     {
@@ -844,6 +916,7 @@ void fragment() {
     {
         _wildlife?.Step(delta, _shown?.Tiles);
         AnimateFire(delta);
+        AnimateFestivities(delta);
         AnimateTrain(delta);
         if (_fallingTrees.Count == 0)
         {
@@ -1034,6 +1107,12 @@ void fragment() {
         _surge = Mathf.MoveToward(_surge, s.Flooding ? 1f : 0f, 0.1f);
         _waterMaterial.SetShaderParameter("surge", _surge);
         UpdateSeason(s);
+        // These follow sim state that changes without a road change (the dig, the train, market day, festivities).
+        UpdateWaterMains(s);
+        UpdateRailway(s);
+        UpdateMarket(s);
+        _festiveAt = s.Festive > 0 ? new Vector3(s.FestiveX, _map.Height(s.FestiveX, s.FestiveZ), s.FestiveZ) : null;
+        _fireworks = s.Festive == 2 && s.Era >= 4;
         UpdateBuildings(s);
         int roadEra = s.Era;
         if (s.RoadVersion != _roadVersion || s.Buildings.Length != _scatterBuildings || roadEra != _roadEra)
@@ -1087,9 +1166,6 @@ void fragment() {
         _terrain.SetShaderParameter("street_style", s.Era >= 6 ? 2f : s.Era >= 5 ? 1f : 0f);
         UpdateStreetLamps(s);
         UpdateWaterSupply(s);
-        UpdateWaterMains(s);
-        UpdateRailway(s);
-        UpdateMarket(s);
     }
 
     /// <summary>From the Industrial era a lamp stands at the edge of every few road tiles, beside the verge.</summary>
