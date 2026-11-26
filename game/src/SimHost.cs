@@ -246,6 +246,11 @@ public sealed class SimHost
                 float ax = _sim.HuntX - _sim.CenterX, az = _sim.HuntZ - _sim.CenterZ, al = MathF.Max(1f, MathF.Sqrt(ax * ax + az * az));
                 _yaw[s] = MathF.Atan2(_sim.HuntX + ax / al * 18 - p.X, _sim.HuntZ + az / al * 18 - p.Z);
             }
+            else if (_sim.Wild && _sim.Night && !p.Moving && p.Act == Act.Wander)
+            {
+                // By night the band sits in a ring facing its fire.
+                _yaw[s] = MathF.Atan2(_sim.CampX - p.X, _sim.CampZ - p.Z);
+            }
             else if (p.Act == Act.Forage && p.A == 3)
             {
                 _yaw[s] = _sim.CaveYaw + MathF.PI;

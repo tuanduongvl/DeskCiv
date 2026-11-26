@@ -399,8 +399,8 @@ public sealed class Simulation
     private bool UnderCave(int tile)
     {
         if (CaveX == 0 && CaveZ == 0) return false;
-        (float x, float z) = TileCenter(tile);
-        return Dist2(x, z, CaveX - MathF.Sin(CaveYaw) * 5, CaveZ - MathF.Cos(CaveYaw) * 5) < 7f * 7f;
+        int rock = TileAt(CaveX - MathF.Sin(CaveYaw) * 5, CaveZ - MathF.Cos(CaveYaw) * 5);
+        return Math.Abs(tile % Rules.TileNx - rock % Rules.TileNx) <= 1 && Math.Abs(tile / Rules.TileNx - rock / Rules.TileNx) <= 1;
     }
 
     private void UpdateWild()
@@ -410,9 +410,17 @@ public sealed class Simulation
             EndWild();
             return;
         }
-        if (!Night && Tick >= NextHunt && !Hunting) StartHunt();
+        // Hunts wait for daylight, but a band on a long run of nights still goes out once a year.
+        if ((!Night || Tick - HuntUntil > Rules.TicksPerYear) && Tick >= NextHunt && !Hunting) StartHunt();
         if (Hunting && Tick >= HuntStrike && Tick < HuntStrike + 10)
         {
+            // Nobody brings down a deer if no hunter turned up for the stalk.
+            if (Tick == HuntStrike && HuntWon)
+            {
+                bool any = false;
+                foreach (Person p in People) any |= p.Act == Act.Forage && p.A == 0;
+                HuntWon = any;
+            }
             if (HuntWon && ++HuntsWon % 4 == 1) Log("The hunters bring down a red deer and carry the meat home", HuntX, HuntZ, 1);
             else if (!HuntWon && (Hunts - HuntsWon) % 4 == 1) Log("The deer scatter before the hunters can close in", HuntX, HuntZ, 1);
         }
@@ -454,6 +462,10 @@ public sealed class Simulation
         HuntWon = false;
         // The whole band gathers at the fire to see the first stone axes.
         Gather(CampX, CampZ, 90, true);
+        // Nobody sleeps in the cave any more, so its mouth is closed to the town plan.
+        if (CaveX != 0 || CaveZ != 0)
+            foreach (int t in new[] { TileAt(CaveX, CaveZ), TileAt(CaveX - MathF.Sin(CaveYaw) * 1.5f, CaveZ - MathF.Cos(CaveYaw) * 1.5f) })
+                if (Tiles[t] == TileKind.Free) Tiles[t] = TileKind.Blocked;
         foreach (Building b in Buildings)
             if (b.Type == BType.Storehouse)
             {
@@ -1914,12 +1926,12 @@ public sealed class Simulation
             float bank = MathF.Abs(Map.RiverOffset(cx, cz)) - WorldMap.EstuaryWidth(cx);
             if (bank >= best || Map.Height(cx, cz) < 0.35f) continue;
             bool busy = false;
-            for (int r = 0; r < b.In.Length && !busy; r++) busy = b.In[r] != 0 || b.Out[r] != 0 || b.Stock[r] != 0;
+            for (int r = 0; r < b.In.Length && !busy; r++) busy = b.In[r] != 0 || b.Out[r] != 0 || b.Stock[r] != 0 || b.Yield > 0;
             foreach (Person p in People)
                 if (p.Job == b.Id && p.Act == Act.Work || p.A == b.Id || p.B == b.Id) { busy = true; break; }
             if (!busy) (best, chosen) = (bank, b);
         }
-        if (chosen == null || fields < 4) return false;
+        if (chosen == null || fields < 4 + People.Count / 25) return false;
         foreach (Person p in People)
             if (p.Job == chosen.Id) p.Job = -1;
         chosen.Workers = 0;
@@ -3231,6 +3243,7 @@ public sealed class Simulation
         Add((ulong)(long)FireBuilding); Add((ulong)FireAt); Add((ulong)FireEnd); Add((ulong)FiresStarted);
         Add((ulong)(long)DigTile); Add((ulong)DigWork); Add((ulong)MainsWaitUntil); Add((ulong)MainsLogged);
         Add(Wild ? 1UL : 0UL); AddF(CaveDug); Add((ulong)HuntUntil); Add((ulong)Hunts);
+        Add(HuntWon ? 1UL : 0UL); Add((ulong)NextHunt); Add((ulong)HuntsWon); AddF(HuntX); AddF(HuntZ); AddF(CaveX); AddF(CaveZ);
         return h;
     }
 

@@ -326,6 +326,12 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 (float px, float pz) = LandNear(hx, hz, 7f);
                 (a.X, a.Z, a.TX, a.TZ, a.HomeX, a.HomeZ) = (px, pz, px, pz, hx, hz);
                 a.Wait = R(0, 5);
+                // The deer that will fall grazes apart, just beyond the hunters' ring, so it drops where it stands.
+                if (i == 0 && won)
+                {
+                    (px, pz) = LandNear(x + ax * 8, z + az * 8, 2f);
+                    (a.X, a.Z, a.TX, a.TZ, a.HomeX, a.HomeZ, a.Wait) = (px, pz, px, pz, px, pz, 1e6f);
+                }
             }
         }
         if (on && struck && !_huntStruck)
@@ -333,7 +339,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             // Break cover: the herd bolts away from the hunters; if the hunt is won, one deer is down.
             (float fx, float fz) = (x + ax * 70, z + az * 70);
             deer.Speed = 6f;
-            for (int i = 0; i < group; i++)
+            for (int i = won ? 1 : 0; i < group; i++)
             {
                 ref Agent a = ref deer.Agents[i];
                 (a.HomeX, a.HomeZ) = (fx, fz);
@@ -341,14 +347,13 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 a.Wait = 2;
             }
             _deerDown = won;
-            // The one that falls drops just beyond the hunters' ring, in sight of the hunt.
-            if (won) (deer.Agents[0].X, deer.Agents[0].Z) = LandNear(x + ax * 8, z + az * 8, 2f);
         }
         if (!on && _hunt)
         {
             deer.Speed = 1.7f;
             _deerDown = false;
             for (int i = 0; i < group; i++) (deer.Agents[i].HomeX, deer.Agents[i].HomeZ) = _deerHomes[i];
+            deer.Agents[0].Wait = 0;
         }
         _hunt = on;
         _huntStruck = on && struck;

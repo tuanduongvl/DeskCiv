@@ -495,7 +495,11 @@ void fragment() {
     private readonly MultiMesh[] _older = new MultiMesh[(int)BType.Count];
     private readonly MultiMeshInstance3D[] _olderNodes = new MultiMeshInstance3D[(int)BType.Count];
     private float _renovationStart = float.NegativeInfinity;
+    // The year the band left its wild camp, seen live; the first storehouse then rises over about 90 s.
+    private float _wildEndedAt = float.NegativeInfinity;
+    private bool _sawWild;
     private const float RenovationYears = 12f;
+    private const float StoreRiseYears = 0.05f;
     private StandardMaterial3D _vertexColors;
     private ShaderMaterial _fieldMaterial;
     private NoiseTexture2D _noiseTexture;
@@ -1597,6 +1601,8 @@ void fragment() {
         float renovated = (s.Year - _renovationStart) / RenovationYears;
         int crops = 0, glows = 0, sites = 0, rubble = 0, stooks = 0;
         Ensure(_rubble, 4);
+        if (s.Wild) _sawWild = true;
+        else if (_sawWild) { _sawWild = false; _wildEndedAt = s.Year; }
         var piles = new int[_piles.Length];
         foreach (MultiMesh pile in _piles) Ensure(pile, counts[(int)BType.Storehouse] * 4 + 4);
         foreach (BuildingView b in s.Buildings)
@@ -1618,6 +1624,12 @@ void fragment() {
             if (b.Type == BType.Field) y += 0.22f;
             var transform = new Transform3D(basis, new Vector3(b.X, y, b.Z));
             if (s.Wild && b.Type == BType.Storehouse) transform = new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.0001f), transform.Origin);
+            else if (b.Type == BType.Storehouse && s.Year - _wildEndedAt < StoreRiseYears)
+            {
+                float up = Math.Max(0.03f, (s.Year - _wildEndedAt) / StoreRiseYears);
+                transform = new Transform3D(transform.Basis.Scaled(new Vector3(1, up, 1)), transform.Origin);
+                site = true;
+            }
             // Every other building of a type with a second shape for this era uses that shape.
             bool alt = _variantShown[(int)b.Type] && ((((int)(b.X * 7.31f) ^ (int)(b.Z * 3.17f)) & 1) == 1) != b.Renewed;
             // Each building gets its turn at a fixed point of the renovation wave, from a hash of its position.
