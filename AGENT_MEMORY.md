@@ -2,6 +2,15 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Camp fire smoke and glow
+
+- **Changed:** `WorldView`. While the camp fire burns, it sends up 6 wood-smoke puffs (scale 1.5, taken from the shared smoke budget). A warm flickering `OmniLight3D` (range 10 m, no shadows) sits 1.1 m above the fire and is hidden when the fire goes out.
+- **Verified:**
+  - `dotnet build` succeeds.
+  - Godot shots, seed 1000, year 3, focused on the camp at 109.7,179.6: at hour 10 faint smoke puffs rise above the cave rock; at hour 22 the flames show with a warm patch of ground around them.
+  - The view was only checked in these shots. CPU and GPU cost were not measured, though a single unshadowed light should be negligible.
+- **Limitation:** both camera angles look from behind the cave rock, so the fire is partly hidden. The hour-22 shot does not look strongly moonlit.
+
 ## 2026-11-27 — Fable review 10: wild-phase fixes, storehouse rise
 
 - **Changed:**

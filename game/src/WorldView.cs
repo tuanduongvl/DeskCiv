@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using DeskCiv.Sim;
 using Godot;
 
@@ -543,6 +543,7 @@ void fragment() {
     /// <summary>The wild years: the cave in the hillside, its opening (grows as it is dug), and the camp fire.</summary>
     private MultiMesh _cave, _caveMouth, _hearth, _campfire;
     private Vector3? _campAt;
+    private OmniLight3D _campLight;
     private float _fireClock;
     private Node3D _glowNode;
     private ImageTexture _wearTexture;
@@ -980,11 +981,21 @@ void fragment() {
     {
         if (_campAt is not Vector3 camp)
         {
+            if (_campLight != null) _campLight.Visible = false;
             _campfire.VisibleInstanceCount = 0;
             return;
         }
         Ensure(_campfire, 3);
         float t = _fireClock + (float)Time.GetTicksMsec() / 1000f % 1000f;
+        // A warm flickering glow lights the ring of people round the fire after dark.
+        if (_campLight == null)
+        {
+            _campLight = new OmniLight3D { LightColor = new Color(1f, 0.62f, 0.3f), OmniRange = 10f, ShadowEnabled = false };
+            AddChild(_campLight);
+        }
+        _campLight.Visible = true;
+        _campLight.Position = camp + new Vector3(0, 1.1f, 0);
+        _campLight.LightEnergy = 1.6f + 0.35f * MathF.Sin(t * 7.3f) + 0.2f * MathF.Sin(t * 17.1f);
         for (int k = 0; k < 3; k++)
         {
             float flicker = 0.75f + 0.25f * MathF.Sin(t * (6.1f + k * 1.9f) + k * 2.3f) + 0.1f * MathF.Sin(t * 14f + k);
@@ -1743,6 +1754,13 @@ void fragment() {
                 _smoke.SetInstanceCustomData(puffs++, new Color(k / 14f, 0, 0));
             }
         }
+        // The camp fire sends up a thin plume of wood smoke.
+        if (_campAt is Vector3 campFire)
+            for (int k = 0; k < 6; k++)
+            {
+                _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 1.5f), campFire + new Vector3(0, 1.2f, 0)));
+                _smoke.SetInstanceCustomData(puffs++, new Color(k / 6f, 0, 0));
+            }
         // In a harsh winter every hearth burns from late autumn.
         bool cold = s.Season == 3 || (s.ActiveEvent == 2 && s.YearFraction > 0.64f);
         // Bakeries and smithies take their smoke first, so a big winter town does not use the whole budget on huts.
