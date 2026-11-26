@@ -50,6 +50,7 @@ public partial class Main : Node3D
     private Clip? _forcedClip;
     private BType? _lookType;
     private bool _watchDig, _watchGate, _testDecember;
+    private StandardMaterial3D _rainDrop;
     private Vector2? _focusPoint;
     private Clip _lastShotClip = Clip.Idle;
 
@@ -132,6 +133,14 @@ public partial class Main : Node3D
         _focus = _focusTarget;
         _distance = _distanceTarget;
         _azimuth = _azimuthTarget;
+        // On launch the wallpaper opens on the whole settlement and the estuary, then eases in to the first scene.
+        if (_shotPath == null && Option(args, "--view", null) == null)
+        {
+            _focus = FocusAt(first.CenterX, first.CenterZ);
+            _distance = CameraDistance(first) * 1.3f;
+            _azimuth = 0;
+            _focusTimer += 20;
+        }
         if (Option(args, "--view", null) is string view)
         {
             string[] parts = view.Split(',');
@@ -707,7 +716,7 @@ public partial class Main : Node3D
         _sun.LightEnergy = (0.36f + day * 0.72f) * (1f - cover * 0.45f) * (_sun.ShadowEnabled ? 0.35f : 1f);
         _sun.ShadowOpacity = (0.35f + day * 0.5f) * (1f - cover * 0.6f);
         _sun.LightColor = new Color(0.72f, 0.78f, 0.98f).Lerp(new Color(1f, 0.95f, 0.84f), day).Lerp(new Color(1f, 0.68f, 0.42f), golden * 0.8f);
-        Color sky = new Color(0.24f, 0.31f, 0.46f).Lerp(new Color(0.58f, 0.74f, 0.88f), day).Lerp(new Color(0.95f, 0.62f, 0.45f), golden * 0.5f);
+        Color sky = new Color(0.17f, 0.22f, 0.35f).Lerp(new Color(0.58f, 0.74f, 0.88f), day).Lerp(new Color(0.95f, 0.62f, 0.45f), golden * 0.5f);
         sky = sky.Lerp(new Color(0.55f, 0.58f, 0.6f) * (0.4f + 0.6f * day), cover * 0.75f);
         _environment.BackgroundColor = sky;
         _environment.FogLightColor = sky;
@@ -720,6 +729,8 @@ public partial class Main : Node3D
         RenderingServer.GlobalShaderParameterSet("rain", rain);
         RenderingServer.GlobalShaderParameterSet("daylight", day);
         SetRain(rain);
+        // Rain streaks are unshaded too: dim them with the light.
+        if (_rainDrop != null) _rainDrop.AlbedoColor = new Color(0.8f, 0.85f, 0.92f, 0.35f) * new Color(0.35f + 0.65f * day, 0.35f + 0.65f * day, 0.35f + 0.65f * day, 1f);
         if (_sound != null)
         {
             _sound.Rain = rain;
@@ -762,7 +773,7 @@ public partial class Main : Node3D
                 ParticleFlagAlignY = true,
             };
             var drop = new QuadMesh { Size = new Vector2(0.03f, 0.9f) };
-            drop.Material = new StandardMaterial3D
+            drop.Material = _rainDrop = new StandardMaterial3D
             {
                 ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
                 Transparency = BaseMaterial3D.TransparencyEnum.Alpha,

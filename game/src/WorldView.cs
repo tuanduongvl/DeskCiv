@@ -161,7 +161,9 @@ void vertex() {
     COLOR.a = smoothstep(0.0, 0.14, t) * (1.0 - t) * (1.0 - t) * 0.3;
 }
 uniform vec3 tone = vec3(0.86, 0.85, 0.82);
-void fragment() { ALBEDO = tone; ALPHA = COLOR.a; }";
+global uniform float daylight;
+// Smoke is unshaded, so it is dimmed by hand at night to match the moonlit scene.
+void fragment() { ALBEDO = tone * (0.35 + 0.65 * daylight); ALPHA = COLOR.a; }";
 
     private const string MovingShader = @"
 shader_type spatial;
