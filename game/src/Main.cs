@@ -58,7 +58,8 @@ public partial class Main : Node3D
     private float _prevRain, _rainbowStrength;
     private int _lastBellHour = -1, _lastTrainTick = -1;
     /// <summary>Thunderstorms: in heavy rain a lightning flash may come every 13 s, with thunder a few seconds later.</summary>
-    private float _stormRain, _baseAmbient = 0.8f;
+    private float _stormRain, _baseAmbient = 0.8f, _flash, _baseSun = 1f;
+    private Color _baseSky;
     private int _lightningSlot = -1;
     private double _flashAt = -10, _thunderAt = -1;
     private double _rainbowUntil = -1;
@@ -761,6 +762,9 @@ void fragment() {
         UpdateRainbow(rain, day);
         _stormRain = rain;
         _baseAmbient = _environment.AmbientLightEnergy;
+        _baseSky = _environment.BackgroundColor;
+        _baseSun = _sun.LightEnergy;
+        ApplyFlash();
         // The church bell strikes the hour by day once there is a church.
         int whole = (int)hour;
         if (whole != _lastBellHour)
@@ -792,22 +796,30 @@ void fragment() {
             if (slot != _lightningSlot)
             {
                 _lightningSlot = slot;
-                if ((uint)(slot * 2654435761u) % 3 == 0)
+                if (Option(OS.GetCmdlineUserArgs(), "--weather", "") == "storm" || (uint)(slot * 2654435761u) % 3 == 0)
                 {
                     _flashAt = _elapsed + (slot % 5) * 1.3;
                     _thunderAt = _flashAt + 1.5 + (slot % 4) * 0.8;
                 }
             }
         }
-        // Two quick flashes, 80 ms each, 150 ms apart.
         double since = _elapsed - _flashAt;
-        float flash = since is >= 0 and < 0.08 || since is >= 0.15 and < 0.23 ? 1.4f : 0f;
-        _environment.AmbientLightEnergy = _baseAmbient + flash;
+        // A bright stroke, a second one, then a quick fade.
+        _flash = since < 0 ? 0f : since < 0.12 ? 1f : since < 0.2 ? 0.3f : since < 0.32 ? 0.8f : since < 0.75 ? 0.8f * (float)(1 - (since - 0.32) / 0.43) : 0f;
+        ApplyFlash();
         if (_thunderAt > 0 && _elapsed >= _thunderAt)
         {
             _thunderAt = -1;
             _sound?.Thunder();
         }
+    }
+
+    /// <summary>Adds the current lightning flash on top of the light UpdateSun set: ambient light and a whitened sky.</summary>
+    private void ApplyFlash()
+    {
+        _environment.AmbientLightEnergy = _baseAmbient + _flash * 1.1f;
+        _sun.LightEnergy = _baseSun + _flash * 1.2f;
+        _environment.BackgroundColor = _baseSky.Lerp(new Color(0.85f, 0.88f, 1f), _flash * 0.7f);
     }
 
     private void UpdateRainbow(float rain, float day)
