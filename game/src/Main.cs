@@ -49,7 +49,7 @@ public partial class Main : Node3D
     private Vector2 _panLast;
     private Clip? _forcedClip;
     private BType? _lookType;
-    private bool _watchDig, _watchGate;
+    private bool _watchDig, _watchGate, _testDecember;
     private Vector2? _focusPoint;
     private Clip _lastShotClip = Clip.Idle;
 
@@ -94,6 +94,7 @@ public partial class Main : Node3D
         if (HasFlag(args, "--test-fire")) _sim.IgniteForTest();
         if (HasFlag(args, "--test-harsh")) _sim.HarshWinterForTest();
         if (HasFlag(args, "--test-fireworks")) _sim.FireworksForTest();
+        _testDecember = HasFlag(args, "--test-december");
         BuildScene();
         // Test switches for measuring what the look costs.
         if (HasFlag(args, "--no-shadows")) _sun.ShadowEnabled = false;
@@ -101,7 +102,7 @@ public partial class Main : Node3D
         if (Number(args, "--shadow-splits", 0) is 1 or 2)
             _sun.DirectionalShadowMode = Number(args, "--shadow-splits", 0) == 1 ? DirectionalLight3D.ShadowMode.Orthogonal : DirectionalLight3D.ShadowMode.Parallel2Splits;
         if (Number(args, "--shadow-size", 0) > 0) RenderingServer.DirectionalShadowAtlasSetSize((int)Number(args, "--shadow-size", 0), true);
-        _view = new WorldView(_sim);
+        _view = new WorldView(_sim) { ForceDecember = _testDecember };
         AddChild(_view);
 
         _settings = AudioSettings.Load();
@@ -368,7 +369,7 @@ public partial class Main : Node3D
         RemoveChild(_view);
         _view.QueueFree();
         _sim = new SimHost(null, true, _canSave, _baseSpeed, 0);
-        _view = new WorldView(_sim);
+        _view = new WorldView(_sim) { ForceDecember = _testDecember };
         AddChild(_view);
         _view.SetDetail(_quality);
         GC.Collect();

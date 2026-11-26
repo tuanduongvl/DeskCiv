@@ -69,6 +69,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     /// <summary>The season (0 spring ... 3 winter): geese pass over in spring and autumn.</summary>
     public int Season { get; set; }
 
+    /// <summary>The street tile being dug for mains (from the sim), or -1: traffic keeps out of the trench.</summary>
+    public int DigTile { get; set; } = -1;
+
     /// <summary>Night: boats lie at their moorings off the village and only a few vehicles are about.</summary>
     public bool Night
     {
@@ -461,7 +464,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 {
                     bool inside = k switch { 0 => tx > 0, 1 => tx < nx - 1, 2 => tz > 0, _ => tz < Rules.TileNz - 1 };
                     int side = k switch { 0 => target - 1, 1 => target + 1, 2 => target - nx, _ => target + nx };
-                    if (inside && tiles[side] == TileKind.Road && side != back && R() * ++count < 1f) next = side;
+                    if (inside && tiles[side] == TileKind.Road && side != back && side != DigTile && R() * ++count < 1f) next = side;
                 }
                 if (next < 0) next = back >= 0 && tiles[back] == TileKind.Road ? back : -1;
                 a.TZ = target;
@@ -471,7 +474,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             float step = Math.Min(dist, f.Speed * delta);
             a.X += dx / dist * step;
             a.Z += dz / dist * step;
-            a.Yaw = MathF.Atan2(dx, dz);
+            // Turn smoothly into the new street instead of snapping round at the tile centre.
+            a.Yaw = LerpAngle(a.Yaw, MathF.Atan2(dx, dz), Math.Min(1f, delta * 5f));
             // Keep to the right-hand side of the street.
             float lane = 0.9f, x = a.X + MathF.Cos(a.Yaw) * -lane, z = a.Z - MathF.Sin(a.Yaw) * -lane;
             Write(f.Buffer, i, 1f, a.Yaw, x, _map.Height(x, z) + 0.05f, z, 1, 0);

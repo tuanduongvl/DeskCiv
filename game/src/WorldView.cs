@@ -517,6 +517,10 @@ void fragment() {
     private MultiMesh _flames;
     /// <summary>Feasts and era celebrations: a bonfire at the gathering point and, for a new era, fireworks above it.</summary>
     private MultiMesh _bonfire, _sparks;
+    /// <summary>In December (by the PC's clock) a lit fir stands by the church from the Industrial era on.</summary>
+    private MultiMesh _yuleTree, _yuleLights;
+    private Vector3? _yuleAt;
+    public bool ForceDecember { get; set; }
     private Vector3? _festiveAt;
     private bool _fireworks;
     private float _festClock;
@@ -615,6 +619,8 @@ void fragment() {
         _stalls = AddInstances(MeshKit.MarketStall(), vertexColors, false, 8, true);
         _cargo2 = AddInstances(MeshKit.GoodsPile(3), vertexColors, false, 4, true);
         // Felled trees use the pine model and material, realistic or kit.
+        _yuleTree = AddInstances(_treeKinds[0].Mesh, ((MultiMeshInstance3D)GetChild(_treeNodeIndex)).MaterialOverride, false, 1, true);
+        _yuleLights = AddInstances(MeshKit.Spark(), sparkMaterial, true, 24);
         _falling = AddInstances(_treeKinds[0].Mesh, ((MultiMeshInstance3D)GetChild(_treeNodeIndex)).MaterialOverride, false, MaxFalling, true);
         _fallingNodeIndex = GetChildCount() - 1;
         WatchModels();
@@ -828,6 +834,28 @@ void fragment() {
         _train.VisibleInstanceCount = 1;
     }
 
+    /// <summary>Coloured lights spiral up the December fir and twinkle in turn.</summary>
+    private void AnimateYuleLights()
+    {
+        if (_yuleAt is not Vector3 at)
+        {
+            _yuleLights.VisibleInstanceCount = 0;
+            return;
+        }
+        Color[] bulbs = { new(1f, 0.25f, 0.2f), new(1f, 0.8f, 0.3f), new(0.35f, 0.6f, 1f), new(0.4f, 1f, 0.5f) };
+        float clock = (float)Time.GetTicksMsec() / 1000f;
+        for (int k = 0; k < 24; k++)
+        {
+            // A spiral up the cone: wide near the bottom, narrow at the top.
+            float h = k / 24f, angle = k * 2.1f, radius = 2.4f * (1f - h) + 0.3f;
+            var pos = at + new Vector3(MathF.Cos(angle) * radius, 1.2f + h * 7.5f, MathF.Sin(angle) * radius);
+            float twinkle = 0.55f + 0.45f * MathF.Sin(clock * 2.3f + k * 1.7f);
+            _yuleLights.SetInstanceTransform(k, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.8f), pos));
+            _yuleLights.SetInstanceColor(k, bulbs[k % 4] * twinkle);
+        }
+        _yuleLights.VisibleInstanceCount = 24;
+    }
+
     /// <summary>
     /// A bonfire burns at the gathering point of a feast or era celebration. For a new era (from the Middle Ages)
     /// rockets go up in turn and burst into coloured stars that fall and fade. View only, on its own clock.
@@ -917,6 +945,7 @@ void fragment() {
         _wildlife?.Step(delta, _shown?.Tiles);
         AnimateFire(delta);
         AnimateFestivities(delta);
+        AnimateYuleLights();
         AnimateTrain(delta);
         if (_fallingTrees.Count == 0)
         {
@@ -1113,6 +1142,16 @@ void fragment() {
         UpdateMarket(s);
         _festiveAt = s.Festive > 0 ? new Vector3(s.FestiveX, _map.Height(s.FestiveX, s.FestiveZ), s.FestiveZ) : null;
         _fireworks = s.Festive == 2 && s.Era >= 4;
+        bool december = ForceDecember || DateTime.Now.Month == 12;
+        _yuleAt = december && s.Era >= 6 && _churches.VisibleInstanceCount > 0
+            ? _churchShown + new Vector3(10f, 0, 6f) : null;
+        if (_yuleAt is Vector3 yule)
+        {
+            yule.Y = _map.Height(yule.X, yule.Z);
+            _yuleAt = yule;
+            _yuleTree.SetInstanceTransform(0, new Transform3D(Basis.Identity.Scaled(Vector3.One * 1.3f), yule));
+        }
+        _yuleTree.VisibleInstanceCount = _yuleAt != null ? 1 : 0;
         UpdateBuildings(s);
         int roadEra = s.Era;
         if (s.RoadVersion != _roadVersion || s.Buildings.Length != _scatterBuildings || roadEra != _roadEra)
@@ -1330,6 +1369,7 @@ void fragment() {
     /// </summary>
     private void UpdateWaterMains(WorldSnapshot s)
     {
+        _wildlife.DigTile = s.DigTile;
         int count = 0;
         int tile = s.DigTile, nx = Rules.TileNx;
         if (tile >= 0 && tile < s.Tiles.Length && s.Tiles[tile] == TileKind.Road)
