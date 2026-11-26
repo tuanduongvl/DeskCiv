@@ -480,8 +480,8 @@ public partial class Main : Node3D
                     _focusTimer = _watchGate ? 100000 : 24;
                     return;
                 }
-        // While the train stands at the station, the camera goes to watch it.
-        if (_forcedClip == null && _shotNumber % 7 == 2 && s.TrainTick is >= 400 and < 900)
+        // As the train pulls in and while it stands at the station, the camera goes to watch it.
+        if (_forcedClip == null && _shotNumber % 7 == 2 && s.TrainTick is >= 250 and < 900)
             foreach (Simulation.Landmark l in s.Landmarks)
                 if (l.Kind == 4)
                 {

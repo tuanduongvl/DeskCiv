@@ -2844,7 +2844,8 @@ public sealed class Simulation
         for (int i = 0; i < group && People.Count < Eras.MaxPopulation(Era); i++)
         {
             float x = edgeX + Random.R(-5, 5), z = edgeZ + Random.R(-5, 5);
-            if (!Map.Walkable(x, z)) (x, z) = (edgeX, edgeZ);
+            // Never inside a building (newcomers off the train appear right by the station).
+            if (!Map.Walkable(x, z) || Tiles[TileAt(x, z)] == TileKind.Building) (x, z) = (edgeX, edgeZ);
             Spawn(x, z, Random.R(16, 34), i % 2 == 0, -1);
             Migrants++;
         }

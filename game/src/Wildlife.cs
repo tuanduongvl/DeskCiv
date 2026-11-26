@@ -369,6 +369,12 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             int target = (int)a.TX;
             if (target < 0 || target >= tiles.Length || tiles[target] != TileKind.Road)
             {
+                // After a failed placement, wait a couple of seconds before searching again.
+                if (a.Wait > 0)
+                {
+                    a.Wait -= delta;
+                    continue;
+                }
                 // Place it on a random street in the town (within 120 m of the centre if one can be found).
                 int start = -1;
                 for (int tries = 0; tries < 400 && start < 0; tries++)
@@ -379,7 +385,11 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                     if (tries < 300 && (px - _centerX) * (px - _centerX) + (pz - _centerZ) * (pz - _centerZ) > 120f * 120f) continue;
                     start = t;
                 }
-                if (start < 0) continue;
+                if (start < 0)
+                {
+                    a.Wait = 2f;
+                    continue;
+                }
                 (a.X, a.Z) = Simulation.TileCenter(start);
                 a.TX = start;
                 a.TZ = -1;
@@ -391,10 +401,12 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             {
                 // At the tile centre: choose the next street tile.
                 int tx = target % nx, tz = target / nx, back = (int)a.TZ, next = -1, count = 0;
-                int[] around = { target - 1, target + 1, target - nx, target + nx };
-                bool[] ok = { tx > 0, tx < nx - 1, tz > 0, tz < Rules.TileNz - 1 };
                 for (int k = 0; k < 4; k++)
-                    if (ok[k] && tiles[around[k]] == TileKind.Road && around[k] != back && R() * ++count < 1f) next = around[k];
+                {
+                    bool inside = k switch { 0 => tx > 0, 1 => tx < nx - 1, 2 => tz > 0, _ => tz < Rules.TileNz - 1 };
+                    int side = k switch { 0 => target - 1, 1 => target + 1, 2 => target - nx, _ => target + nx };
+                    if (inside && tiles[side] == TileKind.Road && side != back && R() * ++count < 1f) next = side;
+                }
                 if (next < 0) next = back >= 0 && tiles[back] == TileKind.Road ? back : -1;
                 a.TZ = target;
                 a.TX = next;
