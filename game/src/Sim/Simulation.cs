@@ -950,6 +950,9 @@ public sealed class Simulation
             float px = MathF.Floor(cx / 40f) * 40f + 20f, pz = MathF.Floor(cz / 40f) * 40f + 20f;
             if (Map.Walkable(px, pz) && Tiles[TileAt(px, pz)] is TileKind.Free or TileKind.Road) (cx, cz, radius) = (px, pz, 5);
         }
+        // By day the old folk sit out on their doorstep and watch the street.
+        bool doorstep = !Wild && !Night && p.Home >= 0 && p.Age >= 60 && Cosmetic.F() < 0.6f;
+        if (doorstep) (cx, cz, radius) = (DoorPoint(Buildings[p.Home]).X, DoorPoint(Buildings[p.Home]).Z, 0.8f);
         if (p.Age >= 14 && p.Age < 60 && p.Job >= 0)
         {
             (cx, cz) = DoorPoint(Buildings[p.Job]);

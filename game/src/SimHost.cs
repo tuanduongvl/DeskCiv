@@ -246,6 +246,13 @@ public sealed class SimHost
                 float ax = _sim.HuntX - _sim.CenterX, az = _sim.HuntZ - _sim.CenterZ, al = MathF.Max(1f, MathF.Sqrt(ax * ax + az * az));
                 _yaw[s] = MathF.Atan2(_sim.HuntX + ax / al * 18 - p.X, _sim.HuntZ + az / al * 18 - p.Z);
             }
+            else if (!p.Moving && p.Act == Act.Wander && p.Age >= 60 && p.Home >= 0 && !_sim.Night
+                     && _sim.DoorPoint(_sim.Buildings[p.Home]) is var (dx, dz) && (p.X - dx) * (p.X - dx) + (p.Z - dz) * (p.Z - dz) < 2.5f)
+            {
+                // An old villager on the doorstep looks out at the street, back to the house.
+                Building home = _sim.Buildings[p.Home];
+                _yaw[s] = MathF.Atan2(dx - home.X, dz - home.Z);
+            }
             else if (_sim.Wild && _sim.Night && !p.Moving && p.Act == Act.Wander)
             {
                 // By night the band sits in a ring facing its fire.

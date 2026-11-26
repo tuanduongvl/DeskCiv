@@ -2,6 +2,18 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Old folk on their doorsteps
+
+- **Changed:**
+  - `Simulation.Wander`: by day (not in the wild years), a villager aged 60+ with a home goes to their own door point, radius 0.8 m, 60% of the time (Cosmetic draw). The Wander timer is unchanged.
+  - `SimHost`: an idle elder within about 1.6 m of their door faces the street, back to the house.
+- **Verified:**
+  - SimTests: ALL PASSED.
+  - Debug count, seed 1000, year 150, 3000 daytime ticks: 28% of elder samples stand on their doorstep.
+  - A Godot shot at year 150 (hour 15, `--look=Hut`) rendered fine, but individual elders cannot be picked out at that distance.
+- **Note:** a first version kept elders on the step for 20–40 s. It shifted the RNG path enough that seeds 16838 and 40595 lost a landmark, so it was dropped. With the normal timer, seed 40595 still ends with `shifts=0` and one landmark type missing. This is the known chaotic sensitivity of that seed, and no check covers it.
+- **Tide follow-up:** a shot at year 100, hour 17.5 (tide about -0.27 m) shows the fishing boat sitting in the water, not floating above it.
+
 ## 2026-11-27 — Tide on the estuary
 
 - **Changed:**
