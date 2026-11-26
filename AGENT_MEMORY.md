@@ -2,6 +2,14 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Hunted deer is carried off
+
+- **Changed:** `Wildlife`. The fallen deer shrinks away between 9 and 12 s after the strike, as the hunters carry the meat off. When the hunt ends, that deer is moved back to its herd home instead of getting up at the kill site.
+- **Verified:**
+  - `dotnet build` succeeds.
+  - `--watch-hunt` shot, seed 1000 at 250 s: same framing as the 238 s shot, and the clearing is empty with the won-hunt headline showing.
+  - The fade itself was not recorded on video.
+
 ## 2026-11-27 — Camp fire smoke and glow
 
 - **Changed:** `WorldView`. While the camp fire burns, it sends up 6 wood-smoke puffs (scale 1.5, taken from the shared smoke budget). A warm flickering `OmniLight3D` (range 10 m, no shadows) sits 1.1 m above the fire and is hidden when the fire goes out.

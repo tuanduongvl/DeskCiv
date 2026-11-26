@@ -67,6 +67,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     private Flock _geese;
     /// <summary>A hunt in the wild years: the first deer group is drawn to the hunt, flees when the hunters strike, and one may fall.</summary>
     private bool _hunt, _huntStruck, _deerDown;
+    // Seconds since the hunted deer fell; the hunters butcher it and carry it off over the first 12 s.
+    private float _downFor;
     private (float X, float Z)[] _deerHomes;
     /// <summary>At night: a lantern on each fishing boat and a pair of lamps on each cart or lorry (additive points).</summary>
     private MultiMesh _lights;
@@ -347,10 +349,13 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 a.Wait = 2;
             }
             _deerDown = won;
+            _downFor = 0;
         }
         if (!on && _hunt)
         {
             deer.Speed = 1.7f;
+            // The carcass was carried off: the deer it stood for is back with the herd, out of sight.
+            if (_deerDown) (deer.Agents[0].X, deer.Agents[0].Z, deer.Agents[0].TX, deer.Agents[0].TZ) = (_deerHomes[0].Item1, _deerHomes[0].Item2, _deerHomes[0].Item1, _deerHomes[0].Item2);
             _deerDown = false;
             for (int i = 0; i < group; i++) (deer.Agents[i].HomeX, deer.Agents[i].HomeZ) = _deerHomes[i];
             deer.Agents[0].Wait = 0;
@@ -405,7 +410,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             if (_deerDown && i == 0 && _herds.Length > 3 && flock == _herds[3])
             {
                 (a.TX, a.TZ, a.Moving) = (a.X, a.Z, 0);
-                WriteLying(flock.Buffer, i, flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z) + 0.25f * flock.Scale, a.Z);
+                _downFor += delta;
+                float left = Math.Clamp((12f - _downFor) / 3f, 0.001f, 1f);
+                WriteLying(flock.Buffer, i, flock.Scale * left, a.Yaw, a.X, _map.Height(a.X, a.Z) + 0.25f * flock.Scale, a.Z);
                 continue;
             }
             float dx = a.TX - a.X, dz = a.TZ - a.Z, distance = MathF.Sqrt(dx * dx + dz * dz);
