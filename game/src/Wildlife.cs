@@ -65,6 +65,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     public bool TraderVisiting { get; set; }
     private bool _frozen, _night;
     private Flock _geese;
+    /// <summary>At night: a lantern on each fishing boat and a pair of lamps on each cart or lorry (additive points).</summary>
+    private MultiMesh _lights;
 
     /// <summary>The season (0 spring ... 3 winter): geese pass over in spring and autumn.</summary>
     public int Season { get; set; }
@@ -119,6 +121,14 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         // A skein of geese in a V, crossing high over the estuary in spring (inland) and autumn (out to sea).
         _geese = AddFlock(MeshKit.Gull(), 11, 1);
         _geese.Mesh.VisibleInstanceCount = 0;
+        _lights = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = MeshKit.Spark(), InstanceCount = 5 + 2 * 24, VisibleInstanceCount = 0 };
+        AddChild(new MultiMeshInstance3D
+        {
+            Multimesh = _lights,
+            MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha },
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            CustomAabb = new Aabb(new Vector3(-WorldMap.SizeX / 2, -10, -WorldMap.SizeZ / 2), new Vector3(WorldMap.SizeX, 120, WorldMap.SizeZ)),
+        });
         for (int i = 0; i < _gulls.Agents.Length; i++)
         {
             ref Agent g = ref _gulls.Agents[i];
@@ -305,6 +315,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         StepTrader(delta);
         StepTraffic(_carts, delta, tiles);
         StepTraffic(_lorries, delta, tiles);
+        StepLights();
     }
 
     /// <summary>A ship twice the size of the fishing boats that comes in from the sea and anchors off the village.</summary>
@@ -359,6 +370,43 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             Write(flock.Buffer, i, flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z), a.Z, a.Moving, a.Phase);
         }
         flock.Mesh.Buffer = flock.Buffer;
+    }
+
+    private void StepLights()
+    {
+        if (!_night)
+        {
+            _lights.VisibleInstanceCount = 0;
+            return;
+        }
+        int n = 0;
+        var lantern = new Color(1f, 0.72f, 0.3f);
+        for (int i = 0; i < _boats.Mesh.VisibleInstanceCount && n < _lights.InstanceCount; i++)
+        {
+            ref Agent b = ref _boats.Agents[i];
+            _lights.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.9f), new Vector3(b.X, 2.6f, b.Z)));
+            _lights.SetInstanceColor(n++, lantern);
+        }
+        foreach (Flock f in new[] { _carts, _lorries })
+        {
+            bool lorry = f == _lorries;
+            var lamp = lorry ? new Color(1f, 0.95f, 0.8f) : new Color(1f, 0.7f, 0.35f);
+            for (int i = 0; i < f.Mesh.VisibleInstanceCount && n + 1 < _lights.InstanceCount; i++)
+            {
+                ref Agent a = ref f.Agents[i];
+                if (a.TX < 0) continue;
+                var forward = new Vector3(MathF.Sin(a.Yaw), 0, MathF.Cos(a.Yaw));
+                var right = new Vector3(forward.Z, 0, -forward.X);
+                float y = _map.Height(a.HomeX, a.HomeZ) + (lorry ? 0.9f : 1.6f);
+                var nose = new Vector3(a.HomeX, y, a.HomeZ) + forward * (lorry ? 2.65f : 2.5f);
+                foreach (float s in new[] { -0.7f, 0.7f })
+                {
+                    _lights.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.55f), nose + right * s));
+                    _lights.SetInstanceColor(n++, lamp);
+                }
+            }
+        }
+        _lights.VisibleInstanceCount = n;
     }
 
     /// <summary>
@@ -478,6 +526,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             a.Yaw = LerpAngle(a.Yaw, MathF.Atan2(dx, dz), Math.Min(1f, delta * 5f));
             // Keep to the right-hand side of the street.
             float lane = 0.9f, x = a.X + MathF.Cos(a.Yaw) * -lane, z = a.Z - MathF.Sin(a.Yaw) * -lane;
+            (a.HomeX, a.HomeZ) = (x, z);
             Write(f.Buffer, i, 1f, a.Yaw, x, _map.Height(x, z) + 0.05f, z, 1, 0);
         }
         f.Mesh.Buffer = f.Buffer;
@@ -536,6 +585,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             // Boats keep to the channel, inside its width at this point.
             float lane = (10f + WorldMap.EstuaryWidth(b.X) * 0.8f) * b.HomeZ;
             float z = _map.RiverCenter(b.X) + lane;
+            b.Z = z;
+            b.Yaw = heading;
             Write(_boats.Buffer, i, 1.15f, heading, b.X, 0.03f - _boatDraft, z, moving, b.Phase);
         }
         _boats.Mesh.Buffer = _boats.Buffer;
