@@ -63,7 +63,18 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     private Flock _gulls, _boats, _trader, _skaters, _carts, _lorries;
     /// <summary>True while a trading ship visits (from the simulation); it sails in, anchors off the village, then leaves.</summary>
     public bool TraderVisiting { get; set; }
-    private bool _frozen;
+    private bool _frozen, _night;
+
+    /// <summary>Night: boats lie at their moorings off the village and only a few vehicles are about.</summary>
+    public bool Night
+    {
+        set
+        {
+            if (value == _night) return;
+            _night = value;
+            ApplyCounts();
+        }
+    }
 
     /// <summary>The river is frozen (harsh winter): the fishing boats stay ashore.</summary>
     public bool Frozen
@@ -173,7 +184,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         if (_skaters != null) _skaters.Mesh.VisibleInstanceCount = _frozen ? _skaters.Agents.Length : 0;
         if (_carts != null)
         {
-            int traffic = 4 + _huts / 5;
+            int traffic = (4 + _huts / 5) * (_night ? 3 : 10) / 10;
             _carts.Mesh.VisibleInstanceCount = _era is >= 4 and < 7 ? Math.Min(traffic, _carts.Agents.Length) : 0;
             _lorries.Mesh.VisibleInstanceCount = _era >= 7 ? Math.Min(traffic, _lorries.Agents.Length) : 0;
         }
@@ -447,13 +458,36 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         for (int i = 0; i < _boats.Agents.Length; i++)
         {
             ref Agent b = ref _boats.Agents[i];
-            b.X += b.TX * 2.3f * delta;
-            if (b.X > far) b.TX = -1;
-            if (b.X < near) b.TX = 1;
-            // Boats keep to the middle of the channel, inside its width at this point.
+            float side = MathF.Sign(_centerZ - _map.RiverCenter(_centerX));
+            float moving = 1, heading = b.TX > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+            if (_night)
+            {
+                // Home to a mooring off the village, in a row along the bank, and lie still till morning.
+                float mooring = _centerX + 10f + i * 7f;
+                float gap = mooring - b.X;
+                if (MathF.Abs(gap) > 0.3f)
+                {
+                    b.TX = MathF.Sign(gap);
+                    b.X += b.TX * Math.Min(MathF.Abs(gap), 2.3f * delta);
+                    heading = b.TX > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+                }
+                else moving = 0;
+                // Drift across to the village side of the channel on the way in.
+                b.HomeZ = Mathf.MoveToward(b.HomeZ, side * 0.85f, delta * 0.05f);
+            }
+            else
+            {
+                b.X += b.TX * 2.3f * delta;
+                if (b.X > far) b.TX = -1;
+                if (b.X < near) b.TX = 1;
+                // By day each boat drifts back to its own fishing lane.
+                float lane0 = ((i * 0.37f) % 1f) - 0.5f;
+                b.HomeZ = Mathf.MoveToward(b.HomeZ, lane0, delta * 0.03f);
+            }
+            // Boats keep to the channel, inside its width at this point.
             float lane = (10f + WorldMap.EstuaryWidth(b.X) * 0.8f) * b.HomeZ;
             float z = _map.RiverCenter(b.X) + lane;
-            Write(_boats.Buffer, i, 1.15f, b.TX > 0 ? MathF.PI / 2 : -MathF.PI / 2, b.X, 0.03f - _boatDraft, z, 1, b.Phase);
+            Write(_boats.Buffer, i, 1.15f, heading, b.X, 0.03f - _boatDraft, z, moving, b.Phase);
         }
         _boats.Mesh.Buffer = _boats.Buffer;
     }

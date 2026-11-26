@@ -1745,6 +1745,8 @@ void fragment() {
 
     public void SetNightGlow(float amount)
     {
+        // After dark the fishing boats come in to their moorings and the streets empty.
+        if (_wildlife != null) _wildlife.Night = amount > 0.4f;
         _glowMaterial.AlbedoColor = new Color(1f, 0.68f, 0.28f) * Mathf.Clamp(amount, 0.05f, 1f) * 0.4f;
         // By day the unlit glow is near black and stood out as a dark block beside the realistic house models.
         if (_glowNode != null) _glowNode.Visible = amount > 0.15f;
