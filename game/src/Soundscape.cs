@@ -29,7 +29,8 @@ public partial class Soundscape : Node
     private const int Eras8 = 8;
     private int _master, _ambient, _music;
     private AudioStreamPlayer _musicPlayer, _birdPlayer, _rainPlayer, _cuePlayer;
-    private AudioStream _bell, _whistle;
+    private AudioStream _bell, _whistle, _thunder;
+    private AudioStreamPlayer _thunderPlayer;
     private AudioStream[] _birds = Array.Empty<AudioStream>();
     private bool _recordedBirds;
     private float _rainLevel;
@@ -85,6 +86,9 @@ public partial class Soundscape : Node
         AddChild(_cuePlayer);
         _bell = Wav(MakeBell(3), false);
         _whistle = Wav(MakeWhistle(), false);
+        _thunder = Wav(MakeThunder(), false);
+        _thunderPlayer = new AudioStreamPlayer { Bus = "Ambient", VolumeDb = -8 };
+        AddChild(_thunderPlayer);
     }
 
     /// <summary>Loads assets/audio/NAME.dcsnd (an Ogg Vorbis file under a name the Godot importer leaves alone).</summary>
@@ -173,6 +177,35 @@ public partial class Soundscape : Node
         if (_cuePlayer == null || _gain <= 0 || _cuePlayer.Playing) return;
         _cuePlayer.Stream = _whistle;
         _cuePlayer.Play();
+    }
+
+    /// <summary>A roll of thunder after a lightning flash.</summary>
+    public void Thunder()
+    {
+        if (_thunderPlayer == null || _gain <= 0 || _thunderPlayer.Playing) return;
+        _thunderPlayer.Stream = _thunder;
+        _thunderPlayer.PitchScale = _random.RandfRange(0.85f, 1.1f);
+        _thunderPlayer.Play();
+    }
+
+    /// <summary>Thunder: low-passed noise with a sharp crack, then a long rolling rumble that swells and fades (about 4 s).</summary>
+    private static short[] MakeThunder()
+    {
+        int n = 4 * SampleRate;
+        var data = new float[n];
+        var noise = new Random(11);
+        double low = 0, lower = 0;
+        for (int i = 0; i < n; i++)
+        {
+            double t = i / (double)SampleRate;
+            double white = noise.NextDouble() * 2 - 1;
+            low += (white - low) * 0.06;
+            lower += (low - lower) * 0.05;
+            double crack = Math.Exp(-t * 18) * white * 0.6;
+            double roll = lower * 9 * Math.Exp(-t * 0.9) * (0.6 + 0.4 * Math.Sin(t * 5.3) * Math.Sin(t * 2.1));
+            data[i] = (float)((crack + roll) * Math.Min(1, t * 60) * Math.Min(1, (4 - t) * 2));
+        }
+        return Normalise(data, 0.7f);
     }
 
     /// <summary>A bronze bell: inharmonic partials with long decays, struck `strokes` times 1.8 s apart.</summary>

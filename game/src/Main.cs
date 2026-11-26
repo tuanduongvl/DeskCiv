@@ -57,6 +57,10 @@ public partial class Main : Node3D
     private ShaderMaterial _rainbowMaterial;
     private float _prevRain, _rainbowStrength;
     private int _lastBellHour = -1, _lastTrainTick = -1;
+    /// <summary>Thunderstorms: in heavy rain a lightning flash may come every 13 s, with thunder a few seconds later.</summary>
+    private float _stormRain, _baseAmbient = 0.8f;
+    private int _lightningSlot = -1;
+    private double _flashAt = -10, _thunderAt = -1;
     private double _rainbowUntil = -1;
     private bool _testRainbow;
     private const string RainbowShader = @"
@@ -256,6 +260,7 @@ void fragment() {
     {
         _elapsed += delta;
         _host?.KeepResponsive();
+        UpdateLightning();
         if (_tray.QuitRequested || (_duration > 0 && _elapsed >= _duration && _shotPath == null))
         {
             Shutdown();
@@ -754,6 +759,8 @@ void fragment() {
         RenderingServer.GlobalShaderParameterSet("daylight", day);
         SetRain(rain);
         UpdateRainbow(rain, day);
+        _stormRain = rain;
+        _baseAmbient = _environment.AmbientLightEnergy;
         // The church bell strikes the hour by day once there is a church.
         int whole = (int)hour;
         if (whole != _lastBellHour)
@@ -775,6 +782,34 @@ void fragment() {
     /// Slowly changing weather from the wall clock: clear spells, cloudy spells and occasional rain, so the
     /// wallpaper looks different through the day. --weather=clear|cloudy|rain fixes it for tests.
     /// </summary>
+    private void UpdateLightning()
+    {
+        if (_environment == null) return;
+        // In the heaviest rain, each 13 s slot has a one-in-three chance of a strike (hashed from the clock, not the sim RNG).
+        if (_stormRain > 0.9f)
+        {
+            int slot = (int)(_elapsed / 13);
+            if (slot != _lightningSlot)
+            {
+                _lightningSlot = slot;
+                if ((uint)(slot * 2654435761u) % 3 == 0)
+                {
+                    _flashAt = _elapsed + (slot % 5) * 1.3;
+                    _thunderAt = _flashAt + 1.5 + (slot % 4) * 0.8;
+                }
+            }
+        }
+        // Two quick flashes, 80 ms each, 150 ms apart.
+        double since = _elapsed - _flashAt;
+        float flash = since is >= 0 and < 0.08 || since is >= 0.15 and < 0.23 ? 1.4f : 0f;
+        _environment.AmbientLightEnergy = _baseAmbient + flash;
+        if (_thunderAt > 0 && _elapsed >= _thunderAt)
+        {
+            _thunderAt = -1;
+            _sound?.Thunder();
+        }
+    }
+
     private void UpdateRainbow(float rain, float day)
     {
         // A shower ending by day leaves a rainbow for two minutes.
@@ -830,7 +865,7 @@ void fragment() {
     private (float Cover, float Rain) Weather()
     {
         if (_forcedWeather is string forced)
-            return forced switch { "rain" => (0.95f, 1f), "cloudy" => (0.65f, 0f), _ => (0.1f, 0f) };
+            return forced switch { "storm" => (1f, 1f), "rain" => (0.95f, 0.8f), "cloudy" => (0.65f, 0f), _ => (0.1f, 0f) };
         double minutes = DateTime.Now.Ticks / (double)TimeSpan.TicksPerMinute;
         float cover = 0.42f + 0.3f * MathF.Sin((float)(minutes / 53.0)) + 0.18f * MathF.Sin((float)(minutes / 17.0) + 1.3f) + 0.1f * MathF.Sin((float)(minutes / 7.3) + 4.1f);
         // A drought year keeps the sky dry from late spring to autumn.
