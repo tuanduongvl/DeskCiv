@@ -703,7 +703,8 @@ public partial class Main : Node3D
         (float cover, float rain) = Weather();
         // Low sun at dawn and dusk is warm orange; clouds and rain soften the light and the shadows.
         float golden = day * (1f - Mathf.SmoothStep(0.15f, 0.5f, height)) * (1f - cover * 0.7f);
-        _sun.LightEnergy = (0.52f + day * 0.56f) * (1f - cover * 0.45f) * (_sun.ShadowEnabled ? 0.35f : 1f);
+        // Night is moonlit: darker than before so lamps, lanterns and fires read, but the town stays visible.
+        _sun.LightEnergy = (0.36f + day * 0.72f) * (1f - cover * 0.45f) * (_sun.ShadowEnabled ? 0.35f : 1f);
         _sun.ShadowOpacity = (0.35f + day * 0.5f) * (1f - cover * 0.6f);
         _sun.LightColor = new Color(0.72f, 0.78f, 0.98f).Lerp(new Color(1f, 0.95f, 0.84f), day).Lerp(new Color(1f, 0.68f, 0.42f), golden * 0.8f);
         Color sky = new Color(0.24f, 0.31f, 0.46f).Lerp(new Color(0.58f, 0.74f, 0.88f), day).Lerp(new Color(0.95f, 0.62f, 0.45f), golden * 0.5f);
@@ -711,7 +712,7 @@ public partial class Main : Node3D
         _environment.BackgroundColor = sky;
         _environment.FogLightColor = sky;
         _environment.AmbientLightColor = new Color(0.56f, 0.62f, 0.78f).Lerp(new Color(0.72f, 0.76f, 0.78f), day);
-        _environment.AmbientLightEnergy = 0.8f - day * (_sun.ShadowEnabled ? 0.25f : 0.06f) * (1f - cover * 0.5f);
+        _environment.AmbientLightEnergy = 0.8f - day * (_sun.ShadowEnabled ? 0.25f : 0.06f) * (1f - cover * 0.5f) - (1f - day) * 0.2f;
         // Morning mist over the estuary between 5 and 9 o'clock, and haze in rain.
         float mist = Mathf.SmoothStep(4.5f, 6f, hour) * (1f - Mathf.SmoothStep(7.5f, 9.5f, hour));
         _environment.FogDensity = 0.0012f + mist * 0.0045f + rain * 0.003f;
