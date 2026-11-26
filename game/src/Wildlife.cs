@@ -33,7 +33,7 @@ void vertex() {
         VERTEX.y -= head * (1.0 - moving) * (0.5 + 0.5 * sin(t * 0.7)) * 0.12 * body_len;
     } else if (style == 1) {
         VERTEX.y += abs(VERTEX.x) * sin(t * 5.5) * 0.55;
-    } else {
+    } else if (style == 2) {
         float a = sin(t * 0.9) * 0.05;
         VERTEX.y += VERTEX.x * a + sin(t * 0.7) * 0.07;
     }
@@ -60,7 +60,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     private readonly float _centerX, _centerZ;
     private readonly Random _random;
     private Flock[] _herds = Array.Empty<Flock>();
-    private Flock _gulls, _boats, _trader, _skaters;
+    private Flock _gulls, _boats, _trader, _skaters, _carts, _lorries;
     /// <summary>True while a trading ship visits (from the simulation); it sails in, anchors off the village, then leaves.</summary>
     public bool TraderVisiting { get; set; }
     private bool _frozen;
@@ -117,6 +117,16 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         _trader.Mesh.VisibleInstanceCount = 0;
         // Skaters circle on the frozen river off the village in a harsh winter.
         _skaters = AddFlock(MeshKit.Skater(), 8, 2);
+        // Horse carts from the Middle Ages and lorries in the 20th century drive along the streets (style 3: rigid).
+        _carts = AddFlock(MeshKit.Cart(), 8, 3);
+        _lorries = AddFlock(MeshKit.Lorry(), 8, 3);
+        _carts.Speed = 2.6f;
+        _lorries.Speed = 6.5f;
+        foreach (Flock f in new[] { _carts, _lorries })
+        {
+            f.Mesh.VisibleInstanceCount = 0;
+            for (int i = 0; i < f.Agents.Length; i++) f.Agents[i].TX = -1;
+        }
         _skaters.Mesh.VisibleInstanceCount = 0;
         for (int i = 0; i < _skaters.Agents.Length; i++)
         {
@@ -161,6 +171,12 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         for (int i = 0; i < 3; i++) _herds[i].Mesh.VisibleInstanceCount = farming ? Math.Clamp(wanted[i], 0, _herds[i].Agents.Length) : 0;
         _boats.Mesh.VisibleInstanceCount = _era >= 2 && !_frozen ? Math.Clamp(_fishers, 1, _boats.Agents.Length) : 0;
         if (_skaters != null) _skaters.Mesh.VisibleInstanceCount = _frozen ? _skaters.Agents.Length : 0;
+        if (_carts != null)
+        {
+            int traffic = Math.Clamp(2 + _huts / 12, 0, 8);
+            _carts.Mesh.VisibleInstanceCount = _era is >= 4 and < 7 ? traffic : 0;
+            _lorries.Mesh.VisibleInstanceCount = _era >= 7 ? traffic : 0;
+        }
     }
 
     /// <summary>Texture and leg layout of a herd or boat model.</summary>
@@ -265,6 +281,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         StepBoats(delta);
         StepSkaters(delta);
         StepTrader(delta);
+        StepTraffic(_carts, delta, tiles);
+        StepTraffic(_lorries, delta, tiles);
     }
 
     /// <summary>A ship twice the size of the fishing boats that comes in from the sea and anchors off the village.</summary>
@@ -333,6 +351,61 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             Write(_gulls.Buffer, i, 1, heading, x, height, z, 1, g.Phase);
         }
         _gulls.Mesh.Buffer = _gulls.Buffer;
+    }
+
+    /// <summary>
+    /// Street traffic: each vehicle drives from road tile to a neighbouring road tile, keeping to the right, and
+    /// picks a new street at each junction (never straight back unless it is a dead end). TX holds the tile it is
+    /// heading for and TZ the one it came from; -1 means it still has to be placed.
+    /// </summary>
+    private void StepTraffic(Flock f, float delta, byte[] tiles)
+    {
+        int shown = (int)f.Mesh.VisibleInstanceCount;
+        if (shown <= 0 || tiles == null || tiles.Length == 0) return;
+        int nx = Rules.TileNx;
+        for (int i = 0; i < shown; i++)
+        {
+            ref Agent a = ref f.Agents[i];
+            int target = (int)a.TX;
+            if (target < 0 || target >= tiles.Length || tiles[target] != TileKind.Road)
+            {
+                // Place it on a random street.
+                int start = -1;
+                for (int tries = 0; tries < 200 && start < 0; tries++)
+                {
+                    int t = (int)(R() * tiles.Length) % tiles.Length;
+                    if (tiles[t] == TileKind.Road) start = t;
+                }
+                if (start < 0) continue;
+                (a.X, a.Z) = Simulation.TileCenter(start);
+                a.TX = start;
+                a.TZ = -1;
+                target = start;
+            }
+            (float gx, float gz) = Simulation.TileCenter(target);
+            float dx = gx - a.X, dz = gz - a.Z, dist = MathF.Sqrt(dx * dx + dz * dz);
+            if (dist < 0.4f)
+            {
+                // At the tile centre: choose the next street tile.
+                int tx = target % nx, tz = target / nx, back = (int)a.TZ, next = -1, count = 0;
+                int[] around = { target - 1, target + 1, target - nx, target + nx };
+                bool[] ok = { tx > 0, tx < nx - 1, tz > 0, tz < Rules.TileNz - 1 };
+                for (int k = 0; k < 4; k++)
+                    if (ok[k] && tiles[around[k]] == TileKind.Road && around[k] != back && R() * ++count < 1f) next = around[k];
+                if (next < 0) next = back >= 0 && tiles[back] == TileKind.Road ? back : -1;
+                a.TZ = target;
+                a.TX = next;
+                continue;
+            }
+            float step = Math.Min(dist, f.Speed * delta);
+            a.X += dx / dist * step;
+            a.Z += dz / dist * step;
+            a.Yaw = MathF.Atan2(dx, dz);
+            // Keep to the right-hand side of the street.
+            float lane = 0.9f, x = a.X + MathF.Cos(a.Yaw) * -lane, z = a.Z - MathF.Sin(a.Yaw) * -lane;
+            Write(f.Buffer, i, 1f, a.Yaw, x, _map.Height(x, z) + 0.05f, z, 1, 0);
+        }
+        f.Mesh.Buffer = f.Buffer;
     }
 
     /// <summary>Skaters glide in wide loops on the ice off the village, between the bank and mid-river.</summary>
