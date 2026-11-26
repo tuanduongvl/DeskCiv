@@ -341,6 +341,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 a.Wait = 2;
             }
             _deerDown = won;
+            // The one that falls drops just beyond the hunters' ring, in sight of the hunt.
+            if (won) (deer.Agents[0].X, deer.Agents[0].Z) = LandNear(x + ax * 8, z + az * 8, 2f);
         }
         if (!on && _hunt)
         {
@@ -394,6 +396,13 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         for (int i = 0; i < flock.Agents.Length; i++)
         {
             ref Agent a = ref flock.Agents[i];
+            // The deer brought down in a hunt lies on its side where it fell until the hunt is over.
+            if (_deerDown && i == 0 && _herds.Length > 3 && flock == _herds[3])
+            {
+                (a.TX, a.TZ, a.Moving) = (a.X, a.Z, 0);
+                WriteLying(flock.Buffer, i, flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z) + 0.25f * flock.Scale, a.Z);
+                continue;
+            }
             float dx = a.TX - a.X, dz = a.TZ - a.Z, distance = MathF.Sqrt(dx * dx + dz * dz);
             if (distance < 0.2f)
             {
@@ -420,8 +429,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 }
                 else (a.TX, a.TZ) = (a.X, a.Z);
             }
-            bool fallen = _deerDown && i == 0 && _herds.Length > 3 && flock == _herds[3];
-            Write(flock.Buffer, i, fallen ? 0.001f : flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z), a.Z, a.Moving, a.Phase);
+            Write(flock.Buffer, i, flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z), a.Z, a.Moving, a.Phase);
         }
         flock.Mesh.Buffer = flock.Buffer;
     }
@@ -653,6 +661,18 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         float difference = (to - from + MathF.PI) % MathF.Tau;
         if (difference < 0) difference += MathF.Tau;
         return from + (difference - MathF.PI) * t;
+    }
+
+    /// <summary>An animal lying on its side: turned a quarter about its own length (yaw, then roll 90 degrees), legs still.</summary>
+    private static void WriteLying(float[] b, int index, float s, float yaw, float x, float y, float z)
+    {
+        int n = index * Floats;
+        float sin = MathF.Sin(yaw), cos = MathF.Cos(yaw);
+        b[n] = 0; b[n + 1] = -cos * s; b[n + 2] = sin * s; b[n + 3] = x;
+        b[n + 4] = s; b[n + 5] = 0; b[n + 6] = 0; b[n + 7] = y;
+        b[n + 8] = 0; b[n + 9] = sin * s; b[n + 10] = cos * s; b[n + 11] = z;
+        b[n + 12] = 1; b[n + 13] = 1; b[n + 14] = 1; b[n + 15] = 1;
+        b[n + 16] = 0; b[n + 17] = 0; b[n + 18] = 0; b[n + 19] = 0;
     }
 
     private static void Write(float[] b, int index, float s, float yaw, float x, float y, float z, float moving, float phase)
