@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -55,6 +56,7 @@ public partial class Main : Node3D
     private MeshInstance3D _rainbow;
     private ShaderMaterial _rainbowMaterial;
     private float _prevRain, _rainbowStrength;
+    private int _lastBellHour = -1, _lastTrainTick = -1;
     private double _rainbowUntil = -1;
     private bool _testRainbow;
     private const string RainbowShader = @"
@@ -447,8 +449,13 @@ void fragment() {
             if (_focusTimer <= 0) NextShot(s);
             return;
         }
+        // A whistle as the train leaves the tunnel.
+        if (s.TrainTick >= 0 && _lastTrainTick >= 0 && _lastTrainTick < 60 && s.TrainTick >= 60) _sound?.Whistle();
+        _lastTrainTick = s.TrainTick;
         if (s.LastEvent is WorldEvent e && e.Tick != _lastEventTick)
         {
+            // The bell tolls for a wedding or a funeral.
+            if (e.Text.StartsWith("Wedding") || e.Text.StartsWith("The village gathers to bury")) _sound?.Bell();
             bool first = _lastEventTick < 0;
             _lastEventTick = e.Tick;
             if (!first && e.Importance >= 2)
@@ -747,6 +754,13 @@ void fragment() {
         RenderingServer.GlobalShaderParameterSet("daylight", day);
         SetRain(rain);
         UpdateRainbow(rain, day);
+        // The church bell strikes the hour by day once there is a church.
+        int whole = (int)hour;
+        if (whole != _lastBellHour)
+        {
+            if (_lastBellHour >= 0 && whole is >= 8 and <= 20 && _sim.Snapshot is WorldSnapshot snap && snap.Landmarks.Any(l => l.Kind == 0)) _sound?.Bell();
+            _lastBellHour = whole;
+        }
         // Rain streaks are unshaded too: dim them with the light.
         if (_rainDrop != null) _rainDrop.AlbedoColor = new Color(0.8f, 0.85f, 0.92f, 0.35f) * new Color(0.35f + 0.65f * day, 0.35f + 0.65f * day, 0.35f + 0.65f * day, 1f);
         if (_sound != null)

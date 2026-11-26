@@ -28,7 +28,8 @@ public partial class Soundscape : Node
     private readonly AudioStream[] _pieces = new AudioStream[Eras8];
     private const int Eras8 = 8;
     private int _master, _ambient, _music;
-    private AudioStreamPlayer _musicPlayer, _birdPlayer, _rainPlayer;
+    private AudioStreamPlayer _musicPlayer, _birdPlayer, _rainPlayer, _cuePlayer;
+    private AudioStream _bell, _whistle;
     private AudioStream[] _birds = Array.Empty<AudioStream>();
     private bool _recordedBirds;
     private float _rainLevel;
@@ -79,6 +80,11 @@ public partial class Soundscape : Node
         for (int era = 0; era < Eras8; era++) _pieces[era] = Recorded($"music_{era}", false);
         _musicPlayer = new AudioStreamPlayer { Bus = "Music" };
         AddChild(_musicPlayer);
+        // Event cues, synthesised: a church bell tolling and a steam whistle.
+        _cuePlayer = new AudioStreamPlayer { Bus = "Ambient", VolumeDb = -14 };
+        AddChild(_cuePlayer);
+        _bell = Wav(MakeBell(3), false);
+        _whistle = Wav(MakeWhistle(), false);
     }
 
     /// <summary>Loads assets/audio/NAME.dcsnd (an Ogg Vorbis file under a name the Godot importer leaves alone).</summary>
@@ -151,6 +157,67 @@ public partial class Soundscape : Node
         }
         _composingEra = era;
         _composing = Task.Run(() => Compose(era));
+    }
+
+    /// <summary>The church bell tolls (the hour, a wedding or a funeral). Quiet by night and while another cue plays.</summary>
+    public void Bell()
+    {
+        if (_cuePlayer == null || _gain <= 0 || _cuePlayer.Playing || Daylight < 0.3f) return;
+        _cuePlayer.Stream = _bell;
+        _cuePlayer.Play();
+    }
+
+    /// <summary>A steam whistle as the train comes out of the tunnel.</summary>
+    public void Whistle()
+    {
+        if (_cuePlayer == null || _gain <= 0 || _cuePlayer.Playing) return;
+        _cuePlayer.Stream = _whistle;
+        _cuePlayer.Play();
+    }
+
+    /// <summary>A bronze bell: inharmonic partials with long decays, struck `strokes` times 1.8 s apart.</summary>
+    private static short[] MakeBell(int strokes)
+    {
+        int stroke = (int)(1.8 * SampleRate), n = stroke * (strokes - 1) + 4 * SampleRate;
+        var data = new float[n];
+        double[] partials = { 0.5, 1.0, 1.19, 1.5, 2.0, 2.52, 3.0 };
+        double[] levels = { 0.5, 1.0, 0.5, 0.35, 0.3, 0.18, 0.12 };
+        const double f = 392;
+        for (int s = 0; s < strokes; s++)
+            for (int i = 0; i < 4 * SampleRate && s * stroke + i < n; i++)
+            {
+                double t = i / (double)SampleRate, v = 0;
+                for (int p = 0; p < partials.Length; p++)
+                    v += levels[p] * Math.Sin(2 * Math.PI * f * partials[p] * t) * Math.Exp(-t * (0.9 + p * 0.45));
+                data[s * stroke + i] += (float)(v * Math.Min(1, t * 400));
+            }
+        return Normalise(data, 0.55f);
+    }
+
+    /// <summary>A two-note steam whistle with a breathy edge, about 1.6 s.</summary>
+    private static short[] MakeWhistle()
+    {
+        int n = (int)(1.6 * SampleRate);
+        var data = new float[n];
+        var noise = new Random(7);
+        for (int i = 0; i < n; i++)
+        {
+            double t = i / (double)SampleRate;
+            double env = Math.Min(1, t * 8) * Math.Min(1, (1.6 - t) * 5);
+            double vib = 1 + 0.004 * Math.Sin(2 * Math.PI * 5.5 * t);
+            double v = Math.Sin(2 * Math.PI * 523 * vib * t) + 0.8 * Math.Sin(2 * Math.PI * 659 * vib * t) + 0.25 * Math.Sin(2 * Math.PI * 1046 * vib * t);
+            data[i] = (float)(env * (v + (noise.NextDouble() - 0.5) * 0.35));
+        }
+        return Normalise(data, 0.45f);
+    }
+
+    private static short[] Normalise(float[] data, float peak)
+    {
+        float max = 0.0001f;
+        foreach (float v in data) max = Math.Max(max, Math.Abs(v));
+        var samples = new short[data.Length];
+        for (int i = 0; i < data.Length; i++) samples[i] = (short)(data[i] / max * peak * short.MaxValue);
+        return samples;
     }
 
     private void Apply()
