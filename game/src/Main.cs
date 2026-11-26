@@ -50,7 +50,7 @@ public partial class Main : Node3D
     private Vector2 _panLast;
     private Clip? _forcedClip;
     private BType? _lookType;
-    private bool _watchDig, _watchGate, _testDecember;
+    private bool _watchDig, _watchGate, _testDecember, _watchHunt;
     private StandardMaterial3D _rainDrop;
     /// <summary>A rainbow after a shower by day: a faint additive arc in front of the camera that fades in and out.</summary>
     private MeshInstance3D _rainbow;
@@ -101,6 +101,7 @@ void fragment() {
         _forcedWeather = Option(args, "--weather", null);
         if (Enum.TryParse(Option(args, "--watch", ""), true, out Clip watched)) _forcedClip = watched;
         _watchDig = Array.IndexOf(args, "--watch-dig") >= 0;
+        _watchHunt = Array.IndexOf(args, "--watch-hunt") >= 0;
         _watchGate = Array.IndexOf(args, "--watch-gate") >= 0; // test shots of the mill gate // test shots of the street being dug for water mains
         if (Enum.TryParse(Option(args, "--look", ""), true, out BType looked)) _lookType = looked; // test shots of one building type
         // --focus=x,z keeps the camera on one world point, for test shots of props that are not buildings.
@@ -504,6 +505,27 @@ void fragment() {
             }
             _focusTimer = 1;
             return;
+        }
+        // In the wild years the camera follows a hunt, or looks in at the cave in the hillside.
+        if (_forcedClip == null && s.Wild && (s.CaveX != 0 || s.CaveZ != 0))
+        {
+            // Only once the hunters have closed in (the last minute and a half before they strike).
+            if (s.Hunting && s.HuntStalk && (_watchHunt || _shotNumber % 3 == 1))
+            {
+                _focusTarget = FocusAt(s.HuntX, s.HuntZ);
+                _distanceTarget = CloseDistance * 1.25f;
+                _azimuthTarget = ClearAzimuth(s, s.HuntX, s.HuntZ);
+                _focusTimer = 24;
+                return;
+            }
+            if (_watchHunt || _shotNumber % 3 == 2)
+            {
+                _focusTarget = FocusAt(s.CaveX, s.CaveZ) + new Vector3(0, 2f, 0);
+                _distanceTarget = CloseDistance * 1.5f;
+                _azimuthTarget = s.CaveYaw;
+                _focusTimer = _watchHunt ? 6 : 24;
+                return;
+            }
         }
         // At the shift change (after dawn, and at dusk) the camera looks at the mill gate from the gate side.
         float hour = CurrentHour();

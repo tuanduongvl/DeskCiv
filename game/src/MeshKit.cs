@@ -779,6 +779,10 @@ public sealed class MeshKit
             case Res.Wine:
                 m.Prism(hands + Vector3.Down * 0.28f, 0.1f, 0.26f, 0.32f, 9, new Color(0.66f, 0.38f, 0.24f)).Prism(hands + Vector3.Up * 0.04f, 0.26f, 0.07f, 0.28f, 9, new Color(0.7f, 0.42f, 0.27f));
                 break;
+            case Res.Meat:
+                // A haunch of venison with the bone end showing.
+                m.Box(hands, new Vector3(0.38f, 0.3f, 0.72f), new Color(0.5f, 0.24f, 0.18f)).Box(hands + new Vector3(0, 0.04f, 0.46f), new Vector3(0.1f, 0.1f, 0.3f), new Color(0.86f, 0.8f, 0.7f));
+                break;
             case Res.Tools:
                 m.Box(hands, new Vector3(0.5f, 0.12f, 0.4f), Timber);
                 for (int i = 0; i < 3; i++) m.Box(hands + new Vector3(-0.15f + i * 0.15f, 0.1f, 0), new Vector3(0.08f, 0.06f, 0.48f), new Color(0.58f, 0.6f, 0.63f));
@@ -1286,6 +1290,58 @@ public sealed class MeshKit
     }
 
     /// <summary>A stone tunnel mouth facing +X, where the railway enters the hills.</summary>
+    /// <summary>
+    /// A weathered rock outcrop about 14 m across and 7 m high, the mouth of a cave framed in its face (+Z).
+    /// The opening itself is <see cref="CaveMouth"/>, scaled by how far the band has dug.
+    /// </summary>
+    public static ArrayMesh Cave()
+    {
+        var m = new MeshKit();
+        Color rock = new(0.43f, 0.41f, 0.37f), dark = new(0.32f, 0.31f, 0.28f), warm = new(0.5f, 0.45f, 0.38f), moss = new(0.3f, 0.36f, 0.2f);
+        // A heaped outcrop of weathered slabs and lumps, half sunk into the hillside.
+        m.Prism(new Vector3(0, -1.2f, -1.5f), 7.6f, 3.4f, 7.6f, 7, rock);
+        m.Prism(new Vector3(-4.6f, -1f, 0.6f), 3.9f, 1.4f, 5f, 6, dark);
+        m.Prism(new Vector3(4.8f, -1f, 0.2f), 3.5f, 1.1f, 4.4f, 5, warm);
+        m.Prism(new Vector3(-1.8f, 4.6f, -2.4f), 3.4f, 1.8f, 2.4f, 5, warm);
+        m.Prism(new Vector3(2.2f, 5f, -0.6f), 2.6f, 1.1f, 1.8f, 6, dark);
+        m.Prism(new Vector3(0.4f, 6.3f, -2f), 2.6f, 1.0f, 1.2f, 6, moss);
+        m.Prism(new Vector3(-5.4f, 3.6f, 0f), 1.5f, 0.5f, 0.8f, 5, moss);
+        m.Prism(new Vector3(5.1f, 3.1f, 0.6f), 1.2f, 0.4f, 0.6f, 5, moss);
+        // Overhanging slabs over the mouth and rough jambs either side of it.
+        m.Box(new Vector3(-2.2f, 1.3f, 5.2f), new Vector3(1.5f, 3.1f, 2.4f), dark, 0.2f).Box(new Vector3(2.25f, 1.2f, 5.2f), new Vector3(1.6f, 2.9f, 2.4f), rock, -0.15f);
+        m.Box(new Vector3(-0.3f, 3.2f, 5.3f), new Vector3(5.8f, 1.1f, 2.6f), warm, 0.08f).Box(new Vector3(0.6f, 4f, 4.6f), new Vector3(4.2f, 0.9f, 2.4f), dark, -0.12f);
+        // Boulders fallen from the face, and spoil from the digging heaped beside the mouth.
+        m.Prism(new Vector3(-4.4f, -0.3f, 5.6f), 1.1f, 0.5f, 1.1f, 5, dark).Prism(new Vector3(5.6f, -0.3f, 4.8f), 0.8f, 0.3f, 0.8f, 5, rock);
+        m.Prism(new Vector3(3.8f, -0.25f, 7f), 1.6f, 0.3f, 0.75f, 7, new Color(0.42f, 0.33f, 0.24f));
+        return m.Build();
+    }
+
+    /// <summary>The dark opening of the cave, roughly arched: 2.9 m wide and 2.8 m high, its sill at the origin.</summary>
+    public static ArrayMesh CaveMouth()
+    {
+        var m = new MeshKit();
+        Color black = new(0.03f, 0.025f, 0.02f);
+        m.Box(new Vector3(0, 1.1f, 0), new Vector3(2.9f, 2.2f, 2f), black).Box(new Vector3(0, 2.35f, 0), new Vector3(2.2f, 0.4f, 2f), black).Box(new Vector3(0.1f, 2.65f, 0), new Vector3(1.3f, 0.3f, 2f), black);
+        return m.Build();
+    }
+
+    /// <summary>A camp hearth: a ring of stones round a few charred logs (the flames are drawn separately).</summary>
+    public static ArrayMesh Hearth()
+    {
+        var m = new MeshKit();
+        for (int i = 0; i < 9; i++)
+        {
+            float a = i * MathF.Tau / 9;
+            m.Box(new Vector3(MathF.Cos(a) * 1.15f, 0.13f, MathF.Sin(a) * 1.15f), new Vector3(0.46f, 0.3f, 0.36f), i % 2 == 0 ? Rock : Rock.Darkened(0.15f), a);
+        }
+        Color charred = new(0.16f, 0.11f, 0.08f);
+        m.Beam(new Vector3(-0.7f, 0.1f, -0.25f), new Vector3(0.65f, 0.28f, 0.3f), 0.09f, charred).Beam(new Vector3(0.1f, 0.1f, -0.75f), new Vector3(-0.2f, 0.3f, 0.7f), 0.08f, charred);
+        // Hides pegged out to dry and a heap of firewood beside the hearth.
+        m.Box(new Vector3(2.6f, 0.03f, 1.2f), new Vector3(1.6f, 0.04f, 1.1f), new Color(0.55f, 0.42f, 0.3f), 0.4f);
+        for (int i = 0; i < 4; i++) m.Beam(new Vector3(-2.4f, 0.12f + i * 0.1f, 1.4f - i * 0.15f), new Vector3(-1.4f, 0.12f + i * 0.1f, 2f - i * 0.1f), 0.07f, new Color(0.42f, 0.3f, 0.2f));
+        return m.Build();
+    }
+
     public static ArrayMesh TunnelPortal()
     {
         var m = new MeshKit();

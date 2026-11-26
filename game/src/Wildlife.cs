@@ -65,6 +65,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     public bool TraderVisiting { get; set; }
     private bool _frozen, _night;
     private Flock _geese;
+    /// <summary>A hunt in the wild years: the first deer group is drawn to the hunt, flees when the hunters strike, and one may fall.</summary>
+    private bool _hunt, _huntStruck, _deerDown;
+    private (float X, float Z)[] _deerHomes;
     /// <summary>At night: a lantern on each fishing boat and a pair of lamps on each cart or lorry (additive points).</summary>
     private MultiMesh _lights;
 
@@ -301,6 +304,54 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         return tiles[tx + tz * Rules.TileNx] is TileKind.Free or TileKind.Road;
     }
 
+    public void SetHunt(bool on, float x, float z, bool struck, bool won)
+    {
+        if (_herds.Length < 4) return;
+        Flock deer = _herds[3];
+        int group = deer.Agents.Length / 2;
+        if (_deerHomes == null)
+        {
+            _deerHomes = new (float, float)[deer.Agents.Length];
+            for (int i = 0; i < deer.Agents.Length; i++) _deerHomes[i] = (deer.Agents[i].HomeX, deer.Agents[i].HomeZ);
+        }
+        float ax = x - _centerX, az = z - _centerZ, al = MathF.Max(1f, MathF.Sqrt(ax * ax + az * az));
+        (ax, az) = (ax / al, az / al);
+        if (on && !_hunt)
+        {
+            // The deer graze 18 m beyond where the hunters gather, on the far side from the camp.
+            (float hx, float hz) = (x + ax * 18, z + az * 18);
+            for (int i = 0; i < group; i++)
+            {
+                ref Agent a = ref deer.Agents[i];
+                (float px, float pz) = LandNear(hx, hz, 7f);
+                (a.X, a.Z, a.TX, a.TZ, a.HomeX, a.HomeZ) = (px, pz, px, pz, hx, hz);
+                a.Wait = R(0, 5);
+            }
+        }
+        if (on && struck && !_huntStruck)
+        {
+            // Break cover: the herd bolts away from the hunters; if the hunt is won, one deer is down.
+            (float fx, float fz) = (x + ax * 70, z + az * 70);
+            deer.Speed = 6f;
+            for (int i = 0; i < group; i++)
+            {
+                ref Agent a = ref deer.Agents[i];
+                (a.HomeX, a.HomeZ) = (fx, fz);
+                (a.TX, a.TZ) = LandNear(fx, fz, 8f);
+                a.Wait = 2;
+            }
+            _deerDown = won;
+        }
+        if (!on && _hunt)
+        {
+            deer.Speed = 1.7f;
+            _deerDown = false;
+            for (int i = 0; i < group; i++) (deer.Agents[i].HomeX, deer.Agents[i].HomeZ) = _deerHomes[i];
+        }
+        _hunt = on;
+        _huntStruck = on && struck;
+    }
+
     /// <summary>Advances all animals. The renderer calls this only while the wallpaper is visible.</summary>
     public void Step(float delta, byte[] tiles)
     {
@@ -367,7 +418,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 }
                 else (a.TX, a.TZ) = (a.X, a.Z);
             }
-            Write(flock.Buffer, i, flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z), a.Z, a.Moving, a.Phase);
+            bool fallen = _deerDown && i == 0 && _herds.Length > 3 && flock == _herds[3];
+            Write(flock.Buffer, i, fallen ? 0.001f : flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z), a.Z, a.Moving, a.Phase);
         }
         flock.Mesh.Buffer = flock.Buffer;
     }

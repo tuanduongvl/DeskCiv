@@ -58,6 +58,24 @@ public sealed class Simulation
     /// <summary>Newcomers waiting to arrive on the next train (they step off while it stands at the station).</summary>
     public bool MigrantsOnTrain;
     /// <summary>
+    /// The first years of the Old Stone Age: a band of hunter-gatherers with no tools and no houses. They shelter in a
+    /// cave they dig out of the hillside by hand, hunt deer together, pick berries and gather shellfish on the shore.
+    /// Only after <see cref="WildYears"/> do they knap stone axes, fell trees and raise the first huts.
+    /// </summary>
+    public bool Wild;
+    public const float WildYears = 6f;
+    private const int WildBand = 30;
+    /// <summary>The cave mouth (where people go in), the way it faces (yaw), and how far it has been dug out (0-1).</summary>
+    public float CaveX, CaveZ, CaveYaw, CaveDug;
+    /// <summary>The current hunt: where the deer are, until when, and whether it will bring meat home.</summary>
+    public float HuntX, HuntZ;
+    public long HuntUntil = -1, NextHunt;
+    public bool HuntWon;
+    public int Hunts, HuntsWon;
+    public bool Hunting => Tick < HuntUntil;
+    /// <summary>The moment the hunters break cover (the deer flee, one falls if the hunt is won).</summary>
+    public long HuntStrike => HuntUntil - (long)(70 / Rules.TickSeconds);
+    /// <summary>
     /// The train's timetable, in ticks into its 240 s round: out of the tunnel (0-400), standing at the station
     /// (400-1000), back into the tunnel (1000-1400), away (1400-2400). -1 without a railway.
     /// </summary>
@@ -284,7 +302,7 @@ public sealed class Simulation
         int total = 0;
         foreach (Building b in Buildings)
             if (b.Built)
-                total += b.Avail(Res.Bread) + b.Avail(Res.Fish) + b.Avail(Res.Berries);
+                total += b.Avail(Res.Bread) + b.Avail(Res.Meat) + b.Avail(Res.Fish) + b.Avail(Res.Berries);
         return total;
     }
 
@@ -321,7 +339,10 @@ public sealed class Simulation
         int center = TileAt(CenterX, CenterZ);
         Building store = AddBuilding(BType.Storehouse, center % Rules.TileNx - 1, center / Rules.TileNx - 1, 0, true);
         (CenterX, CenterZ) = (store.X, store.Z);
-        SeedRoads(store);
+        // No streets yet: the band lives wild until it has tools (EndWild lays out the first street).
+        Wild = true;
+        PlaceCave();
+        NextHunt = (long)(60 / Rules.TickSeconds);
         Seed(store, Res.Wood, 44);
         Seed(store, Res.Stone, 16);
         Seed(store, Res.Berries, 90);
@@ -333,7 +354,199 @@ public sealed class Simulation
             float age = i < 14 ? Random.R(17, 38) : Random.R(2, 13);
             Spawn(x, z, age, i % 2 == 0, -1);
         }
-        Log("A tribe settles by the estuary and builds its first food store", CenterX, CenterZ, 3);
+        Log("A band of hunter-gatherers makes its camp by the estuary, below a hillside cave", CenterX, CenterZ, 3);
+    }
+
+    /// <summary>
+    /// Picks the cave: open ground at the foot of the steepest rise within reach of the camp. The cave mouth faces
+    /// downhill; the rock mass behind it is kept free of later building. No random draws, so the economy is unchanged.
+    /// </summary>
+    private void PlaceCave()
+    {
+        float best = float.MinValue;
+        (CaveX, CaveZ, CaveYaw) = (CenterX, CenterZ - 24, 0);
+        for (int ring = 0; ring < 11; ring++)
+            for (int k = 0; k < 32; k++)
+            {
+                float a = k * MathF.Tau / 32, d = 24 + ring * 5;
+                float x = CenterX + MathF.Cos(a) * d, z = CenterZ + MathF.Sin(a) * d;
+                if (!Map.Walkable(x, z) || !InGrid(TileAt(x, z) % Rules.TileNx, TileAt(x, z) / Rules.TileNx) || Tiles[TileAt(x, z)] != TileKind.Free) continue;
+                float gx = Map.Height(x + 2, z) - Map.Height(x - 2, z), gz = Map.Height(x, z + 2) - Map.Height(x, z - 2);
+                float g = MathF.Sqrt(gx * gx + gz * gz);
+                if (g < 0.001f) continue;
+                (float ux, float uz) = (gx / g, gz / g);
+                float rise = Map.Height(x + ux * 9, z + uz * 9) - Map.Height(x, z);
+                float score = rise * 2f - d * 0.06f;
+                if (score > best) (best, CaveX, CaveZ, CaveYaw) = (score, x, z, MathF.Atan2(-ux, -uz));
+            }
+        // The rock mass stands 5 m behind the mouth; its tiles are taken out of the town plan.
+        float rx = CaveX - MathF.Sin(CaveYaw) * 5, rz = CaveZ - MathF.Cos(CaveYaw) * 5;
+        int tile = TileAt(rx, rz), tx = tile % Rules.TileNx, tz = tile / Rules.TileNx;
+        for (int dz = -1; dz <= 1; dz++)
+            for (int dx = -1; dx <= 1; dx++)
+                if (InGrid(tx + dx, tz + dz) && Tiles[tx + dx + (tz + dz) * Rules.TileNx] == TileKind.Free) Tiles[tx + dx + (tz + dz) * Rules.TileNx] = TileKind.Blocked;
+    }
+
+    private void UpdateWild()
+    {
+        if (Year >= WildYears)
+        {
+            EndWild();
+            return;
+        }
+        if (Tick >= NextHunt && !Hunting) StartHunt();
+        if (Hunting && HuntWon && Tick >= HuntStrike && Tick < HuntStrike + 10)
+        {
+            HuntsWon++;
+            if (HuntsWon % 4 == 1) Log("The hunters bring down a red deer and carry the meat home", HuntX, HuntZ, 1);
+        }
+    }
+
+    /// <summary>
+    /// A hunt: the deer graze in a clearing 70-120 m out (the most open of a dozen spots); the men walk out, stalk
+    /// them, break cover, and carry the kill home.
+    /// </summary>
+    private void StartHunt()
+    {
+        int fewest = int.MaxValue;
+        for (int i = 0; i < 12; i++)
+        {
+            float a = Random.R(0, MathF.Tau), d = Random.R(70, 120);
+            float x = CenterX + MathF.Cos(a) * d, z = CenterZ + MathF.Sin(a) * d;
+            if (!Map.Walkable(x, z) || Map.Height(x, z) < 1.2f) continue;
+            int trees = 0;
+            for (int t = 0; t < TreeX.Length; t++)
+                if (TreeAlive[t] && Dist2(x, z, TreeX[t], TreeZ[t]) < 16 * 16) trees++;
+            if (trees < fewest) (fewest, HuntX, HuntZ) = (trees, x, z);
+        }
+        if (fewest < int.MaxValue)
+        {
+            HuntUntil = Tick + (long)(240 / Rules.TickSeconds);
+            HuntWon = Random.F() < 0.6f;
+            Hunts++;
+            NextHunt = Tick + (long)(Random.R(480, 900) / Rules.TickSeconds);
+            return;
+        }
+        NextHunt = Tick + 600;
+    }
+
+    /// <summary>The band has learned to knap stone axes: the camp becomes a village with its first street.</summary>
+    private void EndWild()
+    {
+        Wild = false;
+        HuntUntil = -1;
+        foreach (Building b in Buildings)
+            if (b.Type == BType.Storehouse)
+            {
+                SeedRoads(b);
+                break;
+            }
+        Log("The band learns to knap stone axes and starts to fell trees for its first huts", CenterX, CenterZ, 3);
+    }
+
+    /// <summary>
+    /// A day's foraging for a wild band member with bare hands: join the hunt, dig at the cave, pick berries, or
+    /// gather shellfish on the shore. Returns false at night or now and then, so some stay by the fire.
+    /// </summary>
+    private bool TryForage(Person p)
+    {
+        if (Random.F() < 0.15f) return false;
+        int hunters = 0, diggers = 0;
+        foreach (Person o in People)
+            if (o.Act == Act.Forage)
+            {
+                if (o.A == 0) hunters++;
+                else if (o.A == 3) diggers++;
+            }
+        int kind;
+        float x, z;
+        if (Hunting && Tick < HuntUntil - (long)(150 / Rules.TickSeconds) && !p.Female && p.Age < 45 && hunters < 5)
+        {
+            kind = 0;
+            float a = p.Id * 2.399963f;
+            (x, z) = (HuntX + MathF.Cos(a) * 6, HuntZ + MathF.Sin(a) * 6);
+        }
+        else if (CaveDug < 1 && diggers < 3)
+        {
+            kind = 3;
+            (x, z) = (CaveX + Random.R(-1.2f, 1.2f), CaveZ + Random.R(-1.2f, 1.2f));
+        }
+        else if (Season == 3 || Random.F() < 0.35f)
+        {
+            kind = 2;
+            (x, z) = BankPoint(CenterX + Random.R(-35, 35));
+        }
+        else
+        {
+            kind = 1;
+            (x, z) = (CenterX + Random.R(-55, 55), CenterZ + Random.R(-55, 55));
+        }
+        if (!Map.Walkable(x, z)) return false;
+        p.Act = Act.Forage;
+        p.A = kind;
+        p.B = -1;
+        p.Phase = 0;
+        GoTo(p, x, z);
+        return true;
+    }
+
+    private void AdvanceForage(Person p, float dt)
+    {
+        if (p.Phase == 0)
+        {
+            p.Phase = 1;
+            // Hunters lie in wait together until the strike; the others work a while at the spot.
+            p.Timer = p.A switch
+            {
+                0 => Math.Max(4f, (HuntStrike - Tick) * Rules.TickSeconds),
+                1 => 24f,
+                2 => 30f,
+                _ => 20f,
+            };
+            return;
+        }
+        if (p.Phase == 1)
+        {
+            p.Timer -= dt;
+            if (p.Timer > 0) return;
+            int res = -1, n = 0;
+            switch (p.A)
+            {
+                case 0:
+                    if (HuntWon) (res, n) = ((int)Res.Meat, 4);
+                    break;
+                case 1:
+                    if (Season != 3) (res, n) = ((int)Res.Berries, 2);
+                    break;
+                case 2:
+                    (res, n) = ((int)Res.Fish, Random.F() < 0.6f ? 1 : 2);
+                    break;
+                default:
+                    bool open = CaveDug >= 1;
+                    CaveDug = Math.Min(1, CaveDug + 1f / 45f);
+                    if (!open && CaveDug >= 1) Log("The cave is dug out deep enough to shelter the whole band", CaveX, CaveZ, 2);
+                    break;
+            }
+            Building store = n > 0 ? NearestStore(p.X, p.Z) : null;
+            if (store == null)
+            {
+                p.Act = Act.Idle;
+                p.A = -1;
+                return;
+            }
+            Produced[res] += n;
+            p.CarryRes = (sbyte)res;
+            p.CarryN = (byte)n;
+            p.B = store.Id;
+            p.Phase = 2;
+            GoToDoor(p, store);
+            return;
+        }
+        if (p.CarryN > 0 && p.B >= 0) Buildings[p.B].Stock[p.CarryRes] += p.CarryN;
+        p.CarryN = 0;
+        p.CarryRes = -1;
+        p.A = p.B = -1;
+        p.Act = Act.Idle;
     }
 
     private void Seed(Building b, Res r, int n)
@@ -426,6 +639,7 @@ public sealed class Simulation
     {
         if (FloodAt >= 0 && Tick >= FloodAt) StrikeFlood();
         if (FireBuilding >= 0) UpdateFire();
+        if (Wild) UpdateWild();
         UpdatePolders(dt);
         int season = Season;
         foreach (Building b in Buildings)
@@ -467,7 +681,7 @@ public sealed class Simulation
         p.Hunger = Math.Min(1, p.Hunger + dt * HungerPerSecond);
         if (p.Hunger >= 1) p.Health -= dt * StarvePerSecond;
         else if (p.Hunger < 0.6f) p.Health = Math.Min(1, p.Health + dt / 1800f);
-        if (Season == 3 && (p.Home < 0 || !Buildings[p.Home].Warm)) p.Health -= dt * ColdPerSecond * ColdFactor;
+        if (Season == 3 && (p.Home < 0 ? !(Wild && CaveDug >= 0.5f) : !Buildings[p.Home].Warm)) p.Health -= dt * ColdPerSecond * ColdFactor;
         if (p.Age >= p.MaxAge || p.Health <= 0)
         {
             Kill(p);
@@ -567,6 +781,7 @@ public sealed class Simulation
             case Act.Haul: AdvanceHaul(p); break;
             case Act.Build: AdvanceBuild(p, dt); break;
             case Act.Work: AdvanceWork(p, dt); break;
+            case Act.Forage: AdvanceForage(p, dt); break;
             case Act.Road:
                 p.Timer -= dt;
                 if (p.Timer > 0) break;
@@ -631,7 +846,7 @@ public sealed class Simulation
         return (fx + MathF.Sin(factory.Yaw) * gate, fz + MathF.Cos(factory.Yaw) * gate);
     }
 
-    private bool RestsNow(Person p) => Night && p.Id % 5 == 0;
+    private bool RestsNow(Person p) => Night && (p.Id % 5 == 0 || Wild && p.Id % 5 < 3);
 
     private void Choose(Person p)
     {
@@ -643,8 +858,16 @@ public sealed class Simulation
             GoToDoor(p, home);
             return;
         }
+        // The wild band sleeps in the cave once it is dug out far enough to crawl into.
+        if (Wild && p.Home < 0 && RestsNow(p) && p.Hunger < 0.75f && CaveDug >= 0.3f)
+        {
+            p.Act = Act.Rest;
+            GoTo(p, CaveX - MathF.Sin(CaveYaw) * 1.5f, CaveZ - MathF.Cos(CaveYaw) * 1.5f);
+            return;
+        }
         if (p.Age >= 14 && p.Age < 60)
         {
+            if (Wild && TryForage(p)) return;
             if (p.Job >= 0 && StartWork(p)) return;
             if (p.Role == Role.Builder && (TryBuild(p) || TryRoad(p) || TryPolderWork(p) || TryMains(p))) return;
             // Farmers and other seasonal workers with nothing to do (winter, or full stores) lay roads and raise dikes.
@@ -687,7 +910,7 @@ public sealed class Simulation
 
     private void Wander(Person p)
     {
-        float cx = CenterX, cz = CenterZ, radius = 26;
+        float cx = CenterX, cz = CenterZ, radius = Wild ? (Night ? 6 : 14) : 26;
         if (p.Home >= 0) (cx, cz, radius) = (Buildings[p.Home].X, Buildings[p.Home].Z, p.Age < 14 ? 11 : 16);
         if (p.Age >= 14 && p.Age < 60 && p.Job >= 0)
         {
@@ -753,12 +976,12 @@ public sealed class Simulation
         return true;
     }
 
-    private static bool HasFood(Building b) => b.Avail(Res.Bread) > 0 || b.Avail(Res.Fish) > 0 || b.Avail(Res.Berries) > 0;
+    private static bool HasFood(Building b) => b.Avail(Res.Bread) > 0 || b.Avail(Res.Meat) > 0 || b.Avail(Res.Fish) > 0 || b.Avail(Res.Berries) > 0;
 
     private void FinishEating(Person p)
     {
         Building b = Buildings[p.A];
-        foreach (Res r in new[] { Res.Bread, Res.Fish, Res.Berries })
+        foreach (Res r in new[] { Res.Bread, Res.Meat, Res.Fish, Res.Berries })
         {
             if (b.Avail(r) <= 0) continue;
             b.Stock[(int)r]--;
@@ -1536,7 +1759,15 @@ public sealed class Simulation
         for (int i = 0; i < count && People.Count < Eras.MaxPopulation(Era); i++)
         {
             Person mother = People[i];
-            if (!mother.Female || mother.Spouse < 0 || mother.Age < 16 || mother.Age > 42 || mother.Home < 0) continue;
+            if (!mother.Female || mother.Spouse < 0 || mother.Age < 16 || mother.Age > 42) continue;
+            if (mother.Home < 0)
+            {
+                // A wild band raises its children in the cave, up to the size a band can feed on the move.
+                if (!Wild || CaveDug < 0.5f || People.Count >= WildBand || Random.F() >= chance) continue;
+                Spawn(mother.X, mother.Z, 0, Random.F() < 0.5f, mother.Id);
+                Births++;
+                continue;
+            }
             if (Buildings[mother.Home].Occupants >= Capacity(Buildings[mother.Home])) RehouseCouple(mother);
             if (Buildings[mother.Home].Occupants >= Capacity(Buildings[mother.Home]) || Random.F() >= chance) continue;
             Person child = Spawn(mother.X, mother.Z, 0, Random.F() < 0.5f, mother.Id);
@@ -1550,6 +1781,7 @@ public sealed class Simulation
     {
         // Checked before the wait below, which could otherwise skip these ticks forever.
         if (Era >= 4 && People.Count >= 90 && Tick % 3000 == 0) TryStartPolder();
+        if (Wild) return;
         if (PlanWait > 0)
         {
             PlanWait--;
@@ -1621,7 +1853,7 @@ public sealed class Simulation
             int tileX, tileZ, direction;
             if (bank ? !FindBankSite(type, out tileX, out tileZ, out direction) : !FindSite(type, out tileX, out tileZ, out direction))
             {
-                if (type == BType.TideGate && RebuildDikeAsGate())
+                if (type == BType.TideGate && RebuildDikeAsGate() || type == BType.Dike && DikeOnField())
                 {
                     placed = true;
                     break;
@@ -1635,6 +1867,62 @@ public sealed class Simulation
         }
         if (blocked && RoadQueue.Count < 8) ExtendRoad();
         if (!placed && wanted.Count > 0) PlanWait = 4;
+    }
+
+    /// <summary>
+    /// On a bank already lined with houses and fields, the village gives up a riverside field for the next stretch of
+    /// dike: the dike takes the water-side row of the field and the rest is open ground again.
+    /// </summary>
+    private bool DikeOnField()
+    {
+        int fields = 0, size = Rules.Footprint(BType.Dike), fieldSize = Rules.Footprint(BType.Field);
+        Building chosen = null;
+        float best = 26f;
+        foreach (Building b in Buildings)
+        {
+            if (b.Type != BType.Field) continue;
+            fields++;
+            if (!b.Built || InPolder(b.TileX, b.TileZ)) continue;
+            int fx = b.TileX + (fieldSize - size) / 2, fz = b.TileZ;
+            float cx = (fx + size / 2f) * Rules.TileSize - WorldMap.SizeX / 2, cz = (fz + size / 2f) * Rules.TileSize - WorldMap.SizeZ / 2;
+            float bank = MathF.Abs(Map.RiverOffset(cx, cz)) - WorldMap.EstuaryWidth(cx);
+            if (bank >= best || Map.Height(cx, cz) < 0.35f) continue;
+            bool busy = false;
+            for (int r = 0; r < b.In.Length && !busy; r++) busy = b.In[r] != 0 || b.Out[r] != 0 || b.Stock[r] != 0;
+            foreach (Person p in People)
+                if (p.Job == b.Id && p.Act == Act.Work || p.A == b.Id || p.B == b.Id) { busy = true; break; }
+            if (!busy) (best, chosen) = (bank, b);
+        }
+        if (chosen == null || fields < 4) return false;
+        foreach (Person p in People)
+            if (p.Job == chosen.Id) p.Job = -1;
+        chosen.Workers = 0;
+        for (int z = chosen.TileZ; z < chosen.TileZ + fieldSize; z++)
+        for (int x = chosen.TileX; x < chosen.TileX + fieldSize; x++)
+            Tiles[x + z * Rules.TileNx] = TileKind.Free;
+        int dx = chosen.TileX + (fieldSize - size) / 2, dz = chosen.TileZ;
+        (int doorX, int doorZ) = DoorOf(dx, dz, size, 0);
+        chosen.Type = BType.Dike;
+        (chosen.TileX, chosen.TileZ, chosen.Direction, chosen.Rotation) = (dx, dz, 0, 0);
+        chosen.X = (dx + size / 2f) * Rules.TileSize - WorldMap.SizeX / 2;
+        chosen.Z = (dz + size / 2f) * Rules.TileSize - WorldMap.SizeZ / 2;
+        chosen.DoorTile = doorX + doorZ * Rules.TileNx;
+        (chosen.Built, chosen.Progress, chosen.Yield, chosen.Sown, chosen.Growth) = (false, 0, 0, false, 0);
+        for (int z = dz; z < dz + size; z++)
+        for (int x = dx; x < dx + size; x++)
+        {
+            int lot = x + z * Rules.TileNx;
+            if (Tiles[lot] == TileKind.PlannedRoad) RoadQueue.Remove(lot);
+            Tiles[lot] = TileKind.Building;
+        }
+        PlanRoad(chosen.DoorTile);
+        int[] link = FindPath(chosen.DoorTile, -1, true);
+        if (link != null)
+            foreach (int tile in link) PlanRoad(tile);
+        Log("A riverside field gives way to a new stretch of dike", chosen.X, chosen.Z, 1);
+        BuildingVersion++;
+        RoadVersion++;
+        return true;
     }
 
     /// <summary>On a crowded bank, the tide gate replaces a finished dike on the same footprint.</summary>
@@ -2916,12 +3204,13 @@ public sealed class Simulation
         Add((ulong)(long)RailRow); Add((ulong)RailX0); Add((ulong)RailX1); Add(MigrantsOnTrain ? 1UL : 0UL);
         Add((ulong)(long)FireBuilding); Add((ulong)FireAt); Add((ulong)FireEnd); Add((ulong)FiresStarted);
         Add((ulong)(long)DigTile); Add((ulong)DigWork); Add((ulong)MainsWaitUntil); Add((ulong)MainsLogged);
+        Add(Wild ? 1UL : 0UL); AddF(CaveDug); Add((ulong)HuntUntil); Add((ulong)Hunts);
         return h;
     }
 
     public void Save(BinaryWriter w)
     {
-        w.Write(17);
+        w.Write(18);
         w.Write(Map.Seed);
         w.Write(Random.State);
         w.Write(Tick);
@@ -2974,21 +3263,25 @@ public sealed class Simulation
         w.Write(FireBuilding); w.Write(FireAt); w.Write(FireEnd); w.Write(FiresStarted); w.Write(FiresPutOut);
         w.Write(RailRow); w.Write(RailX0); w.Write(RailX1);
         w.Write(MigrantsOnTrain);
+        w.Write(Wild); w.Write(CaveX); w.Write(CaveZ); w.Write(CaveYaw); w.Write(CaveDug);
+        w.Write(HuntX); w.Write(HuntZ); w.Write(HuntUntil); w.Write(NextHunt); w.Write(HuntWon); w.Write(Hunts); w.Write(HuntsWon);
     }
 
     public static Simulation Load(BinaryReader r)
     {
         int version = r.ReadInt32();
-        if (version is not (9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 17)) throw new InvalidDataException("Save belongs to an older map");
+        if (version is not (9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 17 or 18)) throw new InvalidDataException("Save belongs to an older map");
         var s = new Simulation(r.ReadInt32(), false);
         s.Random.State = r.ReadUInt64();
         s.Tick = r.ReadInt64();
         s.CenterX = r.ReadSingle(); s.CenterZ = r.ReadSingle(); s.HarvestFactor = r.ReadSingle(); s.ColdFactor = r.ReadSingle(); s.Support = r.ReadSingle();
         s.RunComplete = r.ReadBoolean(); s.Era = r.ReadInt32(); s.NextPersonId = r.ReadInt32(); s.Births = r.ReadInt32(); s.Deaths = r.ReadInt32(); s.Migrants = r.ReadInt32(); s.ActiveEvent = r.ReadInt32(); s.MilestoneMask = r.ReadInt32();
         s.FloodAt = r.ReadInt64(); s.FloodEnd = r.ReadInt64(); s.ToolBonus = r.ReadSingle(); s.WineBonus = r.ReadSingle(); s.Floods = r.ReadInt32(); s.FloodsHeld = r.ReadInt32(); s.PlanWait = r.ReadInt32();
-        for (int i = 0; i < s.Produced.Length; i++) s.Produced[i] = r.ReadInt64();
-        for (int i = 0; i < s.Consumed.Length; i++) s.Consumed[i] = r.ReadInt64();
-        for (int i = 0; i < s.Seeded.Length; i++) s.Seeded[i] = r.ReadInt64();
+        // Saves before version 18 have no meat column.
+        int resources = version >= 18 ? (int)Res.Count : (int)Res.Meat;
+        for (int i = 0; i < resources; i++) s.Produced[i] = r.ReadInt64();
+        for (int i = 0; i < resources; i++) s.Consumed[i] = r.ReadInt64();
+        for (int i = 0; i < resources; i++) s.Seeded[i] = r.ReadInt64();
         r.Read(s.Wear, 0, s.Wear.Length);
         r.Read(s.Tiles, 0, s.Tiles.Length);
         s.RoadVersion = r.ReadInt32();
@@ -3011,7 +3304,7 @@ public sealed class Simulation
             var b = new Building { Id = i, Type = (BType)r.ReadByte(), Occupants = r.ReadInt32(), Workers = r.ReadInt32(), TileX = r.ReadInt32(), TileZ = r.ReadInt32(), Direction = r.ReadInt32(), DoorTile = r.ReadInt32() };
             b.X = r.ReadSingle(); b.Z = r.ReadSingle(); b.Rotation = r.ReadSingle(); b.Progress = r.ReadSingle(); b.Growth = r.ReadSingle(); b.BurnDebt = r.ReadSingle();
             b.Built = r.ReadBoolean(); b.Sown = r.ReadBoolean(); b.Warm = r.ReadBoolean(); b.Pump = r.ReadBoolean(); b.Yield = r.ReadInt32();
-            for (int k = 0; k < (int)Res.Count; k++) { b.Stock[k] = r.ReadInt32(); b.In[k] = r.ReadInt32(); b.Out[k] = r.ReadInt32(); }
+            for (int k = 0; k < resources; k++) { b.Stock[k] = r.ReadInt32(); b.In[k] = r.ReadInt32(); b.Out[k] = r.ReadInt32(); }
             s.Buildings.Add(b);
         }
         s.RestorePolders();
@@ -3047,6 +3340,11 @@ public sealed class Simulation
         }
         if (version >= 16) { s.RailRow = r.ReadInt32(); s.RailX0 = r.ReadInt32(); s.RailX1 = r.ReadInt32(); }
         if (version >= 17) s.MigrantsOnTrain = r.ReadBoolean();
+        if (version >= 18)
+        {
+            s.Wild = r.ReadBoolean(); s.CaveX = r.ReadSingle(); s.CaveZ = r.ReadSingle(); s.CaveYaw = r.ReadSingle(); s.CaveDug = r.ReadSingle();
+            s.HuntX = r.ReadSingle(); s.HuntZ = r.ReadSingle(); s.HuntUntil = r.ReadInt64(); s.NextHunt = r.ReadInt64(); s.HuntWon = r.ReadBoolean(); s.Hunts = r.ReadInt32(); s.HuntsWon = r.ReadInt32();
+        }
         return s;
     }
 

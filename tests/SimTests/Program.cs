@@ -89,11 +89,21 @@ Parallel.For(0, seeds.Length, n =>
     var s = new Simulation(seeds[n]);
     int pattern = n % 3;
     int minPop = int.MaxValue;
-    for (int t = 0; t < Rules.TicksPerYear * 50; t++)
+    string wild = "";
+    // Year 50 plus the wild years: the village itself only starts once the band has tools.
+    for (int t = 0; t < (int)(Rules.TicksPerYear * (50 + Simulation.WildYears)); t++)
     {
         s.Night = pattern switch { 0 => false, 1 => true, _ => (t / 3000) % 2 == 1 };
         s.Step();
         minPop = Math.Min(minPop, s.Population);
+        if (t == (int)(Rules.TicksPerYear * Simulation.WildYears) - 20)
+            lock (lockObject)
+            {
+                // The wild band: no buildings but the founding store, a dug cave, hunts that brought meat home.
+                Check(s.Wild && s.Buildings.Count == 1, $"seed {seeds[n]}: built {s.Buildings.Count - 1} buildings in the wild years");
+                Check(s.CaveDug >= 1 && s.HuntsWon > 0 && s.Produced[(int)Res.Meat] > 0, $"seed {seeds[n]}: wild years without a dug cave or a won hunt");
+                wild = $"wild: pop={s.Population} cave={s.CaveDug:F2} hunts={s.HuntsWon}/{s.Hunts} meat={s.Produced[(int)Res.Meat]} berries={s.Produced[(int)Res.Berries]} shore={s.Produced[(int)Res.Fish]} births={s.Births} deaths={s.Deaths}";
+            }
         if (t % Rules.TicksPerYear == 0)
             lock (lockObject) Invariants(s, $"seed {seeds[n]} year {t / Rules.TicksPerYear}");
     }
@@ -102,11 +112,11 @@ Parallel.For(0, seeds.Length, n =>
         Invariants(s, $"seed {seeds[n]} final");
         Check(minPop > 0, $"seed {seeds[n]}: population reached zero");
         Check(s.People.Count(p => p.Age >= 14 && p.Age < 60) < 8 || s.People.Count(p => p.Role == Role.Porter) > 0, $"seed {seeds[n]}: no porters");
-        Check(s.Era == 1, $"seed {seeds[n]}: expected era 1 at year 50 (pop {s.Population}, fields {s.Count(BType.Field, true)}, bakeries {s.Count(BType.Bakery, true)})");
+        Check(s.Era == 1, $"seed {seeds[n]}: expected era 1 at year 56 (pop {s.Population}, fields {s.Count(BType.Field, true)}, bakeries {s.Count(BType.Bakery, true)})");
         Check(s.Count(BType.Bakery, true) >= 1 && s.Produced[(int)Res.Bread] > 0, $"seed {seeds[n]}: bread chain never ran");
     }
     string name = pattern switch { 0 => "day", 1 => "night", _ => "mixed" };
-    rows[n] = $"{seeds[n],6} {name,-5} pop={s.Population,4} min={minPop,3} births={s.Births,4} deaths={s.Deaths,4} migrants={s.Migrants,3} huts={s.Count(BType.Hut),3} fields={s.Count(BType.Field),3} bakeries={s.Count(BType.Bakery),2} bread={s.Produced[(int)Res.Bread],6} food={s.FoodInStores(),5} era={s.Era} porters={s.People.Count(p => p.Role == Role.Porter)} builders={s.People.Count(p => p.Role == Role.Builder)} workers={s.People.Count(p => p.Role == Role.Worker)} roads={s.Tiles.Count(t => t == TileKind.Road)} pending={s.RoadQueue.Count}";
+    rows[n] = $"{seeds[n],6} {name,-5} pop={s.Population,4} min={minPop,3} births={s.Births,4} deaths={s.Deaths,4} migrants={s.Migrants,3} huts={s.Count(BType.Hut),3} fields={s.Count(BType.Field),3} bakeries={s.Count(BType.Bakery),2} bread={s.Produced[(int)Res.Bread],6} food={s.FoodInStores(),5} era={s.Era} porters={s.People.Count(p => p.Role == Role.Porter)} builders={s.People.Count(p => p.Role == Role.Builder)} workers={s.People.Count(p => p.Role == Role.Worker)} roads={s.Tiles.Count(t => t == TileKind.Road)} pending={s.RoadQueue.Count} | {wild}";
 });
 foreach (string row in rows) Console.WriteLine(row);
 Console.WriteLine($"long runs took {clock.Elapsed.TotalSeconds:F1}s");

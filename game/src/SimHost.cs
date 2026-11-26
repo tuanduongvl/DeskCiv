@@ -47,6 +47,9 @@ public sealed class WorldSnapshot
     /// <summary>The railway row and its west and east tiles, or -1.</summary>
     public int RailRow = -1, RailX0, RailX1, TrainTick = -1;
     public float FireX, FireZ;
+    /// <summary>The wild years of the Old Stone Age: the cave (mouth, facing, how far dug) and the hunt under way.</summary>
+    public bool Wild, Hunting, HuntStruck, HuntWon, HuntStalk;
+    public float CaveX, CaveZ, CaveYaw, CaveDug, HuntX, HuntZ;
 }
 
 public sealed class PeopleFrame
@@ -237,6 +240,16 @@ public sealed class SimHost
             {
                 _yaw[s] = MathF.PI;
             }
+            else if (p.Act == Act.Forage && p.A == 0)
+            {
+                // Hunters face the deer, which graze beyond the meeting point, away from the camp.
+                float ax = _sim.HuntX - _sim.CenterX, az = _sim.HuntZ - _sim.CenterZ, al = MathF.Max(1f, MathF.Sqrt(ax * ax + az * az));
+                _yaw[s] = MathF.Atan2(_sim.HuntX + ax / al * 18 - p.X, _sim.HuntZ + az / al * 18 - p.Z);
+            }
+            else if (p.Act == Act.Forage && p.A == 3)
+            {
+                _yaw[s] = _sim.CaveYaw + MathF.PI;
+            }
             else if (clip == Clip.Chop && p.B >= 0)
             {
                 _yaw[s] = MathF.Atan2(_sim.TreeX[p.B] - p.X, _sim.TreeZ[p.B] - p.Z);
@@ -262,6 +275,14 @@ public sealed class SimHost
         if (p.Moving) return p.CarryN > 0 ? Clip.Carry : Clip.Walk;
         if (p.Act == Act.Build) return Clip.Build;
         if (p.Act == Act.Road) return Clip.Hoe;
+        // Bare-handed foraging: hunters wait, then throw; diggers claw at the cave; the rest pick and gather.
+        if (p.Act == Act.Forage)
+            return p.Phase != 1 ? Clip.Idle : p.A switch
+            {
+                0 => _sim.Tick >= _sim.HuntStrike - 60 ? Clip.Chop : Clip.Idle,
+                3 => Clip.Mine,
+                _ => Clip.Gather,
+            };
         if (p.Act != Act.Work || p.Phase != 1 || p.Job < 0) return Clip.Idle;
         Building b = _sim.Buildings[p.Job];
         return b.Type switch
@@ -350,7 +371,7 @@ public sealed class SimHost
                 int[] s = b.Stock;
                 buildings[i].WoodPile = Pile(s[(int)Res.Wood]);
                 buildings[i].StonePile = Pile(s[(int)Res.Stone]);
-                buildings[i].SackPile = Pile(s[(int)Res.Grain] + s[(int)Res.Flour] + s[(int)Res.Berries] + s[(int)Res.Fish] + s[(int)Res.Bread]);
+                buildings[i].SackPile = Pile(s[(int)Res.Grain] + s[(int)Res.Flour] + s[(int)Res.Berries] + s[(int)Res.Fish] + s[(int)Res.Meat] + s[(int)Res.Bread]);
                 buildings[i].BarrelPile = Pile(s[(int)Res.Wine] + s[(int)Res.Grapes]);
             }
         }
@@ -365,6 +386,8 @@ public sealed class SimHost
             Festive = _sim.FestiveUntil > _sim.Tick ? _sim.FestiveKind : 0, FestiveX = _sim.GatherX, FestiveZ = _sim.GatherZ,
             MarketOpen = _sim.MarketPlace() != null, MarketX = _sim.MarketPlace()?.X ?? 0, MarketZ = _sim.MarketPlace()?.Z ?? 0,
             RailRow = _sim.RailRow, RailX0 = _sim.RailX0, RailX1 = _sim.RailX1, TrainTick = _sim.TrainTick,
+            Wild = _sim.Wild, Hunting = _sim.Wild && _sim.Hunting, HuntStruck = _sim.Tick >= _sim.HuntStrike, HuntWon = _sim.HuntWon, HuntStalk = _sim.Tick >= _sim.HuntStrike - 900,
+            CaveX = _sim.CaveX, CaveZ = _sim.CaveZ, CaveYaw = _sim.CaveYaw, CaveDug = _sim.CaveDug, HuntX = _sim.HuntX, HuntZ = _sim.HuntZ,
             Burning = _sim.Burning >= 0, FireX = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].X : 0, FireZ = _sim.Burning >= 0 ? _sim.Buildings[_sim.Burning].Z : 0,
         };
     }

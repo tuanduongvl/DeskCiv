@@ -536,6 +536,9 @@ void fragment() {
     private float _trainClock, _trainStopX, _trainZ, _tunnelX;
     private bool _hasRail;
     private Vector3? _fireAt;
+    /// <summary>The wild years: the cave in the hillside, its opening (grows as it is dug), and the camp fire.</summary>
+    private MultiMesh _cave, _caveMouth, _hearth, _campfire;
+    private Vector3? _campAt;
     private float _fireClock;
     private Node3D _glowNode;
     private ImageTexture _wearTexture;
@@ -618,6 +621,10 @@ void fragment() {
         _flames = AddInstances(MeshKit.Flame(), flameMaterial, false, 5);
         _bonfire = AddInstances(MeshKit.Flame(), flameMaterial, false, 3);
         _stooks = AddInstances(MeshKit.Stook(), vertexColors, false, 64, true);
+        _cave = AddInstances(MeshKit.Cave(), vertexColors, false, 1, true);
+        _caveMouth = AddInstances(MeshKit.CaveMouth(), vertexColors, false, 1);
+        _hearth = AddInstances(MeshKit.Hearth(), vertexColors, false, 1, true);
+        _campfire = AddInstances(MeshKit.Flame(), flameMaterial, false, 3);
         var sparkMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
         _sparks = AddInstances(MeshKit.Spark(), sparkMaterial, true, Rockets * SparksPerRocket);
         _rails = AddInstances(MeshKit.RailTrack(), vertexColors, false, 64, true);
@@ -930,6 +937,54 @@ void fragment() {
         _sparks.VisibleInstanceCount = n;
     }
 
+    /// <summary>
+    /// The cave stays in the hillside for good (the band's first home); while the band lives wild its hearth burns
+    /// by the food cache, and the deer of the hunt graze where the hunters are heading.
+    /// </summary>
+    private void UpdateWildCamp(WorldSnapshot s)
+    {
+        bool hasCave = s.CaveX != 0 || s.CaveZ != 0;
+        if (hasCave)
+        {
+            Ensure(_cave, 1);
+            Ensure(_caveMouth, 1);
+            var face = new Vector3(MathF.Sin(s.CaveYaw), 0, MathF.Cos(s.CaveYaw));
+            float y = _map.Height(s.CaveX, s.CaveZ) - 0.25f;
+            var rock = new Vector3(s.CaveX, y, s.CaveZ) - face * 5f;
+            _cave.SetInstanceTransform(0, new Transform3D(new Basis(Vector3.Up, s.CaveYaw), rock));
+            float open = 0.22f + 0.78f * Mathf.Clamp(s.CaveDug, 0, 1);
+            _caveMouth.SetInstanceTransform(0, new Transform3D(new Basis(Vector3.Up, s.CaveYaw).Scaled(new Vector3(open, open, 1)), rock + face * 5.45f));
+        }
+        _cave.VisibleInstanceCount = _caveMouth.VisibleInstanceCount = hasCave ? 1 : 0;
+        _campAt = s.Wild ? new Vector3(s.CenterX, _map.Height(s.CenterX, s.CenterZ), s.CenterZ) : null;
+        if (_campAt is Vector3 camp)
+        {
+            Ensure(_hearth, 1);
+            _hearth.SetInstanceTransform(0, new Transform3D(Basis.Identity, camp));
+        }
+        _hearth.VisibleInstanceCount = _campAt != null ? 1 : 0;
+        _wildlife.SetHunt(s.Hunting, s.HuntX, s.HuntZ, s.HuntStruck, s.HuntWon);
+    }
+
+    private void AnimateCampfire()
+    {
+        if (_campAt is not Vector3 camp)
+        {
+            _campfire.VisibleInstanceCount = 0;
+            return;
+        }
+        Ensure(_campfire, 3);
+        float t = _fireClock + (float)Time.GetTicksMsec() / 1000f % 1000f;
+        for (int k = 0; k < 3; k++)
+        {
+            float flicker = 0.75f + 0.25f * MathF.Sin(t * (6.1f + k * 1.9f) + k * 2.3f) + 0.1f * MathF.Sin(t * 14f + k);
+            var offset = new Vector3((k - 1) * 0.3f, 0.05f, (k % 2) * 0.25f - 0.1f);
+            var basis = new Basis(Vector3.Up, k * 1.1f + t * 0.5f).Scaled(new Vector3(0.32f, 0.3f * flicker, 0.32f));
+            _campfire.SetInstanceTransform(k, new Transform3D(basis, camp + offset));
+        }
+        _campfire.VisibleInstanceCount = 3;
+    }
+
     /// <summary>Flickers the flames on a burning house: each tongue grows and shrinks on its own rhythm.</summary>
     private void AnimateFire(float delta)
     {
@@ -955,6 +1010,7 @@ void fragment() {
     {
         _wildlife?.Step(delta, _shown?.Tiles);
         AnimateFire(delta);
+        AnimateCampfire();
         AnimateFestivities(delta);
         AnimateYuleLights();
         AnimateTrain(delta);
@@ -1151,6 +1207,7 @@ void fragment() {
         UpdateWaterMains(s);
         UpdateRailway(s);
         UpdateMarket(s);
+        UpdateWildCamp(s);
         _festiveAt = s.Festive > 0 ? new Vector3(s.FestiveX, _map.Height(s.FestiveX, s.FestiveZ), s.FestiveZ) : null;
         _fireworks = s.Festive == 2 && s.Era >= 4;
         bool december = ForceDecember || DateTime.Now.Month == 12;
@@ -1554,6 +1611,7 @@ void fragment() {
             Basis basis = b.Type is BType.Field or BType.Vineyard ? GroundBasis(b.X, b.Z, yaw, rise) : new Basis(Vector3.Up, yaw).Scaled(new Vector3(grow, rise * lift, grow));
             if (b.Type == BType.Field) y += 0.22f;
             var transform = new Transform3D(basis, new Vector3(b.X, y, b.Z));
+            if (s.Wild && b.Type == BType.Storehouse) transform = new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.0001f), transform.Origin);
             // Every other building of a type with a second shape for this era uses that shape.
             bool alt = _variantShown[(int)b.Type] && ((((int)(b.X * 7.31f) ^ (int)(b.Z * 3.17f)) & 1) == 1) != b.Renewed;
             // Each building gets its turn at a fixed point of the renovation wave, from a hash of its position.
@@ -1871,13 +1929,13 @@ void fragment() {
                     float aimed = clip == Clip.Chop ? yaw - CharacterKit.Textured.ChopAim : yaw;
                     float aimSin = MathF.Sin(aimed), aimCos = MathF.Cos(aimed);
                     WriteHero(textured.BodyBuffer, textured.Bodies++, size, aimSin, aimCos, x, y, z, tint, hqStart, hqLength, phase);
-                    if (textured.Kit.ShowsTool(clip))
+                    if (textured.Kit.ShowsTool(clip) && _shown?.Wild != true)
                         WriteHero(textured.ToolBuffer, textured.Tools++, size, aimSin, aimCos, x, y, z, Colors.White, hqStart, hqLength, phase);
                 }
                 else
                 {
                     WriteHero(_heroBuffers[variant], _heroCounts[variant]++, size, sin, cos, x, y, z, tint, start, length, phase);
-                    int tool = kind is 1 or 2 ? CharacterKit.ToolFor(clip) : -1;
+                    int tool = kind is 1 or 2 && _shown?.Wild != true ? CharacterKit.ToolFor(clip) : -1;
                     if (tool >= 0) WriteHero(_toolBuffers[tool], _toolCounts[tool]++, size, sin, cos, x, y, z, Colors.White, start, length, phase);
                 }
                 if (current.Carry[i] > 0)

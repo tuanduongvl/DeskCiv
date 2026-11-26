@@ -1,10 +1,10 @@
 namespace DeskCiv.Sim;
 
-public enum Res : byte { Wood, Stone, Berries, Fish, Grain, Flour, Bread, Grapes, Wine, Tools, Count }
+public enum Res : byte { Wood, Stone, Berries, Fish, Grain, Flour, Bread, Grapes, Wine, Tools, Meat, Count }
 
 public enum BType : byte { Storehouse, Hut, Field, Gatherer, Fisher, Woodcutter, Quarry, Mill, Bakery, Windmill, Watermill, Vineyard, Winery, Smithy, Dike, TideGate, Count }
 
-public enum Act : byte { Idle, Wander, Eat, Haul, Build, Work, Rest, Road, Shift }
+public enum Act : byte { Idle, Wander, Eat, Haul, Build, Work, Rest, Road, Shift, Forage }
 
 public enum Role : byte { None, Porter, Builder, Worker }
 
