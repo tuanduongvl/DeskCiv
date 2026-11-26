@@ -118,8 +118,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         // Skaters circle on the frozen river off the village in a harsh winter.
         _skaters = AddFlock(MeshKit.Skater(), 8, 2);
         // Horse carts from the Middle Ages and lorries in the 20th century drive along the streets (style 3: rigid).
-        _carts = AddFlock(MeshKit.Cart(), 8, 3);
-        _lorries = AddFlock(MeshKit.Lorry(), 8, 3);
+        _carts = AddFlock(MeshKit.Cart(), 16, 3);
+        _lorries = AddFlock(MeshKit.Lorry(), 24, 3);
         _carts.Speed = 2.6f;
         _lorries.Speed = 6.5f;
         foreach (Flock f in new[] { _carts, _lorries })
@@ -173,9 +173,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         if (_skaters != null) _skaters.Mesh.VisibleInstanceCount = _frozen ? _skaters.Agents.Length : 0;
         if (_carts != null)
         {
-            int traffic = Math.Clamp(2 + _huts / 12, 0, 8);
-            _carts.Mesh.VisibleInstanceCount = _era is >= 4 and < 7 ? traffic : 0;
-            _lorries.Mesh.VisibleInstanceCount = _era >= 7 ? traffic : 0;
+            int traffic = 4 + _huts / 5;
+            _carts.Mesh.VisibleInstanceCount = _era is >= 4 and < 7 ? Math.Min(traffic, _carts.Agents.Length) : 0;
+            _lorries.Mesh.VisibleInstanceCount = _era >= 7 ? Math.Min(traffic, _lorries.Agents.Length) : 0;
         }
     }
 
@@ -369,12 +369,15 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             int target = (int)a.TX;
             if (target < 0 || target >= tiles.Length || tiles[target] != TileKind.Road)
             {
-                // Place it on a random street.
+                // Place it on a random street in the town (within 120 m of the centre if one can be found).
                 int start = -1;
-                for (int tries = 0; tries < 200 && start < 0; tries++)
+                for (int tries = 0; tries < 400 && start < 0; tries++)
                 {
                     int t = (int)(R() * tiles.Length) % tiles.Length;
-                    if (tiles[t] == TileKind.Road) start = t;
+                    if (tiles[t] != TileKind.Road) continue;
+                    (float px, float pz) = Simulation.TileCenter(t);
+                    if (tries < 300 && (px - _centerX) * (px - _centerX) + (pz - _centerZ) * (pz - _centerZ) > 120f * 120f) continue;
+                    start = t;
                 }
                 if (start < 0) continue;
                 (a.X, a.Z) = Simulation.TileCenter(start);
