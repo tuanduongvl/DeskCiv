@@ -11,6 +11,8 @@ public struct BuildingView
     public BType Type;
     public float X, Z, Rotation, Progress, Growth;
     public bool Built, Sown, Warm, Renewed, DistrictHeated;
+    /// <summary>Share of a ripe field already cut and carried (0 none, 1 all): stooks stand where it was cut.</summary>
+    public float Harvested;
     public int Occupants;
     /// <summary>Pile sizes 0-4 of a storehouse's wood, stone, food sacks and wine barrels, drawn beside it.</summary>
     public byte WoodPile, StonePile, SackPile, BarrelPile;
@@ -327,7 +329,7 @@ public sealed class SimHost
             buildings[i] = new BuildingView
             {
                 Type = b.Type, X = b.X, Z = b.Z, Rotation = b.Rotation, Progress = b.Progress, Growth = b.Growth,
-                Built = b.Built, Sown = b.Sown, Warm = b.Warm, Renewed = b.Renewed, DistrictHeated = _sim.DistrictHeated(b), Occupants = b.Occupants,
+                Built = b.Built, Sown = b.Sown, Warm = b.Warm, Renewed = b.Renewed, DistrictHeated = _sim.DistrictHeated(b), Harvested = b.Type == BType.Field && b.Sown && b.Growth >= 1 ? 1f - Math.Clamp(b.Yield / (56f * (1 + 0.28f * Math.Max(0, _sim.Era - 1)) * 1.1f), 0f, 1f) : 0f, Occupants = b.Occupants,
             };
             if (b.Type == BType.Storehouse && b.Built)
             {

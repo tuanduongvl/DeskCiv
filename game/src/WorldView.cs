@@ -517,6 +517,8 @@ void fragment() {
     private MultiMesh _flames;
     /// <summary>Feasts and era celebrations: a bonfire at the gathering point and, for a new era, fireworks above it.</summary>
     private MultiMesh _bonfire, _sparks;
+    /// <summary>Stooks of cut grain on harvested fields until the new year.</summary>
+    private MultiMesh _stooks;
     /// <summary>In December (by the PC's clock) a lit fir stands by the church from the Industrial era on.</summary>
     private MultiMesh _yuleTree, _yuleLights;
     private Vector3? _yuleAt;
@@ -611,6 +613,7 @@ void fragment() {
         var flameMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
         _flames = AddInstances(MeshKit.Flame(), flameMaterial, false, 5);
         _bonfire = AddInstances(MeshKit.Flame(), flameMaterial, false, 3);
+        _stooks = AddInstances(MeshKit.Stook(), vertexColors, false, 64, true);
         var sparkMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
         _sparks = AddInstances(MeshKit.Spark(), sparkMaterial, true, Rockets * SparksPerRocket);
         _rails = AddInstances(MeshKit.RailTrack(), vertexColors, false, 64, true);
@@ -1521,7 +1524,7 @@ void fragment() {
         var variantCounts = new int[_buildings.Length];
         var olderCounts = new int[_buildings.Length];
         float renovated = (s.Year - _renovationStart) / RenovationYears;
-        int crops = 0, glows = 0, sites = 0, rubble = 0;
+        int crops = 0, glows = 0, sites = 0, rubble = 0, stooks = 0;
         Ensure(_rubble, 4);
         var piles = new int[_piles.Length];
         foreach (MultiMesh pile in _piles) Ensure(pile, counts[(int)BType.Storehouse] * 4 + 4);
@@ -1572,13 +1575,26 @@ void fragment() {
             {
                 // Drought stunts and browns the crop; a bumper year stands tall and golden.
                 float stand = s.ActiveEvent switch { 1 => 0.62f, 4 => 1.22f, _ => 1f };
-                float growth = b.Sown ? Math.Max(0.06f, b.Growth) * stand : 0.001f;
+                // Once the harvest is in, only short stubble is left, with the stooks standing on it.
+                float growth = b.Sown ? Math.Max(0.06f, b.Growth) * stand * (1f - 0.85f * b.Harvested) : 0.001f;
+                if (b.Harvested > 0.05f && s.Season < 3)
+                {
+                    Ensure(_stooks, stooks + 9);
+                    int stand9 = Math.Clamp((int)MathF.Ceiling(b.Harvested * 9f), 0, 9);
+                    for (int k = 0; k < stand9; k++)
+                    {
+                        var local = new Vector3((k % 3 - 1) * 5.5f + (k / 3 % 2) * 1.2f, 0, (k / 3 - 1) * 5.5f);
+                        var at = new Vector3(b.X, 0, b.Z) + local.Rotated(Vector3.Up, yaw);
+                        at.Y = _map.Height(at.X, at.Z);
+                        _stooks.SetInstanceTransform(stooks++, new Transform3D(new Basis(Vector3.Up, k * 0.9f), at));
+                    }
+                }
                 Basis cropBasis = GroundBasis(b.X, b.Z, yaw, growth);
                 var crop = new Transform3D(cropBasis, new Vector3(b.X, y, b.Z) + cropBasis.Y.Normalized() * 0.2f);
                 _crops.SetInstanceTransform(crops, crop);
                 Color green = s.ActiveEvent == 1 ? new Color(0.5f, 0.52f, 0.24f) : new Color(0.3f, 0.58f, 0.22f);
                 Color ripe = s.ActiveEvent switch { 1 => new Color(0.66f, 0.5f, 0.28f), 4 => new Color(0.98f, 0.78f, 0.22f), _ => new Color(0.9f, 0.74f, 0.28f) };
-                _crops.SetInstanceColor(crops++, green.Lerp(ripe, Mathf.SmoothStep(0.55f, 1f, b.Growth)));
+                _crops.SetInstanceColor(crops++, b.Harvested > 0.95f ? new Color(0.78f, 0.68f, 0.42f) : green.Lerp(ripe, Mathf.SmoothStep(0.55f, 1f, b.Growth)));
             }
             if (b.Type == BType.Storehouse && b.Built)
             {
@@ -1623,6 +1639,7 @@ void fragment() {
             if (_moving[i] != null) _moving[i].VisibleInstanceCount = movingCounts[i];
         }
         _crops.VisibleInstanceCount = crops;
+        _stooks.VisibleInstanceCount = stooks;
         _glow.VisibleInstanceCount = glows;
         _sites.VisibleInstanceCount = sites;
         _rubble.VisibleInstanceCount = rubble;

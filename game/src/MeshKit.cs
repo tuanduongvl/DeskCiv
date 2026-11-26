@@ -1196,6 +1196,20 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A stook: sheaves of cut grain stood together to dry, about 1.4 m tall.</summary>
+    public static ArrayMesh Stook()
+    {
+        var m = new MeshKit();
+        Color straw = new(0.86f, 0.72f, 0.4f), dark = new(0.72f, 0.58f, 0.3f);
+        for (int k = 0; k < 4; k++)
+        {
+            float a = k * MathF.PI / 2 + 0.4f;
+            m.Box(new Vector3(MathF.Cos(a) * 0.25f, 0.6f, MathF.Sin(a) * 0.25f), new Vector3(0.32f, 1.2f, 0.32f), k % 2 == 0 ? straw : dark, a);
+        }
+        m.Box(new Vector3(0, 1.3f, 0), new Vector3(0.5f, 0.25f, 0.5f), straw);
+        return m.Build();
+    }
+
     /// <summary>One firework spark: a small white cube, tinted per instance and drawn additively.</summary>
     public static ArrayMesh Spark()
     {
