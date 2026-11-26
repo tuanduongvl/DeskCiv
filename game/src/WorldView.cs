@@ -1422,6 +1422,7 @@ void fragment() {
 
     private void UpdateSeason(WorldSnapshot s)
     {
+        _wildlife.Season = s.Season;
         float f = s.YearFraction * 4;
         int a = (int)f % 4, b = (a + 1) % 4;
         float t = Mathf.SmoothStep(0.72f, 1f, f - MathF.Floor(f));

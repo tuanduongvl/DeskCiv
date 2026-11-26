@@ -64,6 +64,10 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     /// <summary>True while a trading ship visits (from the simulation); it sails in, anchors off the village, then leaves.</summary>
     public bool TraderVisiting { get; set; }
     private bool _frozen, _night;
+    private Flock _geese;
+
+    /// <summary>The season (0 spring ... 3 winter): geese pass over in spring and autumn.</summary>
+    public int Season { get; set; }
 
     /// <summary>Night: boats lie at their moorings off the village and only a few vehicles are about.</summary>
     public bool Night
@@ -109,6 +113,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             Herd(Real("animal_deer") ?? MeshKit.Deer(), 9, 2, 1.7f, 26f, 1.1f, 130f),
         };
         _gulls = AddFlock(MeshKit.Gull(), 18, 1);
+        // A skein of geese in a V, crossing high over the estuary in spring (inland) and autumn (out to sea).
+        _geese = AddFlock(MeshKit.Gull(), 11, 1);
+        _geese.Mesh.VisibleInstanceCount = 0;
         for (int i = 0; i < _gulls.Agents.Length; i++)
         {
             ref Agent g = ref _gulls.Agents[i];
@@ -291,6 +298,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         StepGulls(delta);
         StepBoats(delta);
         StepSkaters(delta);
+        StepGeese();
         StepTrader(delta);
         StepTraffic(_carts, delta, tiles);
         StepTraffic(_lorries, delta, tiles);
@@ -348,6 +356,43 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             Write(flock.Buffer, i, flock.Scale, a.Yaw, a.X, _map.Height(a.X, a.Z), a.Z, a.Moving, a.Phase);
         }
         flock.Mesh.Buffer = flock.Buffer;
+    }
+
+    /// <summary>
+    /// Every 70 s in spring and autumn a V of geese crosses the map in about 35 s, 32 m up, passing near the village.
+    /// Spring skeins fly inland (west) and autumn ones out to sea (east).
+    /// </summary>
+    private void StepGeese()
+    {
+        if (Season is not (0 or 2))
+        {
+            _geese.Mesh.VisibleInstanceCount = 0;
+            return;
+        }
+        // Offset so a skein is already near the village a few seconds after start.
+        float t = (_clock + 15f) % 70f;
+        if (t > 35f)
+        {
+            _geese.Mesh.VisibleInstanceCount = 0;
+            return;
+        }
+        int pass = (int)((_clock + 15f) / 70f);
+        float sign = Season == 0 ? -1f : 1f, slant = MathF.Sin(pass * 1.9f) * 0.35f;
+        var dir = new Vector2(sign, slant).Normalized();
+        var lead = new Vector2(_centerX, _centerZ + MathF.Cos(pass * 2.7f) * 40f) + dir * Mathf.Lerp(-260f, 260f, t / 35f);
+        float heading = MathF.Atan2(dir.X, dir.Y);
+        var back = -dir;
+        var across = new Vector2(-dir.Y, dir.X);
+        for (int i = 0; i < _geese.Agents.Length; i++)
+        {
+            // Leader first, then alternate arms of the V, each bird a little behind and out to the side.
+            int rank = (i + 1) / 2, arm = i % 2 == 0 ? 1 : -1;
+            var p = lead + back * (rank * 5f) + across * (arm * rank * 4f);
+            float bob = MathF.Sin(_clock * 1.3f + i) * 0.4f;
+            Write(_geese.Buffer, i, 3f, heading, p.X, 32f + bob, p.Y, 1, i * 0.37f);
+        }
+        _geese.Mesh.VisibleInstanceCount = _geese.Agents.Length;
+        _geese.Mesh.Buffer = _geese.Buffer;
     }
 
     private void StepGulls(float delta)
