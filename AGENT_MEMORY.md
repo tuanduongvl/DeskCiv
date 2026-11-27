@@ -2,6 +2,11 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — 20th-century sawmill
+
+- **Made:** `woodcutter_t4`, a 1950s plank sawmill shed with a corrugated roof, a ridge louvre, an open bay with a saw bench, and timber stacks. Made with ChatGPT; sheet saved as `assets-candidates/concepts/buildings/woodcutter-t4.png`. Built at outline IoU 0.955, 8.4 x 6.0 x 7.4 m.
+- **Verified:** the model review render looks right. Not yet checked in game; with the tier-4 rule it is used from the 20th century.
+
 ## 2026-11-27 — 20th-century fishery shed
 
 - **Made:** `fisher_t4`, a 1950s whitewashed brick fish-packing shed with a corrugated roof, sliding door and crates. Sheet saved as `assets-candidates/concepts/buildings/fisher-t4.png`; built at outline IoU 0.958, 10.2 x 6.0 x 8.3 m.
