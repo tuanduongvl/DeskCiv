@@ -1002,7 +1002,9 @@ public sealed class Simulation
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         p.Act = Act.Wander;
         p.Timer = Cosmetic.R(3, 11);
-        if (Map.Walkable(x, z)) GoTo(p, x, z, reach);
+        // An old villager already on the doorstep stays put rather than shuffling about.
+        bool settled = doorstep && cx == DoorPoint(Buildings[p.Home]).X && Dist2(p.X, p.Z, cx, cz) < 1.2f * 1.2f;
+        if (Map.Walkable(x, z) && !settled) GoTo(p, x, z, reach);
     }
 
     private bool TryEat(Person p)
@@ -1750,6 +1752,12 @@ public sealed class Simulation
             }
             else p.Role = Role.Porter;
         }
+        // Goods must keep moving: with a working village and no porter, one builder (an idle one first) carries instead.
+        if (adults >= 8 && builders > 1 && !People.Exists(q => q.Role == Role.Porter))
+        {
+            Person spare = People.Find(q => q.Role == Role.Builder && q.Act is not (Act.Build or Act.Road)) ?? People.Find(q => q.Role == Role.Builder);
+            if (spare != null) spare.Role = Role.Porter;
+        }
     }
 
     /// <summary>Staffs an empty building from a workplace that still has two workers.</summary>
@@ -2434,9 +2442,10 @@ public sealed class Simulation
         if (Era >= 6 && !Has(3))
         {
             int best = int.MaxValue, bx = 0, bz = 0;
-            for (int pass = 0; pass < 2 && best == int.MaxValue; pass++)
-            for (int z = cz - 45; z <= cz + 45; z++)
-            for (int x = cx - 45; x <= cx + 45; x++)
+            // A third pass looks further out, for a town that has filled every lot near its centre.
+            for (int pass = 0; pass < 3 && best == int.MaxValue; pass++)
+            for (int z = cz - (pass < 2 ? 45 : 75); z <= cz + (pass < 2 ? 45 : 75); z++)
+            for (int x = cx - (pass < 2 ? 45 : 75); x <= cx + (pass < 2 ? 45 : 75); x++)
             {
                 int d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
                 if (d >= best || !InGrid(x, z) || !LotFree(x, z, 3, 1, pass == 0)) continue;
@@ -3083,7 +3092,8 @@ public sealed class Simulation
     {
         int stage = MainsStage;
         if (tile != DigTile || stage == 0 || Pipes[tile] >= stage) return;
-        if (++DigWork < 3) return;
+        // Two stints of digging per street tile, so a large town's network keeps up with its new streets.
+        if (++DigWork < 2) return;
         Pipes[tile] = (byte)stage;
         DigWork = 0;
         DigTile = -1;

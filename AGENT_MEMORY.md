@@ -2,6 +2,23 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Elders stay on the step; three latent fragilities fixed
+
+- **Changed (`Simulation`):**
+  - `Wander`: an elder already within 1.2 m of their own door point on a doorstep roll skips `GoTo`, so they stay put instead of shuffling. The Cosmetic draws are unchanged.
+  - Factory placement gains a third pass that searches ±75 tiles.
+  - `AssignRoles`: with 8+ adults, no porter and more than one builder, one builder (an idle one first) becomes a porter.
+  - Water mains: 2 dig stints per street tile instead of 3.
+- **Why:** the elder change shifted the RNG path, and that exposed three existing fragilities, each now fixed:
+  - Seed 40595 found no factory lot within ±45 tiles, so it had no factory and no shifts.
+  - Long seed 88109 ended with every free adult a builder, so it had no porters.
+  - Full seed 2024 laid mains on only 604 of 1016 road tiles, below the 70% check.
+- **Verified:**
+  - SimTests: ALL PASSED on 6 full seeds.
+  - Mains coverage is now high everywhere, e.g. 1000: 829/835, 16838: 895/895, 2024: 838/1022.
+  - Every full seed has every landmark and mill shifts (2365–5848).
+- **Not checked:** elders standing still was not looked at on screen.
+
 ## 2026-11-27 — Second seed sweep and budget check (no code change)
 
 - **Sweep:** full runs on 8 more seeds (11, 4242, 8086, 15000, 27182, 31415, 50505, 65535), using the test night pattern. Every seed passes all of these:
