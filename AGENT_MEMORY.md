@@ -2,6 +2,16 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Realistic hillside cave (image pipeline)
+
+- **Made:** a Gemini sheet (isometric first, then a 2x2 green-screen sheet; new chat "Stone Age Cave Game Asset"), saved as `assets-candidates/concepts/buildings/cave-t0.png`. Built with `tools/make_building.ps1 -Name landmark_cave -Height 6`: outline IoU 0.909, 4000 triangles, 13.4 x 6.0 x 12.8 m. The sheet's "right side" cell repeats the front view, but the rock still built well.
+- **Changed:** `WorldView` uses `landmark_cave` for the cave rock when the model exists, with its centre 6 m behind the mouth and yaw `CaveYaw`. The procedural black mouth arch is then hidden, because the model has its own open mouth. Without the model, the old stand-in and its growing mouth stay.
+- **Verified:**
+  - Model review render: a rock with a dark opening.
+  - Godot `--watch-hunt` shot, seed 1000, year 3, hour 23: the realistic rock with its open mouth behind the camp fire and firelight pool.
+- **Limitation:** the dig progress no longer shows on the rock. The model is local only (Hunyuan licence), so it is not in the public repo.
+- **Note:** this was the first image-pipeline work since the 11:15 entry. Gemini image quota was available at 18:20.
+
 ## 2026-11-27 — Denser locomotive steam; showcase "lead" option
 
 - **Changed:**
