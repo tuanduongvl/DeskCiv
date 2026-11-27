@@ -552,6 +552,7 @@ void fragment() {
     private MultiMesh _cave, _caveMouth, _hearth, _campfire;
     private Vector3? _campAt;
     private bool _realCave;
+    private MultiMesh _caveSpoil;
     private OmniLight3D _campLight;
     private MultiMesh _campGlow, _fireGlow;
     private float _nightGlow;
@@ -642,6 +643,8 @@ void fragment() {
         _realCave = caveModel != null;
         _cave = _realCave ? AddInstances(caveModel, caveModel.SurfaceGetMaterial(0) ?? vertexColors, false, 1, true) : AddInstances(MeshKit.Cave(), vertexColors, false, 1, true);
         _caveMouth = AddInstances(MeshKit.CaveMouth(), vertexColors, false, 1);
+        // On the image-made rock, boulders block the mouth at first and shrink away as the band digs the cave out.
+        _caveSpoil = AddInstances(MeshKit.Boulders(), vertexColors, false, 1, true);
         _hearth = AddInstances(MeshKit.Hearth(), vertexColors, false, 1, true);
         _campfire = AddInstances(MeshKit.Flame(), flameMaterial, false, 3);
         var sparkMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
@@ -984,6 +987,15 @@ void fragment() {
         _cave.VisibleInstanceCount = hasCave ? 1 : 0;
         // The real rock has its own open mouth; the stand-in's black arch grows as the band digs.
         _caveMouth.VisibleInstanceCount = hasCave && !_realCave ? 1 : 0;
+        float spoil = 1f - Mathf.Clamp(s.CaveDug, 0, 1);
+        if (hasCave && _realCave && spoil > 0.05f)
+        {
+            var mouthFace = new Vector3(MathF.Sin(s.CaveYaw), 0, MathF.Cos(s.CaveYaw));
+            var mouth = new Vector3(s.CaveX, _map.Height(s.CaveX, s.CaveZ) - 0.1f, s.CaveZ) - mouthFace * 0.4f;
+            _caveSpoil.SetInstanceTransform(0, new Transform3D(new Basis(Vector3.Up, s.CaveYaw).Scaled(new Vector3(1.1f, 0.4f + 0.6f * spoil, 1f) * (0.5f + 0.5f * spoil)), mouth));
+            _caveSpoil.VisibleInstanceCount = 1;
+        }
+        else _caveSpoil.VisibleInstanceCount = 0;
         // The fire moves to the cave mouth once the cave can be entered (the same point the sim gathers people at).
         float fx = s.CaveDug >= 0.3f ? s.CaveX + MathF.Sin(s.CaveYaw) * 6 : s.CenterX, fz = s.CaveDug >= 0.3f ? s.CaveZ + MathF.Cos(s.CaveYaw) * 6 : s.CenterZ;
         // The fire keeps burning after the wild years until the band's first hut is finished.

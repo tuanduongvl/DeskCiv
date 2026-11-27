@@ -1110,6 +1110,20 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A heap of grey boulders about 3 m across that fills a cave mouth before the band digs it out.</summary>
+    public static ArrayMesh Boulders()
+    {
+        var m = new MeshKit();
+        Color rock = new(0.5f, 0.5f, 0.48f);
+        m.Prism(Vector3.Zero, 1.5f, 1.1f, 0.8f, 7, rock.Darkened(0.1f));
+        for (int i = 0; i < 7; i++)
+        {
+            float a = i * 2.39f, r = 0.5f + (i % 3) * 0.45f;
+            m.Prism(new Vector3(MathF.Cos(a) * r, 0.2f + (i % 2) * 0.5f, MathF.Sin(a) * r * 0.6f), 0.55f + (i % 3) * 0.15f, 0.25f, 0.6f + (i % 2) * 0.3f, 6, i % 2 == 0 ? rock : rock.Darkened(0.2f));
+        }
+        return m.Build();
+    }
+
     /// <summary>Demolition rubble: broken brick and plaster heaped with a few old beams.</summary>
     public static ArrayMesh Rubble()
     {

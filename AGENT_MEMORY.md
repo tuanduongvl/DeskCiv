@@ -2,6 +2,16 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Dig shows on the realistic cave
+
+- **Changed:**
+  - New `MeshKit.Boulders()`: a grey boulder heap about 3 m across.
+  - `WorldView._caveSpoil`: with the image-made cave, the heap sits in the mouth and shrinks (height and size) as `CaveDug` rises. It disappears once the cave is fully dug.
+- **Verified:**
+  - Debug on seed 1000: `CaveDug` is 0.09 at year 0.05, 0.71 at 0.2 and 1.0 at 0.3. The dig takes about 9 minutes of real time at 1x.
+  - Godot `--watch-hunt` shot at year 0.06, hour 21: the boulder heap fills the mouth with a digger beside it.
+  - Godot shot at year 0.3: no heap, the cave is open.
+
 ## 2026-11-27 — Fable review 13 fixes; 20th-century mill attempt dropped
 
 - **Changed:**
