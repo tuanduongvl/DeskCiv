@@ -287,7 +287,8 @@ public sealed class SimHost
         if (p.Moving) return p.CarryN > 0 ? Clip.Carry : Clip.Walk;
         if (p.Act == Act.Build) return Clip.Build;
         if (p.Act == Act.Road) return Clip.Hoe;
-        if (p.Act == Act.Wander && p.Phase == Simulation.WashPhase) return Clip.Gather;
+        // Kneeling at the bank only once there; anyone who could not reach the water just stands.
+        if (p.Act == Act.Wander && p.Phase == Simulation.WashPhase && (p.X - p.TX) * (p.X - p.TX) + (p.Z - p.TZ) * (p.Z - p.TZ) < 1f) return Clip.Gather;
         // Bare-handed foraging: hunters wait, then throw; diggers claw at the cave; the rest pick and gather.
         if (p.Act == Act.Forage)
             return p.Phase != 1 ? Clip.Idle : p.A switch

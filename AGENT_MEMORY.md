@@ -2,6 +2,17 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Washers now reach the real water's edge
+
+- **Bug:** a debug pass showed washing targets stopped at the first non-walkable ground. That is usually the edge of a drained polder, about 70 m from the river. Many washers also could not path there (300-expansion limit), so they knelt in the middle of town.
+- **Changed:**
+  - WashingSpot walks up to 90 m toward the river to the first open water. A tile counts as water when its height is below 0.1 and it is not a polder. The washer stops 2.5 m short.
+  - A washing trip uses a 4000-expansion path search.
+  - SimHost draws the kneeling clip only within 1 m of the target. A washer who never arrives just stands.
+- **Verified:**
+  - Debug, seed 1000, year 150: every sampled target is 3 m from water below 0.
+  - SimTests: ALL PASSED on 8 full seeds.
+- **Not verified on screen:** a shot of the bank at 192,148 (--view) was blocked by waterside houses, so the kneeling washers were not seen.
 ## 2026-11-28 — Update clip 25 published
 
 - **Done:** about 25 s, 2.2 MB, two scenes:

@@ -1006,8 +1006,9 @@ public sealed class Simulation
             && p.Role is not (Role.Porter or Role.Builder) && Tick >= GatherUntil && Cosmetic.F() < 0.3f
             && WashingSpot(Buildings[p.Home]) is (float wx, float wz))
         {
-            (cx, cz, radius) = (wx, wz, 1.5f);
+            (cx, cz, radius) = (wx, wz, 1.2f);
             p.Phase = WashPhase;
+            reach = 4000;
         }
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         p.Act = Act.Wander;
@@ -2886,12 +2887,15 @@ public sealed class Simulation
     /// <summary>The last dry ground on the way from a house straight to the river, if the river is within 70 m.</summary>
     private (float X, float Z)? WashingSpot(Building home)
     {
-        float river = Map.RiverCenter(home.X), step = MathF.Sign(river - home.Z) * 2f;
-        if (step == 0) return null;
-        for (float d = 2; d <= 70; d += 2)
+        float river = Map.RiverCenter(home.X), dir = MathF.Sign(river - home.Z);
+        if (dir == 0) return null;
+        // Walk towards the river over dry land (drained polders count as land) to the first open water.
+        for (float d = 2; d <= 90; d += 2)
         {
-            float z = home.Z + step * d / 2f * 1f;
-            if (!Map.Walkable(home.X, z)) return d <= 4 ? null : (home.X, home.Z + step * (d - 2) / 2f);
+            float z = home.Z + dir * d;
+            int tile = TileAt(home.X, z);
+            if (Map.Height(home.X, z) < WorldMap.WaterLevel + 0.1f && !InPolder(tile % Rules.TileNx, tile / Rules.TileNx))
+                return d <= 4 ? null : (home.X, home.Z + dir * (d - 2.5f));
         }
         return null;
     }
