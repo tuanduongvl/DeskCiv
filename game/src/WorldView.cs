@@ -161,7 +161,8 @@ void vertex() {
     float t = fract(TIME * 0.16 + INSTANCE_CUSTOM.x);
     VERTEX *= 0.18 + t * 0.78;
     VERTEX += vec3(sin(t * 5.0 + INSTANCE_CUSTOM.x * 40.0) * t * 0.7, t * 5.2, cos(t * 4.0 + INSTANCE_CUSTOM.x * 30.0) * t * 0.5);
-    COLOR.a = smoothstep(0.0, 0.14, t) * (1.0 - t) * (1.0 - t) * 0.3;
+    // INSTANCE_CUSTOM.y thickens a puff: locomotive steam is denser and whiter than chimney smoke.
+    COLOR.a = smoothstep(0.0, 0.14, t) * (1.0 - t) * (1.0 - t) * 0.3 * (1.0 + INSTANCE_CUSTOM.y * 1.6);
 }
 uniform vec3 tone = vec3(0.86, 0.85, 0.82);
 global uniform float daylight;
@@ -1823,7 +1824,7 @@ void fragment() {
             for (int k = 0; k < 12; k++)
             {
                 _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 2.6f), new Vector3(sx - 1f + (k % 3) * 1.2f, sy, _trainZ + (k % 2) * 0.8f)));
-                _smoke.SetInstanceCustomData(puffs++, new Color(k / 12f, 0, 0));
+                _smoke.SetInstanceCustomData(puffs++, new Color(k / 12f, 1, 0));
             }
         }
         // In a harsh winter every hearth burns from late autumn.

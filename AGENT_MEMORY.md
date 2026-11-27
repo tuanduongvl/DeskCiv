@@ -2,6 +2,13 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Denser locomotive steam; showcase "lead" option
+
+- **Changed:**
+  - `WorldView` smoke shader: alpha is multiplied by (1 + 1.6·INSTANCE_CUSTOM.y). Station steam puffs set y = 1; every other smoke source keeps y = 0, so it is unchanged.
+  - `tools/record-showcase.ps1`: a scene may set `"lead"` (seconds run before the kept part; default 30), for events that start late, e.g. a test fire (~40) or the train standing at the station (~50).
+- **Verified:** `dotnet build` succeeds. A showcase run with `lead` 50 (seed 1000, year 320, focus 95,196) recorded the train at the station with clearly visible white steam above the engine.
+
 ## 2026-11-27 — Update clip 21 published
 
 - **Done:** 0:42, 3.7 MB, three scenes:
