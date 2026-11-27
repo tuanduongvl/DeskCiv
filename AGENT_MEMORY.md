@@ -2,6 +2,24 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Second seed sweep and budget check (no code change)
+
+- **Sweep:** full runs on 8 more seeds (11, 4242, 8086, 15000, 27182, 31415, 50505, 65535), using the test night pattern. Every seed passes all of these:
+  - every landmark present
+  - mill shifts and train arrivals (train 15–25)
+  - every building type built
+  - a polder reclaimed
+  - final population 284–296; minimum after year 5 between 19 and 28
+- **Budget check:** windowed 960x540 Godot runs, seed 1000, 75 s each with `--metrics`, averaged over the samples after 20 s.
+
+  | Scene | FPS | CPU (all cores) | RAM peak | GPU |
+  |---|---|---|---|---|
+  | Wild camp, year 3, hour 23 (camp light, glow pool, smoke) | 30.0 | 0.51% | 380 MB | 1.52 ms |
+  | Town, year 320, hour 12 | 30.0 | 0.67% | 457 MB | 3.17 ms |
+
+  All within budget.
+- **Limitation:** not measured at full wallpaper resolution (2560x1440).
+
 ## 2026-11-27 — Quay fallback for slanted coasts (extra-seed sweep)
 
 - **Found:** a sweep of 6 extra seeds (2024, 5555, 31337, 99991, 123457, 777; full runs with the test night pattern) showed that 4 of them never built the quay (landmark 5). Where the coast runs slantwise, the line straight in from CenterX+41 meets only open sea and then a built-up bank. Mill shifts and train arrivals were fine on all 6.
