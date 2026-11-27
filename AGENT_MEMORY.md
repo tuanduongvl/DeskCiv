@@ -2,6 +2,20 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Update clip 18 published
+
+- **Done:** 0:40, 3.4 MB, four scenes:
+  - the estuary mouth at high water (hour 12.4) and at low water (hour 18.4), 2,500 BC
+  - the factory-gate area at AD 1962
+  - the railway station at AD 1962
+
+  Published publicly (not made for kids) as "DeskCiv update 18 – tides on the estuary, reachable mills and stations, old folk on doorsteps": https://youtu.be/Ubehr7gASa8. The description covers the tides (and says they are subtle), the doorstep elders, the mill, station and quay fixes, and the new test guards.
+- **Limitations:**
+  - The tide contrast is small, and the low-water scene is in dusk light.
+  - The factory scene is framed on the church and market, with the factory at the top edge.
+  - No train arrival is caught on camera.
+  - The doorstep elders are not visible in any scene.
+
 ## 2026-11-27 — Railway station entrance on dry ground
 
 - **Cause:** on seed 16838, using the test night pattern, the station's entrance tile was at height -0.41, which is not walkable. `ArriveMigrants` then fell back to arrivals at the estuary edge, so nobody ever came by train (`bytrain=0`).
