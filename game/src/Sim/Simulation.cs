@@ -1891,7 +1891,8 @@ public sealed class Simulation
             Want(C(BType.Watermill) < 1, BType.Watermill);
             Want(C(BType.Dike) < 4, BType.Dike);
             Want(grindingWindmills < 1, BType.Windmill);
-            Want(C(BType.Dike) >= 2 && C(BType.TideGate) < 1, BType.TideGate);
+            // A town with a single dike gets its tide gate too once industry can build one (on a riverside field if need be).
+            Want((C(BType.Dike) >= 2 || C(BType.Dike) == 1 && Era >= 6) && C(BType.TideGate) < 1, BType.TideGate);
         }
         // Crafts and water works wait until the village can feed itself.
         if (StoredTotal(Res.Wood) >= 28 && StoredTotal(Res.Stone) >= 14 && FoodInStores() >= pop)
@@ -1912,7 +1913,7 @@ public sealed class Simulation
             int tileX, tileZ, direction;
             if (bank ? !FindBankSite(type, out tileX, out tileZ, out direction) : !FindSite(type, out tileX, out tileZ, out direction))
             {
-                if (type == BType.TideGate && RebuildDikeAsGate() || type == BType.Dike && DikeOnField())
+                if (type == BType.TideGate && (C(BType.Dike) >= 2 ? RebuildDikeAsGate() : DikeOnField(BType.TideGate, 60f)) || type == BType.Dike && DikeOnField())
                 {
                     placed = true;
                     break;
@@ -1932,11 +1933,11 @@ public sealed class Simulation
     /// On a bank already lined with houses and fields, the village gives up a riverside field for the next stretch of
     /// dike: the dike takes the water-side row of the field and the rest is open ground again.
     /// </summary>
-    private bool DikeOnField(List<int> skip = null)
+    private bool DikeOnField(BType type = BType.Dike, float reach = 26f, List<int> skip = null)
     {
         int fields = 0, size = Rules.Footprint(BType.Dike), fieldSize = Rules.Footprint(BType.Field);
         Building chosen = null;
-        float best = 26f;
+        float best = reach;
         foreach (Building b in Buildings)
         {
             if (b.Type != BType.Field) continue;
@@ -1953,14 +1954,15 @@ public sealed class Simulation
                 if (p.Job == b.Id && p.Act == Act.Work || p.A == b.Id || p.B == b.Id) { busy = true; break; }
             if (!busy) (best, chosen) = (bank, b);
         }
-        if (chosen == null || fields < 4 + People.Count / 25) return false;
+        // Dikes may not eat the farmland away; the single tide gate needs only a few fields left.
+        if (chosen == null || fields < (type == BType.TideGate ? 4 : 4 + People.Count / 25)) return false;
         var was = (chosen.TileX, chosen.TileZ, chosen.Direction, chosen.Rotation, chosen.X, chosen.Z, chosen.DoorTile, chosen.Built, chosen.Progress, chosen.Yield, chosen.Sown, chosen.Growth);
         for (int z = chosen.TileZ; z < chosen.TileZ + fieldSize; z++)
         for (int x = chosen.TileX; x < chosen.TileX + fieldSize; x++)
             Tiles[x + z * Rules.TileNx] = TileKind.Free;
         int dx = chosen.TileX + (fieldSize - size) / 2, dz = chosen.TileZ;
         (int doorX, int doorZ) = DoorOf(dx, dz, size, 0);
-        chosen.Type = BType.Dike;
+        chosen.Type = type;
         (chosen.TileX, chosen.TileZ, chosen.Direction, chosen.Rotation) = (dx, dz, 0, 0);
         chosen.X = (dx + size / 2f) * Rules.TileSize - WorldMap.SizeX / 2;
         chosen.Z = (dz + size / 2f) * Rules.TileSize - WorldMap.SizeZ / 2;
@@ -1985,14 +1987,14 @@ public sealed class Simulation
             // Try the next riverside field, so one cut-off field does not block every conversion.
             skip ??= new List<int>();
             skip.Add(chosen.Id);
-            return skip.Count < 3 && DikeOnField(skip);
+            return skip.Count < 3 && DikeOnField(type, reach, skip);
         }
         foreach (Person p in People)
             if (p.Job == chosen.Id) p.Job = -1;
         chosen.Workers = 0;
         PlanRoad(chosen.DoorTile);
         foreach (int tile in link) PlanRoad(tile);
-        Log("A riverside field gives way to a new stretch of dike", chosen.X, chosen.Z, 1);
+        Log(type == BType.TideGate ? "A riverside field gives way to the town's tide gate" : "A riverside field gives way to a new stretch of dike", chosen.X, chosen.Z, 1);
         BuildingVersion++;
         RoadVersion++;
         return true;

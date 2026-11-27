@@ -2,6 +2,18 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Tide gate for one-dike towns (seed 101 fixed)
+
+- **Changed (`Simulation`):**
+  - The TideGate is also wanted when the town has exactly 1 dike and it is era 6 or later.
+  - When the bank search fails, a town with 2+ dikes still rebuilds a dike as the gate. A town with 1 dike now calls `DikeOnField(BType.TideGate, 60f)`; `DikeOnField` takes `type` and `reach` parameters, and its log text names the gate.
+  - The field floor (`4 + pop/25` fields kept) applies to dikes only. The gate needs only 4 fields left.
+- **Cause:** seed 101 kept 1 dike all game, and 12 fields against a floor of 14 blocked every field conversion. This is Fable 14's plan plus the floor exemption, which the debug pass found.
+- **Verified:**
+  - Seed 101 now builds its tide gate and keeps its single dike.
+  - SimTests now run 8 full seeds (seed 101 added, about 112 s): ALL PASSED. The other seven are unchanged, with identical era-end numbers.
+- **Not checked:** how the gate looks standing on a former field up to 60 m inland.
+
 ## 2026-11-28 — Update clip 24 published
 
 - **Done:** 0:35, 2.9 MB, seed 31337, three scenes:
