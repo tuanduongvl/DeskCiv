@@ -2472,7 +2472,10 @@ public sealed class Simulation
                 for (int x = cx - reach; x <= cx + reach; x++)
                 {
                     int d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
-                    if (d >= best || !LotFree(x, z, 3, 1, pass == 0)) continue;
+                    if (d >= best || !InGrid(x, z + 2) || !InGrid(x, z - 2) || !LotFree(x, z, 3, 1, pass == 0)) continue;
+                    // Passengers step out of the entrance, so it must open onto dry ground on the town's side of the river.
+                    (float ex, float ez) = TileCenter(x + (z + (z < cz ? 2 : -2)) * Rules.TileNx);
+                    if (!Map.Walkable(ex, ez) || MathF.Sign(ez - Map.RiverCenter(ex)) != MathF.Sign(CenterZ - Map.RiverCenter(CenterX))) continue;
                     if (pass < 2 && RailEnd(x + 4, z + (z < cz ? -2 : 2)) < 0) continue;
                     (best, bx, bz, line) = (d, x, z, pass < 2);
                 }

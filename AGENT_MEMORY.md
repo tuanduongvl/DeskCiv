@@ -2,6 +2,14 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Railway station entrance on dry ground
+
+- **Cause:** on seed 16838, using the test night pattern, the station's entrance tile was at height -0.41, which is not walkable. `ArriveMigrants` then fell back to arrivals at the estuary edge, so nobody ever came by train (`bytrain=0`).
+- **Changed:**
+  - `Simulation.PlaceLandmarks`, station: the candidate's entrance tile (z ± 2) must be in the grid, `Map.Walkable`, and on the town's side of the river.
+  - `SimTests` full runs now require at least one "Newcomers step off the train" event.
+- **Verified:** SimTests ALL PASSED. Seed 16838 now has `bytrain=8` (its rail moved to 58,190). The other full seeds are unchanged.
+
 ## 2026-11-27 — Mill reachable from town; quay finds a strip; tests guard both
 
 - **Cause:** on seed 40595 the factory was placed across the river from the town (gate at z 43, river at about z 87, town centre at z 178). Its gate was also on near-sea-level ground that is not walkable. With no way over, mill hands headed there but their paths failed, so they stood still: `ShiftsWorked` stayed at 0. The quay search (shift ≤ 20, back ≤ 2) also found no free strip, so no quay was ever built.
