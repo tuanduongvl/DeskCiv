@@ -2,6 +2,14 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — 20th-century fishery shed
+
+- **Made:** `fisher_t4`, a 1950s whitewashed brick fish-packing shed with a corrugated roof, sliding door and crates. Sheet saved as `assets-candidates/concepts/buildings/fisher-t4.png`; built at outline IoU 0.958, 10.2 x 6.0 x 8.3 m.
+- **Image quota:** Gemini refused this prompt twice ("error", "having a hard time"), which looks like its image quota is spent (about 19:25). ChatGPT made the images instead. ChatGPT's Save As name is the image title, so `finish-save-dialog.ps1` needs `-Expected ''`.
+- **Verified:**
+  - Model review render looks right.
+  - Godot `--look=Fisher` shot, seed 1000, year 320: the shed stands among red-tiled 20th-century houses.
+
 ## 2026-11-27 — 20th-century bakery; tier-4 models now used
 
 - **Made:** `bakery_t4`, a 1950s two-storey red-brick bakery with a striped awning. Gemini sheet saved as `assets-candidates/concepts/buildings/bakery-t4.png`; built at outline IoU 0.898, 5.8 x 8.0 x 5.6 m.
