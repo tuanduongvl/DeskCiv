@@ -35,7 +35,7 @@ Realistic buildings are made from AI-generated reference sheets and local image-
 | Watermill | all | body (rotated 90°) + Hunyuan wheel |
 | Hut (home) | 0, 2, 3, 4 | tier 1 borrows tier 0 |
 | Storehouse | 0, 2 | |
-| Bakery | 1 | |
+| Bakery | 1, 4 | `bakery_t4`: 1950s brick shop with an awning (Gemini, IoU 0.898) |
 | Smithy | 1 | |
 | Winery | 1 | |
 | Mill | 0 | |

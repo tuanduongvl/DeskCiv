@@ -2,6 +2,15 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — 20th-century bakery; tier-4 models now used
+
+- **Made:** `bakery_t4`, a 1950s two-storey red-brick bakery with a striped awning. Gemini sheet saved as `assets-candidates/concepts/buildings/bakery-t4.png`; built at outline IoU 0.898, 5.8 x 8.0 x 5.6 m.
+- **Bug fixed:** in `MeshKit.RealisticModel`, the `tier >= 3` rule returned `<type>_t3` before the tier search ran, so no `_t4` model was ever shown in the 20th century, including the existing `storehouse_t4`. A `<type>_t4` model now comes first at tier 4.
+- **Verified:**
+  - Model review render looks right.
+  - Godot shot, seed 1000, year 320, hour 11, `--look=Bakery`: the new brick bakery stands in the town. A nearby brick building changed from a grey to a red-tiled roof, likely `storehouse_t4` now showing. The pastel houses look unchanged.
+- **Limitation:** the bakery is fairly small next to the houses.
+
 ## 2026-11-27 — Realistic hillside cave (image pipeline)
 
 - **Made:** a Gemini sheet (isometric first, then a 2x2 green-screen sheet; new chat "Stone Age Cave Game Asset"), saved as `assets-candidates/concepts/buildings/cave-t0.png`. Built with `tools/make_building.ps1 -Name landmark_cave -Height 6`: outline IoU 0.909, 4000 triangles, 13.4 x 6.0 x 12.8 m. The sheet's "right side" cell repeats the front view, but the rock still built well.
