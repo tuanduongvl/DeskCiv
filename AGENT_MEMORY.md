@@ -2,6 +2,17 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Update clip 21 published
+
+- **Done:** 0:42, 3.7 MB, three scenes:
+  - a night house fire with its firelight pool, cut 38–50 s from a 62 s `--test-fire` raw recording
+  - the train standing at the station with steam, cut 50–68 s from a 92 s raw recording at focus 95,196
+  - the seed-2024 quay on its lot, from `record-showcase.ps1`
+
+  Published publicly (not made for kids) as "DeskCiv update 21 – firelight from burning houses, steam at the station, the quay fixed": https://youtu.be/lfRZLM5rbcQ.
+- **Note:** `record-showcase.ps1` keeps only seconds 30 to 30+N of each run. That window catches neither a house fire with the camera settled (the fire was at the frame edge) nor the train (it arrives after about 40 s plus load time). Record such scenes raw and cut them by hand.
+- **Limitation:** the steam is faint.
+
 ## 2026-11-27 — Steam from the train at the station
 
 - **Changed:** `WorldView.UpdateBuildings`. While the visual train stands at the station (`_trainClock` 40–100 s of its 240 s loop), 12 smoke puffs (scale 2.6) rise from a point 4.2 m above the rail at `_trainStopX`. They come from the shared smoke budget.
