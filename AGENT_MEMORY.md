@@ -2,6 +2,11 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — quarry_t2 attempt dropped
+
+- **Tried:** a ChatGPT sheet for a medieval stepped-limestone quarry with a treadwheel crane and a tool shed, saved as `assets-candidates/concepts/buildings/quarry-t2.png`. Built in the foreground with 17 GB of RAM free and no memory problem.
+- **Result:** outline IoU only 0.742. The review render showed flat, untextured beige terrace tops and a thin, broken crane.
+- **Action:** the model files were deleted from `game/assets` and `dist`; only the sheet is kept. The quarry stays on `quarry_t0` for every era.
 ## 2026-11-28 — Tide gate for one-dike towns (seed 101 fixed)
 
 - **Changed (`Simulation`):**
