@@ -2,6 +2,11 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — 20th-century winery
+
+- **Made:** `winery_t4`, a 1950s ochre-stucco wine-cooperative cellar with a red-tile roof, an arched double door and barrels. Made with ChatGPT; sheet saved as `assets-candidates/concepts/buildings/winery-t4.png`. Built at outline IoU 0.935, 10.7 x 7.0 x 9.6 m.
+- **Verified:** the model review render looks right. Not shot in game.
+
 ## 2026-11-27 — Dig shows on the realistic cave
 
 - **Changed:**
