@@ -12,7 +12,7 @@ Hand-off record shared between agents. Newest entries first. Do not overwrite pr
 - **Verified:**
   - Seed 101 now builds its tide gate and keeps its single dike.
   - SimTests now run 8 full seeds (seed 101 added, about 112 s): ALL PASSED. The other seven are unchanged, with identical era-end numbers.
-- **Not checked:** how the gate looks standing on a former field up to 60 m inland.
+- **On-screen check:** fast-forward seed 101 builds the gate at 26,74, 24 m from the water, next to the dike at 38,70. A Godot shot at year 330 (focus 30,74) shows the stone tide gate on the riverbank beside the dike embankment. It looks plausible, just short of the water.
 
 ## 2026-11-28 — Update clip 24 published
 
