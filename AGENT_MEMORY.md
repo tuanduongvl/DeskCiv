@@ -2,6 +2,13 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Firelight round a burning house
+
+- **Changed:** `WorldView` has a new `_fireGlow`: one `MeshKit.Glow()` additive disc, about 14 m radius, flickering, on the ground under a burning house. It is shown after dark only (`_nightGlow > 0.15`) and hidden when the fire ends. It uses its own brighter duplicate of the glow material, albedo (1, 0.5, 0.18)·0.85, because the shared material was too faint to see.
+- **Verified:**
+  - `dotnet build` succeeds.
+  - Godot `--test-fire` shot, seed 1000, year 150, hour 23, at 45 s: with the brighter material, a clear orange pool lights the streets round the burning house. The first try with the shared material was barely visible.
+
 ## 2026-11-27 — Fable review 12 fixes
 
 - **Changed:**

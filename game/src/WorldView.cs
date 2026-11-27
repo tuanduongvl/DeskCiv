@@ -549,7 +549,7 @@ void fragment() {
     private MultiMesh _cave, _caveMouth, _hearth, _campfire;
     private Vector3? _campAt;
     private OmniLight3D _campLight;
-    private MultiMesh _campGlow;
+    private MultiMesh _campGlow, _fireGlow;
     private float _nightGlow;
     private float _fireClock;
     private Node3D _glowNode;
@@ -688,6 +688,10 @@ void fragment() {
         _lampPoolNode = GetChildCount() - 1;
         // A wide pool of firelight on the ground round the camp fire, seen from far out after dark.
         _campGlow = AddInstances(MeshKit.Glow(), _glowMaterial, false, 1);
+        // A burning house lights up the street round it after dark.
+        var fireLight = (StandardMaterial3D)_glowMaterial.Duplicate();
+        fireLight.AlbedoColor = new Color(1f, 0.5f, 0.18f) * 0.85f;
+        _fireGlow = AddInstances(MeshKit.Glow(), fireLight, false, 1);
         // Image-made prop models carry their own textured material; the procedural fallbacks use vertex colours.
         Mesh well = MeshKit.Well(), fountain = MeshKit.Fountain(), tower = MeshKit.WaterTower();
         _wells = AddInstances(well, well.SurfaceGetMaterial(0) ?? vertexColors, false, 16, true);
@@ -1026,9 +1030,14 @@ void fragment() {
         if (_fireAt is not Vector3 fire)
         {
             _flames.VisibleInstanceCount = 0;
+            if (_fireGlow != null) _fireGlow.VisibleInstanceCount = 0;
             return;
         }
         _fireClock += delta;
+        float pool = 7.5f + 0.6f * MathF.Sin(_fireClock * 6.7f) + 0.4f * MathF.Sin(_fireClock * 15.3f);
+        var ground = new Vector3(fire.X, _map.Height(fire.X, fire.Z) + 0.15f, fire.Z);
+        _fireGlow.SetInstanceTransform(0, new Transform3D(Basis.Identity.Scaled(new Vector3(pool, 1, pool)), ground));
+        _fireGlow.VisibleInstanceCount = _nightGlow > 0.15f ? 1 : 0;
         Ensure(_flames, 5);
         for (int k = 0; k < 5; k++)
         {
