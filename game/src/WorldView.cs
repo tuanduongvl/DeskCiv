@@ -1816,6 +1816,16 @@ void fragment() {
                 _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 1.5f), campFire + new Vector3(0, 1.2f, 0)));
                 _smoke.SetInstanceCustomData(puffs++, new Color(k / 6f, 0, 0));
             }
+        // While the train stands at the station its engine lets off steam.
+        if (_hasRail && _trainClock is >= 40f and < 100f)
+        {
+            float sx = _trainStopX, sy = Math.Max(_map.Height(sx, _trainZ), _map.Height(sx - 20f, _trainZ)) + 4.2f;
+            for (int k = 0; k < 12; k++)
+            {
+                _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 2.6f), new Vector3(sx - 1f + (k % 3) * 1.2f, sy, _trainZ + (k % 2) * 0.8f)));
+                _smoke.SetInstanceCustomData(puffs++, new Color(k / 12f, 0, 0));
+            }
+        }
         // In a harsh winter every hearth burns from late autumn.
         bool cold = s.Season == 3 || (s.ActiveEvent == 2 && s.YearFraction > 0.64f);
         // Bakeries and smithies take their smoke first, so a big winter town does not use the whole budget on huts.

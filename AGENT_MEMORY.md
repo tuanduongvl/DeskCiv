@@ -2,6 +2,16 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Steam from the train at the station
+
+- **Changed:** `WorldView.UpdateBuildings`. While the visual train stands at the station (`_trainClock` 40–100 s of its 240 s loop), 12 smoke puffs (scale 2.6) rise from a point 4.2 m above the rail at `_trainStopX`. They come from the shared smoke budget.
+- **Verified:**
+  - `dotnet build` succeeds.
+  - Godot shot, seed 1000, year 320, hour 11, at 72 s (focus 95,196; in fast-forward runs the station is at 90,190 and the rail row at z=198): the train stands at the station, and faint pale puffs show above the engine.
+- **Limitation:**
+  - The smoke shader's alpha peaks at 0.3, so the steam reads weakly against light roofs.
+  - The puff origin is at the train's stop x, which may be a little off the drawn chimney.
+
 ## 2026-11-27 — Firelight round a burning house
 
 - **Changed:** `WorldView` has a new `_fireGlow`: one `MeshKit.Glow()` additive disc, about 14 m radius, flickering, on the ground under a burning house. It is shown after dark only (`_nightGlow > 0.15`) and hidden when the fire ends. It uses its own brighter duplicate of the glow material, albedo (1, 0.5, 0.18)·0.85, because the shared material was too faint to see.
