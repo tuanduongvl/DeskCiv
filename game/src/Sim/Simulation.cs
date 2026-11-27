@@ -2191,7 +2191,12 @@ public sealed class Simulation
         foreach ((int x, int z, int dir) in corners[1..]) AddBuilding(BType.Hut, x, z, dir, false);
 
         // The field itself becomes the first house, so its id stays valid.
-        (int hx, int hz, int hd) = corners[0];
+        FieldToHut(chosen, corners[0].X, corners[0].Z, corners[0].Dir);
+    }
+
+    /// <summary>Turns a cleared field's building into a new house at (hx, hz) facing hd, with its road link.</summary>
+    private void FieldToHut(Building chosen, int hx, int hz, int hd)
+    {
         int hutSize = Rules.Footprint(BType.Hut);
         (int doorX, int doorZ) = DoorOf(hx, hz, hutSize, hd);
         chosen.Type = BType.Hut;
@@ -2525,6 +2530,66 @@ public sealed class Simulation
                 }
             }
             if (best < int.MaxValue) AddLandmark(5, bx, bz, bhx, bhz, byaw);
+        }
+        // Where farming has taken every stretch of bank near the anchorage, a riverside field gives up its water-side
+        // row for the quay; the rest of it becomes a house (the field's building, so its id stays valid).
+        if (Era >= 5 && !Has(5))
+        {
+            int qtx = (int)((CenterX + 41 + WorldMap.SizeX / 2) / Rules.TileSize), size = Rules.Footprint(BType.Field);
+            float townSide = MathF.Sign(CenterZ - Map.RiverCenter(CenterX));
+            Building chosen = null;
+            int best = int.MaxValue, sx = 0, sz = 0, shx = 0, shz = 0, hutX = 0, hutZ = 0, hutDir = 0;
+            float syaw = 0;
+            foreach (Building b in Buildings)
+            {
+                if (b.Type != BType.Field || !b.Built) continue;
+                if (RailRow >= 0 && b.TileZ <= RailRow && RailRow < b.TileZ + size) continue;
+                int d = (b.TileX + 2 - qtx) * (b.TileX + 2 - qtx) + (b.TileZ + 2 - cz) * (b.TileZ + 2 - cz);
+                if (d >= best || d > 30 * 30) continue;
+                (float fx, float fz) = TileCenter(b.TileX + 2 + (b.TileZ + 2) * Rules.TileNx);
+                if (MathF.Abs(fx - (CenterX + 25)) < 19 || MathF.Sign(fz - Map.RiverCenter(fx)) != townSide) continue;
+                bool busy = false;
+                for (int r = 0; r < b.In.Length && !busy; r++) busy = b.In[r] != 0 || b.Out[r] != 0 || b.Stock[r] != 0;
+                foreach (Person p in People)
+                    if (p.A == b.Id || p.B == b.Id || p.Home == b.Id) { busy = true; break; }
+                if (busy) continue;
+                // Strip centre, half sizes, step to the water, quay yaw, and the corner left for the house.
+                (int cx2, int cz2, int hx, int hz, int wx, int wz, float yaw, int ux, int uz, int ud)[] sides =
+                {
+                    (b.TileX + 2, b.TileZ, 2, 0, 0, -1, MathF.PI, b.TileX, b.TileZ + 3, 2),
+                    (b.TileX + 2, b.TileZ + 4, 2, 0, 0, 1, 0, b.TileX, b.TileZ, 0),
+                    (b.TileX, b.TileZ + 2, 0, 2, -1, 0, -MathF.PI / 2, b.TileX + 3, b.TileZ, 0),
+                    (b.TileX + 4, b.TileZ + 2, 0, 2, 1, 0, MathF.PI / 2, b.TileX, b.TileZ, 0),
+                };
+                foreach (var side in sides)
+                {
+                    int wet = 0;
+                    for (int k = -2; k <= 2; k++)
+                    for (int step = 1; step <= 2; step++)
+                    {
+                        // The water's edge often falls between tiles: the first or second tile out may be the water.
+                        int ex = side.cx2 + (side.hx > 0 ? k : 0) + side.wx * step, ez = side.cz2 + (side.hz > 0 ? k : 0) + side.wz * step;
+                        if (!InGrid(ex, ez)) continue;
+                        (float px, float pz) = TileCenter(ex + ez * Rules.TileNx);
+                        if (Map.Height(px, pz) < WorldMap.WaterLevel + 0.1f && MathF.Abs(px) < WorldMap.SizeX / 2 - 8 && MathF.Abs(pz) < WorldMap.SizeZ / 2 - 8) { wet++; break; }
+                    }
+                    if (wet < 2) continue;
+                    (best, chosen, sx, sz, shx, shz, syaw, hutX, hutZ, hutDir) = (d, b, side.cx2, side.cz2, side.hx, side.hz, side.yaw, side.ux, side.uz, side.ud);
+                    break;
+                }
+            }
+            if (chosen != null)
+            {
+                foreach (Person p in People)
+                    if (p.Job == chosen.Id) p.Job = -1;
+                chosen.Workers = 0;
+                for (int z = chosen.TileZ; z < chosen.TileZ + size; z++)
+                for (int x = chosen.TileX; x < chosen.TileX + size; x++)
+                    Tiles[x + z * Rules.TileNx] = TileKind.Free;
+                AddLandmark(5, sx, sz, shx, shz, syaw);
+                FieldToHut(chosen, hutX, hutZ, hutDir);
+                Log("A riverside field makes way for the new quay", TileCenter(sx + sz * Rules.TileNx).X, TileCenter(sx + sz * Rules.TileNx).Z, 2);
+            }
         }
         // A railway station in the 20th century, laid out like the factory: east-west, entrance facing the centre.
         // The line runs west along the row behind it into a tunnel in the hills, so the station goes where that row is

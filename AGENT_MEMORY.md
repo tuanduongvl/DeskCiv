@@ -2,6 +2,25 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Quay can take over a riverside field (seed 31337 fixed)
+
+- **Changed (`Simulation`):**
+  - The second half of `UrbanizeField` was extracted into `FieldToHut(Building, hx, hz, dir)`.
+  - New third quay pass in `PlaceLandmarks`. When both earlier passes fail, it picks the nearest built field within 30 tiles of the anchorage. The field must be:
+    - on the town's bank
+    - at least 19 m from the crowd point
+    - not on the rail row
+    - not reserved by anyone's A/B/Home (farmers working it are allowed; they are unassigned)
+    - wet on at least 2 tiles of one side, checking the first or second tile out, because the water's edge often falls between tiles
+
+  The field's row on that side becomes the quay strip, with yaw facing the water. The rest is cleared and the field's own building becomes a house in the opposite corner, so its Id stays valid. Logs "A riverside field makes way for the new quay".
+  - Polder fields are allowed.
+- **Why:** Fable 14 proposed this. A debug pass showed every nearby field read 0 wet tiles under the one-tile test, because the bank tile next to a field sits just above 0.1 m.
+- **SimTests:** seed 31337 added to the full runs (7 seeds, about 104 s). ALL PASSED, and every seed has all six landmarks. Seeds 1000, 16838, 72271 and 2024 changed slightly, because the new pass can place the quay in an earlier year.
+- **Still open:**
+  - Seed 101's tide gate: Fable 14 suggested allowing a gate with one dike from era 6 via `DikeOnField(TideGate, 60 m)`. Not done.
+  - The field-quay was not checked on screen.
+
 ## 2026-11-28 — Third seed sweep: two open issues (no code change)
 
 - **Sweep:** full runs on 8 more seeds (3, 101, 999, 2718, 6174, 12345, 31337, 99991), using the test night pattern. Six are clean:

@@ -124,7 +124,7 @@ foreach (string row in rows) Console.WriteLine(row);
 Console.WriteLine($"long runs took {clock.Elapsed.TotalSeconds:F1}s");
 // Full runs: every era through the year 2000.
 var fullClock = Stopwatch.StartNew();
-int[] fullSeeds = { 1000, 16838, 40595, 72271, 2024, 5555 };
+int[] fullSeeds = { 1000, 16838, 40595, 72271, 2024, 5555, 31337 };
 var fullRows = new string[fullSeeds.Length];
 Parallel.For(0, fullSeeds.Length, n =>
 {
