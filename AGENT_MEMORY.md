@@ -16,6 +16,8 @@ Hand-off record shared between agents. Newest entries first. Do not overwrite pr
 - **Verified:**
   - All 6 sweep seeds now have every landmark, with the quay within about 60 m of the town centre.
   - SimTests: ALL PASSED. The four test seeds are unchanged, because they use the original search.
+- **Tests:** SimTests full runs now include seeds 2024 and 5555 (6 full seeds, about 96 s); ALL PASSED with every landmark.
+- **Follow-up check:** seed 2024 placed with the `--start-year` fast-forward pattern (Night always false): quay at 170,62. A Godot shot at year 230 (focus 170,62, distance 35) shows the stone quay with its steps, reaching from the beach into the water beside the town. It reads as a pier jutting out, not a quay along the bank. The seed 5555 fast-forward quay lands at 294,78, about 110 m from the centre, near the 120 m limit.
 - **Not verified:**
   - A Godot shot of seed 5555 at year 230 (focus 194,54) did not clearly show the quay. The `--start-year` fast-forward runs a different day/night pattern from the sweep, so the town differs.
   - How the quay model looks when rotated ±90° has not been checked.
