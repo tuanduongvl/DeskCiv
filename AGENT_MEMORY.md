@@ -2,6 +2,12 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — 20th-century smithy
+
+- **Made:** `smithy_t4`, a 1950s village forge and agricultural-machinery workshop: brick walls, corrugated roof, a sliding door showing an anvil, a cart wheel, and a brick chimney at the back right. Made with ChatGPT; sheet saved as `assets-candidates/concepts/buildings/smithy-t4.png`. Built at outline IoU 0.94, 9.1 x 7.0 x 6.8 m.
+- **Verified:** the model review render looks right. The existing smithy smoke source (3.6, 5.2, -2) is close to the new chimney, but this was not checked in game.
+- **Status:** with this, every craft type has a tier-4 model except the mill (`mill_t4` was dropped).
+
 ## 2026-11-27 — 20th-century gatherer (market-garden shed)
 
 - **Made:** `gatherer_t4`, a 1950s market-garden packing shed: brick base, white timber walls, slate roof, open double doors in the gable (the front, +Z), and crates of produce. Made with ChatGPT; sheet saved as `assets-candidates/concepts/buildings/gatherer-t4.png`. Built at outline IoU 0.967, 7.2 x 6.0 x 8.5 m.
