@@ -2,6 +2,18 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Update clip 24 published
+
+- **Done:** 0:35, 2.9 MB, seed 31337, three scenes:
+  - the quay at AD 1787 (fast-forward quay at 214,86)
+  - the 1962 town (`--look=Smithy`)
+  - the bakery (`--look=Bakery`)
+
+  Published publicly (not made for kids) as "DeskCiv update 24 – a quay even on a fully farmed coast, and a 1950s town tour": https://youtu.be/Qmcdqu8myIg. The description covers the field-quay fix, the extra test worlds, the tier-4 workshops, and the two attempts that were dropped or stopped.
+- **Note:**
+  - A browser-batch call lost its connection mid-upload. A screenshot showed the dialog at the visibility step with nothing selected, so Public was clicked by coordinate.
+  - Whether this fast-forward quay came from the field pass was not confirmed: the event ring only keeps the last 64 events.
+
 ## 2026-11-28 — Quay can take over a riverside field (seed 31337 fixed)
 
 - **Changed (`Simulation`):**
