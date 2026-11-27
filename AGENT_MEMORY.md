@@ -2,6 +2,14 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Camera avoids the cave rock; firelight pool seen
+
+- **Changed:** `Main.ClearAzimuth` now counts Blocked tiles (the hillside cave rock) as occluders, just like buildings. Camera shots of people near the wild camp now pick an angle that is not behind the rock.
+- **Verified:**
+  - `dotnet build` succeeds.
+  - A Godot `--watch-hunt` shot, seed 1000, year 3, hour 23, shows the cave shot at azimuth `CaveYaw`: the open cave mouth, the camp fire with flames and stones, and a warm pool of firelight on the ground round it. This confirms the firelight pool from the entry below.
+  - `ClearAzimuth` itself was not shown on a framed shot.
+
 ## 2026-11-27 — Firelight pool on the ground round the camp fire
 
 - **Changed:** `WorldView` has a new `_campGlow` multimesh: one `MeshKit.Glow()` additive disc, about 8 m radius, flickering, 0.12 m above the camp fire. It is shown only after dark (`_nightGlow > 0.15`) and hidden when the fire goes out.
