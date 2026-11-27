@@ -42,6 +42,7 @@ Realistic buildings are made from AI-generated reference sheets and local image-
 | Woodcutter, Fisher | 0 | fisher's net rack was lost by Hunyuan |
 | Woodcutter | 4 | `woodcutter_t4`: 1950s plank sawmill shed with saw bench and timber stacks (ChatGPT, IoU 0.955) |
 | Winery | 4 | `winery_t4`: 1950s ochre wine-cooperative cellar with an arched door and barrels (ChatGPT, IoU 0.935) |
+| Gatherer | 4 | `gatherer_t4`: 1950s market-garden packing shed, door in the gable (ChatGPT, IoU 0.967) |
 | Fisher | 4 | `fisher_t4`: 1950s whitewashed fish-packing shed (ChatGPT, IoU 0.958) |
 | TideGate | 2 | door still procedural until `tidegate_door` exists |
 | Hillside cave (`landmark_cave`) | wild years | Gemini sheet; its side views repeat the front, but the rock still built at IoU 0.909. The mouth is always open (the dig no longer shows on the rock) |

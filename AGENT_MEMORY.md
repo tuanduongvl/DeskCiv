@@ -2,6 +2,12 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — 20th-century gatherer (market-garden shed)
+
+- **Made:** `gatherer_t4`, a 1950s market-garden packing shed: brick base, white timber walls, slate roof, open double doors in the gable (the front, +Z), and crates of produce. Made with ChatGPT; sheet saved as `assets-candidates/concepts/buildings/gatherer-t4.png`. Built at outline IoU 0.967, 7.2 x 6.0 x 8.5 m.
+- **Verified:** the model review render looks right. Not shot in game.
+- **Note:** a browser-batch call lost its connection while waiting. A screenshot showed the prompt had been sent, so it was not repeated.
+
 ## 2026-11-27 — 20th-century winery
 
 - **Made:** `winery_t4`, a 1950s ochre-stucco wine-cooperative cellar with a red-tile roof, an arched double door and barrels. Made with ChatGPT; sheet saved as `assets-candidates/concepts/buildings/winery-t4.png`. Built at outline IoU 0.935, 10.7 x 7.0 x 9.6 m.
