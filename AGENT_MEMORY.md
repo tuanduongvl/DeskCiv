@@ -2,6 +2,15 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Update clip 20 published
+
+- **Done:** 0:27, 2.2 MB, seed 2024, two scenes:
+  - the fallback stone quay on a slanted coast, AD 1598
+  - an Iron Age street, 228 BC
+
+  Published publicly (not made for kids) as "DeskCiv update 20 – a quay on every coast, and sturdier towns across 14 test worlds": https://youtu.be/vYB14sMyJ9s. The description lists the quay fallback, the wider factory search, the guaranteed porter, the faster mains, the elders staying put (it says this is too small to see), and the budget numbers.
+- **Limitation:** the doorstep elders cannot be seen in the street scene.
+
 ## 2026-11-27 — Elders stay on the step; three latent fragilities fixed
 
 - **Changed (`Simulation`):**
