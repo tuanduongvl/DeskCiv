@@ -163,11 +163,13 @@ void vertex() {
     VERTEX += vec3(sin(t * 5.0 + INSTANCE_CUSTOM.x * 40.0) * t * 0.7, t * 5.2, cos(t * 4.0 + INSTANCE_CUSTOM.x * 30.0) * t * 0.5);
     // INSTANCE_CUSTOM.y thickens a puff: locomotive steam is denser and whiter than chimney smoke.
     COLOR.a = smoothstep(0.0, 0.14, t) * (1.0 - t) * (1.0 - t) * 0.3 * (1.0 + INSTANCE_CUSTOM.y * 1.6);
+    // Steam (custom.y = 1) stays white even when coal smoke is dark.
+    COLOR.rgb = vec3(INSTANCE_CUSTOM.y);
 }
 uniform vec3 tone = vec3(0.86, 0.85, 0.82);
 global uniform float daylight;
 // Smoke is unshaded, so it is dimmed by hand at night to match the moonlit scene.
-void fragment() { ALBEDO = tone * (0.35 + 0.65 * daylight); ALPHA = COLOR.a; }";
+void fragment() { ALBEDO = mix(tone, vec3(0.93), COLOR.r) * (0.35 + 0.65 * daylight); ALPHA = COLOR.a; }";
 
     private const string MovingShader = @"
 shader_type spatial;
@@ -1042,7 +1044,7 @@ void fragment() {
             return;
         }
         _fireClock += delta;
-        float pool = 7.5f + 0.6f * MathF.Sin(_fireClock * 6.7f) + 0.4f * MathF.Sin(_fireClock * 15.3f);
+        float pool = 11f + 0.8f * MathF.Sin(_fireClock * 6.7f) + 0.5f * MathF.Sin(_fireClock * 15.3f);
         var ground = new Vector3(fire.X, _map.Height(fire.X, fire.Z) + 0.15f, fire.Z);
         _fireGlow.SetInstanceTransform(0, new Transform3D(Basis.Identity.Scaled(new Vector3(pool, 1, pool)), ground));
         _fireGlow.VisibleInstanceCount = _nightGlow > 0.15f ? 1 : 0;
@@ -1827,10 +1829,12 @@ void fragment() {
         // While the train stands at the station its engine lets off steam.
         if (_hasRail && _trainClock is >= 40f and < 100f)
         {
-            float sx = _trainStopX, sy = Math.Max(_map.Height(sx, _trainZ), _map.Height(sx - 20f, _trainZ)) + 4.2f;
+            float sx = _trainStopX + 3.3f, sy = Math.Max(_map.Height(_trainStopX, _trainZ), _map.Height(_trainStopX - 20f, _trainZ)) + 4.2f;
+            // Builds up over 3 s after the stop and dies away over the last 3 s before the train pulls out.
+            float ramp = Math.Clamp(Math.Min(_trainClock - 40f, 100f - _trainClock) / 3f, 0.05f, 1f);
             for (int k = 0; k < 12; k++)
             {
-                _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 2.6f), new Vector3(sx - 1f + (k % 3) * 1.2f, sy, _trainZ + (k % 2) * 0.8f)));
+                _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity.Scaled(Vector3.One * 2.6f * ramp), new Vector3(sx - 0.6f + (k % 3) * 0.6f, sy, _trainZ + (k % 2) * 0.5f)));
                 _smoke.SetInstanceCustomData(puffs++, new Color(k / 12f, 1, 0));
             }
         }
@@ -1853,6 +1857,12 @@ void fragment() {
                 : b.Type == BType.Smithy
                 ? new Vector3(b.X, _map.Height(b.X, b.Z) + 5.2f, b.Z) + new Vector3(3.6f, 0, -2.0f).Rotated(Vector3.Up, b.Rotation)
                 : new Vector3(b.X, _map.Height(b.X, b.Z) + 4.3f, b.Z);
+            // 20th-century models are taller: the smoke leaves from the roof line instead of inside the walls.
+            if (s.Era >= 7 && b.Type is BType.Hut or BType.Bakery && _buildings[(int)b.Type].Mesh is Mesh tall)
+            {
+                float top = tall.GetAabb().End.Y * (b.Renewed ? 1.22f : 1f) - 0.3f;
+                source = new Vector3(b.X, _map.Height(b.X, b.Z) + top, b.Z);
+            }
             for (int k = 0; k < count && puffs < MaxPuffs; k++)
             {
                 _smoke.SetInstanceTransform(puffs, new Transform3D(Basis.Identity, source));

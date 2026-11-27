@@ -632,6 +632,14 @@ void fragment() {
     /// The camera looks down at a shallow angle, so a building blocks the view when it is taller than the sight
     /// line at that distance. If every direction is blocked, the camera also rises for this shot.
     /// </summary>
+    /// <summary>The cave rock stands about 6 m above the ground near its centre (6 m behind the mouth); 0 elsewhere.</summary>
+    private static float CaveRockAt(WorldSnapshot s, float px, float pz)
+    {
+        if (s.CaveX == 0 && s.CaveZ == 0) return 0;
+        float rx = s.CaveX - MathF.Sin(s.CaveYaw) * 6f, rz = s.CaveZ - MathF.Cos(s.CaveYaw) * 6f;
+        return (px - rx) * (px - rx) + (pz - rz) * (pz - rz) < 64f ? 6f : 0f;
+    }
+
     private float ClearAzimuth(WorldSnapshot s, float x, float z, float skip = 3f)
     {
         float distance = Mathf.Max(_distanceTarget, 10f);
@@ -653,7 +661,7 @@ void fragment() {
                 int tz = Math.Clamp((int)((pz + WorldMap.SizeZ / 2) / Rules.TileSize), 0, Rules.TileNz - 1);
                 // Buildings hide what the camera looks at, and so does blocked ground (the cave rock, a hillside) that rises
                 // into the sight line; open water, also blocked, does not.
-                if (s.Tiles[tx + tz * Rules.TileNx] == TileKind.Building || s.Tiles[tx + tz * Rules.TileNx] == TileKind.Blocked && _sim.Map.Height(px, pz) - _sim.Map.Height(x, z) > sight - 3f) { cost += (18f - sight) / d; continue; }
+                if (s.Tiles[tx + tz * Rules.TileNx] == TileKind.Building || s.Tiles[tx + tz * Rules.TileNx] == TileKind.Blocked && _sim.Map.Height(px, pz) - _sim.Map.Height(x, z) + CaveRockAt(s, px, pz) > sight - 3f) { cost += (18f - sight) / d; continue; }
                 if (sight > 9f) continue;
                 for (int i = 0; i < treeX.Length; i++)
                 {

@@ -2,6 +2,21 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Fable review 13 fixes; 20th-century mill attempt dropped
+
+- **Changed:**
+  - Smoke shader: steam puffs (custom.y = 1) are drawn white even when the era's coal smoke is dark. Before this, Industrial-era steam would have been a dense black cloud.
+  - Station steam: centred on the engine's chimney (`_trainStopX + 3.3`). It grows over 3 s after the stop and dies away over the 3 s before departure, instead of popping in and out.
+  - House-fire ground pool radius raised from 7.5 to 11, so it reaches the street.
+  - From the 20th century, hut and bakery smoke starts at the model's roof line (mesh AABB top - 0.3; ×1.22 for renewed houses). The tier-4 models are taller and hid the old fixed-height sources.
+  - `Main.ClearAzimuth` adds 6 m of rock height within 8 m of the cave rock centre, so the camera again avoids looking through the image-made rock.
+  - `record-showcase.ps1`: `"lead": 0` is honoured.
+- **Dropped:** `mill_t4`. A ChatGPT flour mill with silos built at IoU 0.924, but its review render showed shattered geometry at the back and windows textured onto the silos. Its model files were deleted from `game/assets` and `dist`; only the sheet `assets-candidates/concepts/buildings/mill-t4.png` is kept.
+- **Verified:**
+  - `dotnet build` succeeds.
+  - A winter shot at year 320.9 (`--look=Bakery`) rendered fine, but the white smoke cannot be told apart against the snow, so the roof-line smoke is not visually confirmed.
+  - The steam ramp and cave camera change were not shot.
+
 ## 2026-11-27 — Update clip 22 published
 
 - **Done:** about 50 s, 4.3 MB, five scenes:

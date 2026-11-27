@@ -25,7 +25,7 @@ for ($i = 0; $i -lt $list.Count; $i++) {
     $scene = $list[$i]
     $raw = Join-Path $work ("raw{0:D2}.mp4" -f $i)
     $a = @("--path", "`"$root\game`"", "--resolution", $Resolution, "--audio-driver", "Dummy", "--",
-        "--windowed", "--fresh", "--no-save", "--seed=$Seed", "--weather=clear", "--duration=$($scene.seconds + $(if ($scene.lead) { $scene.lead } else { 30 }))", "--stream-test=`"$raw`"") + ($scene.args -split ' ')
+        "--windowed", "--fresh", "--no-save", "--seed=$Seed", "--weather=clear", "--duration=$($scene.seconds + $(if ($null -ne $scene.lead) { $scene.lead } else { 30 }))", "--stream-test=`"$raw`"") + ($scene.args -split ' ')
     $p = Start-Process -FilePath $godot -ArgumentList $a -PassThru
     if (-not $p.WaitForExit(240000)) { Stop-Process -Id $p.Id -Force; "scene $i timed out"; continue }
     if (-not (Test-Path $raw)) { "scene $i produced no file"; continue }
