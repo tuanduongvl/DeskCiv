@@ -1742,10 +1742,15 @@ public sealed class Simulation
                 else p.Role = Role.Porter;
             }
         }
+        // The village's only porter keeps the job (so the role does not hop back and forth with the guarantee below).
+        int porters = 0;
+        if (adults >= 8)
+            foreach (Person q in People)
+                if (q.Role == Role.Porter && q.Age >= 14 && q.Age < 60 && q.Job < 0) porters++;
         foreach (Person p in People)
         {
             if (p.Age < 14 || p.Age >= 60 || p.Job >= 0 || p.Role == Role.Builder) continue;
-            if (builders < want)
+            if (builders < want && !(porters == 1 && p.Role == Role.Porter))
             {
                 p.Role = Role.Builder;
                 builders++;
@@ -2378,10 +2383,10 @@ public sealed class Simulation
     private void LinkGate(int gate)
     {
         if (Tiles[gate] is not (TileKind.Free or TileKind.Road or TileKind.PlannedRoad)) return;
-        PlanRoad(gate);
         int[] link = FindPath(gate, -1, true);
-        if (link != null)
-            foreach (int tile in link) PlanRoad(tile);
+        if (link == null) return;
+        PlanRoad(gate);
+        foreach (int tile in link) PlanRoad(tile);
     }
 
     private void AddLandmark(int kind, int x, int z, int hx, int hz, float yaw)

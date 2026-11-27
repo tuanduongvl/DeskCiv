@@ -1448,11 +1448,32 @@ void fragment() {
             // The ship anchors and the crowd gathers at CenterX + 25 (Simulation); the quay stands just downstream of them so
             // the onlookers stand on the bank beside it, not inside its stonework.
             float qx = s.CenterX + 41;
-            // The sim reserves the quay's strip of bank (landmark kind 5); older saves fall back to the fixed spot.
+            // The sim reserves the quay's strip of bank (landmark kind 5), along x or z with its yaw facing the water:
+            // the quay stands on that strip, pushed out over the water's edge. Older saves fall back to the fixed spot.
+            bool reserved = false;
             foreach (Simulation.Landmark l in s.Landmarks)
-                if (l.Kind == 5) qx = Simulation.TileCenter(l.TileX + l.TileZ * Rules.TileNx).X;
+                if (l.Kind == 5)
+                {
+                    reserved = true;
+                    Vector3 lot = LotCentre(l);
+                    var face = new Vector3(MathF.Sin(l.Yaw), 0, MathF.Cos(l.Yaw));
+                    var along = new Vector3(face.Z, 0, -face.X);
+                    var at = lot + face * 4f;
+                    at.Y = _map.Height(lot.X, lot.Z);
+                    _quays.SetInstanceTransform(quays++, new Transform3D(new Basis(Vector3.Up, l.Yaw), at));
+                    int piles = 0;
+                    if (s.TraderVisiting)
+                        foreach (float dx in new[] { -5f, -2.5f, 3f })
+                        {
+                            Vector3 pile = lot + face * 0.8f + along * dx;
+                            pile.Y = _map.Height(lot.X, lot.Z) + 0.05f;
+                            _cargo2.SetInstanceTransform(piles++, new Transform3D(new Basis(Vector3.Up, dx), pile));
+                        }
+                    _cargo2.VisibleInstanceCount = piles;
+                    break;
+                }
             float river = _map.RiverCenter(qx), side = MathF.Sign(s.CenterZ - river);
-            for (float d = 0; d <= 120; d += 1)
+            for (float d = 0; d <= 120 && !reserved; d += 1)
                 if (_map.Walkable(qx, river + side * d))
                 {
                     float bank = river + side * d;

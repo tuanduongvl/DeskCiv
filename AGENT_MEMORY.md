@@ -2,6 +2,19 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Fable review 12 fixes
+
+- **Changed:**
+  - `Main.ClearAzimuth`: Blocked tiles block the view only where the ground rises into the sight line (height above target > sight - 3). `Simulation.cs:127` marks every non-walkable tile Blocked, water included, so the previous change had made open water an occluder and pushed waterside shots landward.
+  - `WorldView` quay: with a kind-5 landmark, the quay model stands on the reserved lot (`LotCentre`), pushed 4 m toward the water along `l.Yaw`, with cargo piles along the strip. The old bank search runs only for saves without the landmark. Before this, a fallback quay along z or off the x line was drawn elsewhere.
+  - `Simulation.LinkGate`: no orphan PlannedRoad when no link is found.
+  - `AssignRoles`: with 8+ adults, a village's sole porter is no longer promoted back to builder, so the role stops hopping each assignment. The post-pass guarantee stays.
+- **Tried and dropped:** Fable's "porter first, before builders" variant made long seed 56433 fail "bread chain never ran" by year 56, because it takes a builder away early.
+- **Verified:**
+  - SimTests: ALL PASSED (6 full seeds).
+  - Godot shot, seed 2024, year 230 (focus 170,62): the camera now looks in from the water side. The stone quay runs along the bank on its lot, with goods behind it.
+- **Not done:** Fable's other ideas: a foreshore gloss that follows the tide, a firelight pool for house fires, and a steam burst at the station when a train arrives.
+
 ## 2026-11-27 — Update clip 20 published
 
 - **Done:** 0:27, 2.2 MB, seed 2024, two scenes:

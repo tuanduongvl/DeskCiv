@@ -651,8 +651,9 @@ void fragment() {
                 float px = x + dx * d, pz = z + dz * d;
                 int tx = Math.Clamp((int)((px + WorldMap.SizeX / 2) / Rules.TileSize), 0, Rules.TileNx - 1);
                 int tz = Math.Clamp((int)((pz + WorldMap.SizeZ / 2) / Rules.TileSize), 0, Rules.TileNz - 1);
-                // Buildings and blocked rock (the hillside cave) hide what the camera looks at.
-                if (s.Tiles[tx + tz * Rules.TileNx] is TileKind.Building or TileKind.Blocked) { cost += (18f - sight) / d; continue; }
+                // Buildings hide what the camera looks at, and so does blocked ground (the cave rock, a hillside) that rises
+                // into the sight line; open water, also blocked, does not.
+                if (s.Tiles[tx + tz * Rules.TileNx] == TileKind.Building || s.Tiles[tx + tz * Rules.TileNx] == TileKind.Blocked && _sim.Map.Height(px, pz) - _sim.Map.Height(x, z) > sight - 3f) { cost += (18f - sight) / d; continue; }
                 if (sight > 9f) continue;
                 for (int i = 0; i < treeX.Length; i++)
                 {
