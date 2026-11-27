@@ -2,6 +2,18 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Washing clothes at the river; bigger mains crew
+
+- **Changed:**
+  - `Simulation.Wander`: from the Neolithic until the Industrial era (era 1–5; piped water starts in era 6), a woman aged 16–60 with a home may go washing by day, with a 30% Cosmetic draw. She must not be a porter or builder, the band must not be wild, and no gathering may be on. She walks to the last dry ground on the straight line from her house to the river, when the river is within 70 m (new `WashingSpot`), and has Phase = `WashPhase` (9).
+  - `SimHost.ClipOf`: such a villager, once standing, uses the Gather (kneeling) clip.
+  - Mains digging allows up to 5 diggers per tile, up from 3.
+- **Why the crew change:** the washing change shifted the RNG path, and full seed 2024 dropped to 628/1010 mains (the check needs 70%). This is the same fragility fixed earlier with 2 stints per tile.
+- **Verified:**
+  - Debug, seed 1000, year 150: on average about 3.2 women are on a washing trip and about 0.8 are kneeling at the bank. A first version limited washing to jobless women and gave 0, because everyone is employed.
+  - SimTests: ALL PASSED on 8 full seeds. Mains coverage is now high everywhere, e.g. 2024 at 974/1018 and 16838 at 903/903.
+- **Not checked:** washing was not seen on screen.
+
 ## 2026-11-28 — quarry_t2 attempt dropped
 
 - **Tried:** a ChatGPT sheet for a medieval stepped-limestone quarry with a treadwheel crane and a tool shed, saved as `assets-candidates/concepts/buildings/quarry-t2.png`. Built in the foreground with 17 GB of RAM free and no memory problem.

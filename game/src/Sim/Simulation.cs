@@ -999,6 +999,16 @@ public sealed class Simulation
             // The mill may stand well out of town: allow a long search so the walk there finds a way.
             reach = 4000;
         }
+        // Before piped water (until the Industrial era) a woman with time on her hands often washes clothes at the water's edge
+        // below her home: she walks to the bank and kneels there (drawn with the gathering pose).
+        p.Phase = 0;
+        if (!Wild && !Night && Era >= 1 && Era < 6 && p.Female && p.Age >= 16 && p.Age < 60 && p.Home >= 0
+            && p.Role is not (Role.Porter or Role.Builder) && Tick >= GatherUntil && Cosmetic.F() < 0.3f
+            && WashingSpot(Buildings[p.Home]) is (float wx, float wz))
+        {
+            (cx, cz, radius) = (wx, wz, 1.5f);
+            p.Phase = WashPhase;
+        }
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         p.Act = Act.Wander;
         p.Timer = Cosmetic.R(3, 11);
@@ -2870,6 +2880,21 @@ public sealed class Simulation
     }
 
     private const int MainsPhase = 8;
+    /// <summary>Phase of a wandering villager who is washing clothes at the river (see Wander).</summary>
+    public const int WashPhase = 9;
+
+    /// <summary>The last dry ground on the way from a house straight to the river, if the river is within 70 m.</summary>
+    private (float X, float Z)? WashingSpot(Building home)
+    {
+        float river = Map.RiverCenter(home.X), step = MathF.Sign(river - home.Z) * 2f;
+        if (step == 0) return null;
+        for (float d = 2; d <= 70; d += 2)
+        {
+            float z = home.Z + step * d / 2f * 1f;
+            if (!Map.Walkable(home.X, z)) return d <= 4 ? null : (home.X, home.Z + step * (d - 2) / 2f);
+        }
+        return null;
+    }
     private const int PolderPhase = 7, PolderRowTiles = 12, PolderWidthTiles = 13;
     private const float PolderLand = 1.4f, DikeTop = 2.3f, DrainYears = 2.5f;
 
@@ -3128,7 +3153,8 @@ public sealed class Simulation
         int crew = 0;
         foreach (Person q in People)
             if (q.Act == Act.Road && q.Phase == MainsPhase) crew++;
-        if (crew >= 3) return false;
+        // Up to five diggers on a street tile, so a big town's network keeps up.
+        if (crew >= 5) return false;
         p.Act = Act.Road;
         p.Phase = MainsPhase;
         p.A = DigTile;
