@@ -2,6 +2,14 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Update clip 25 published
+
+- **Done:** about 25 s, 2.2 MB, two scenes:
+  - seed 1000 village at 228 BC, at the spot where washers kneel most (focus 175,175)
+  - seed 101 tide gate at AD 1986
+
+  Published publicly (not made for kids) as "DeskCiv update 25 – washing day at the river, and a tide gate for every town": https://youtu.be/1uupMGO4CAA. The description covers river washing, the tide-gate fix, the bigger mains crew and the dropped quarry model.
+- **Limitation:** no washer is clearly visible in the village scene; the description says so.
 ## 2026-11-28 — Washing clothes at the river; bigger mains crew
 
 - **Changed:**
