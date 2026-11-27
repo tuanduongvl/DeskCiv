@@ -2,6 +2,16 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Update clip 22 published
+
+- **Done:** about 50 s, 4.3 MB, five scenes:
+  - the realistic cave camp at night
+  - `bakery_t4`, `fisher_t4` and `woodcutter_t4` at AD 1962, one `--look` shot each
+  - the train steam at the station, using `lead` 50
+
+  Published publicly (not made for kids) as "DeskCiv update 22 – a realistic Stone Age cave and new 20th-century bakery, fishery and sawmill": https://youtu.be/XRgNs8Ko-Ds.
+- **Limitation:** the sawmill cannot be picked out in its `--look` shot; the description says so. The recording ran for more than 10 minutes, so the Bash call was moved to the background.
+
 ## 2026-11-27 — 20th-century sawmill
 
 - **Made:** `woodcutter_t4`, a 1950s plank sawmill shed with a corrugated roof, a ridge louvre, an open bay with a saw bench, and timber stacks. Made with ChatGPT; sheet saved as `assets-candidates/concepts/buildings/woodcutter-t4.png`. Built at outline IoU 0.955, 8.4 x 6.0 x 7.4 m.
