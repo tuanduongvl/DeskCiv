@@ -2,6 +2,19 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Firelight pool on the ground round the camp fire
+
+- **Changed:** `WorldView` has a new `_campGlow` multimesh: one `MeshKit.Glow()` additive disc, about 8 m radius, flickering, 0.12 m above the camp fire. It is shown only after dark (`_nightGlow > 0.15`) and hidden when the fire goes out.
+- **Verified:** `dotnet build` succeeds.
+- **Not verified on screen.** Four Godot shots at year 3, hour 23 did not frame the fire:
+  - `--focus` on the camp
+  - `--view`
+  - `--watch-dig`
+  - the default wild camera
+
+  The fixed camera azimuth looks from +Z, so the cave rock stands between the camera and the camp, which is 6 m in front of the mouth toward -Z.
+- **Open issue found:** at night with `--hour` the scene stays fairly bright ("moonlit"). Viewers likely see the wild camp from behind the rock. The camera should look at the cave mouth from its open side (azimuth by `CaveYaw`) when it frames the camp.
+
 ## 2026-11-27 — Wet foreshore at low tide
 
 - **Changed:** `WorldView` terrain shader. Ground below the high-water line is darkened toward wet mud, fading out between 0.08 and 0.3 m. Drained polders are excluded (`reclaim > 0`). Because the water plane covers this band at high tide, the dark mud strip widens and narrows with the tide.

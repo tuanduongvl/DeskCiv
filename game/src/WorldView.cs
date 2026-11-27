@@ -549,6 +549,7 @@ void fragment() {
     private MultiMesh _cave, _caveMouth, _hearth, _campfire;
     private Vector3? _campAt;
     private OmniLight3D _campLight;
+    private MultiMesh _campGlow;
     private float _nightGlow;
     private float _fireClock;
     private Node3D _glowNode;
@@ -685,6 +686,8 @@ void fragment() {
         _lanterns = AddInstances(MeshKit.Lantern(), _lanternMaterial, false, 64);
         _lampPools = AddInstances(MeshKit.Glow(), _glowMaterial, false, 64);
         _lampPoolNode = GetChildCount() - 1;
+        // A wide pool of firelight on the ground round the camp fire, seen from far out after dark.
+        _campGlow = AddInstances(MeshKit.Glow(), _glowMaterial, false, 1);
         // Image-made prop models carry their own textured material; the procedural fallbacks use vertex colours.
         Mesh well = MeshKit.Well(), fountain = MeshKit.Fountain(), tower = MeshKit.WaterTower();
         _wells = AddInstances(well, well.SurfaceGetMaterial(0) ?? vertexColors, false, 16, true);
@@ -988,6 +991,7 @@ void fragment() {
         if (_campAt is not Vector3 camp)
         {
             if (_campLight != null) _campLight.Visible = false;
+            if (_campGlow != null) _campGlow.VisibleInstanceCount = 0;
             _campfire.VisibleInstanceCount = 0;
             return;
         }
@@ -1003,6 +1007,9 @@ void fragment() {
         _campLight.Visible = _nightGlow > 0.15f;
         _campLight.Position = camp + new Vector3(0, 1.1f, 0);
         _campLight.LightEnergy = 1.6f + 0.35f * MathF.Sin(t * 7.3f) + 0.2f * MathF.Sin(t * 17.1f);
+        float pool = 4.2f + 0.25f * MathF.Sin(t * 5.3f) + 0.15f * MathF.Sin(t * 13.7f);
+        _campGlow.SetInstanceTransform(0, new Transform3D(Basis.Identity.Scaled(new Vector3(pool, 1, pool)), camp + new Vector3(0, 0.12f, 0)));
+        _campGlow.VisibleInstanceCount = _nightGlow > 0.15f ? 1 : 0;
         for (int k = 0; k < 3; k++)
         {
             float flicker = 0.75f + 0.25f * MathF.Sin(t * (6.1f + k * 1.9f) + k * 2.3f) + 0.1f * MathF.Sin(t * 14f + k);
