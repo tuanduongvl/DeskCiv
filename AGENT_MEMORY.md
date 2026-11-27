@@ -2,6 +2,24 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Quay fallback for slanted coasts (extra-seed sweep)
+
+- **Found:** a sweep of 6 extra seeds (2024, 5555, 31337, 99991, 123457, 777; full runs with the test night pattern) showed that 4 of them never built the quay (landmark 5). Where the coast runs slantwise, the line straight in from CenterX+41 meets only open sea and then a built-up bank. Mill shifts and train arrivals were fine on all 6.
+- **Changed:** `Simulation.PlaceLandmarks`. When the old quay search fails, a fallback scans tiles within 30 tiles (about 120 m) of the anchorage for a strip that meets all of these:
+  - five tiles long, along x or along z
+  - on the town's bank (river-side test)
+  - more than 11 m from the crowd point at CenterX+25
+  - at least 2 tiles of real water (height < 0.1, not the map edge) along one long side
+  - `LotFree`
+
+  The quay yaw faces that water.
+- **Verified:**
+  - All 6 sweep seeds now have every landmark, with the quay within about 60 m of the town centre.
+  - SimTests: ALL PASSED. The four test seeds are unchanged, because they use the original search.
+- **Not verified:**
+  - A Godot shot of seed 5555 at year 230 (focus 194,54) did not clearly show the quay. The `--start-year` fast-forward runs a different day/night pattern from the sweep, so the town differs.
+  - How the quay model looks when rotated ±90° has not been checked.
+
 ## 2026-11-27 — Update clip 19 published
 
 - **Done:** 0:34, 2.9 MB, three scenes:

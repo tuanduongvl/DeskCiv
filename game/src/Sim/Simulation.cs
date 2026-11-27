@@ -2478,6 +2478,40 @@ public sealed class Simulation
                     break;
                 }
         }
+        // Where the coast runs slantwise, that line may meet only open sea or a built-up bank: take the free strip
+        // along the water's edge nearest the anchorage instead (any stretch of bank, clear of the crowd).
+        if (Era >= 5 && !Has(5))
+        {
+            float qx = CenterX + 41, river = Map.RiverCenter(qx), side = MathF.Sign(CenterZ - river);
+            int qtx = (int)((qx + WorldMap.SizeX / 2) / Rules.TileSize);
+            int best = int.MaxValue, bx = 0, bz = 0, bhx = 0, bhz = 0;
+            float byaw = 0;
+            // A strip of five tiles along x or along z, with open water along one long side (the quay faces it).
+            (int ax, int az, int wx, int wz, float yaw)[] shapes = { (1, 0, 0, -1, MathF.PI), (1, 0, 0, 1, 0), (0, 1, 1, 0, MathF.PI / 2), (0, 1, -1, 0, -MathF.PI / 2) };
+            for (int z = cz - 45; z <= cz + 45; z++)
+            for (int x = cx - 45; x <= cx + 45; x++)
+            {
+                int d = (x - qtx) * (x - qtx) + (z - cz) * (z - cz);
+                // Within about 120 m of the anchorage; a quay far out of town would be no use.
+                if (d >= best || d > 30 * 30 || !InGrid(x, z)) continue;
+                (float lx, float lz) = TileCenter(x + z * Rules.TileNx);
+                // On the town's bank, and clear of the crowd that watches the ship come in.
+                if (MathF.Abs(lx - (CenterX + 25)) < 11 || MathF.Sign(lz - Map.RiverCenter(lx)) != MathF.Sign(CenterZ - Map.RiverCenter(CenterX))) continue;
+                foreach (var (ax, az, wx, wz, yaw) in shapes)
+                {
+                    int wet = 0;
+                    for (int k = -2; k <= 2; k++)
+                    {
+                        int ex = x + ax * k + wx, ez = z + az * k + wz;
+                        if (!InGrid(ex, ez)) continue;
+                        (float px, float pz) = TileCenter(ex + ez * Rules.TileNx);
+                        if (Map.Height(px, pz) < WorldMap.WaterLevel + 0.1f && MathF.Abs(px) < WorldMap.SizeX / 2 - 8 && MathF.Abs(pz) < WorldMap.SizeZ / 2 - 8) wet++;
+                    }
+                    if (wet >= 2 && LotFree(x, z, 2 * ax, 2 * az, false)) { (best, bx, bz, bhx, bhz, byaw) = (d, x, z, 2 * ax, 2 * az, yaw); break; }
+                }
+            }
+            if (best < int.MaxValue) AddLandmark(5, bx, bz, bhx, bhz, byaw);
+        }
         // A railway station in the 20th century, laid out like the factory: east-west, entrance facing the centre.
         // The line runs west along the row behind it into a tunnel in the hills, so the station goes where that row is
         // clear of buildings (the town's fringe, as real stations did). Without such a lot it stands alone, with no line.
