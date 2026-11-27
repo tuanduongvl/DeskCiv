@@ -2,6 +2,13 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Steam trail on the moving train: tried and reverted
+
+- **Tried:** Fable 13's idea of a steam trail behind the moving engine. A separate 8-instance `_trainSmoke` MultiMesh with the puff material, placed each frame at the chimney position from when each puff was born (a new `TrainX(clock)` helper).
+- **Result:** a debug print confirmed the instances were placed and visible (`vis=8`, positions near the engine). However, frames from a 50 s raw recording (seed 1000, year 320, focus 80,196) showed no steam above the moving engine. The cause was not found.
+- **Action:** the change was reverted (`git checkout` of `WorldView.cs`), so nothing was committed.
+- **Next time:** check whether a MultiMesh created after `_smoke` with the same `ShaderMaterial` renders at all; try a larger scale or density, or reuse `_smoke` slots.
+
 ## 2026-11-28 — mill_t4 retry: sheet saved, build stopped for low memory
 
 - **Done:** a simpler ChatGPT sheet for a 20th-century flour mill: a plain three-storey brick block with a timber hoist on the gable front and no silos. It overwrote `assets-candidates/concepts/buildings/mill-t4.png`; the dropped silo version is still in git history.
