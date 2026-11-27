@@ -2,6 +2,16 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Update clip 23 published
+
+- **Done:** about 40 s, 3.3 MB, four scenes:
+  - the cave dig at year 0.06, at night
+  - `--look` shots of the winery, gatherer and smithy at AD 1962
+
+  Published publicly (not made for kids) as "DeskCiv update 23 – a cave dug out by hand, and a 1950s winery, packing shed and forge": https://youtu.be/JiQzaemrWlw.
+- **Limitation:** at clip distance the boulder heap, packing shed and forge are hard to pick out. The description says so and points out the winery.
+- **Note:** the recording was run with `run_in_background` to avoid the 10-minute tool timeout.
+
 ## 2026-11-27 — 20th-century smithy
 
 - **Made:** `smithy_t4`, a 1950s village forge and agricultural-machinery workshop: brick walls, corrugated roof, a sliding door showing an anvil, a cart wheel, and a brick chimney at the back right. Made with ChatGPT; sheet saved as `assets-candidates/concepts/buildings/smithy-t4.png`. Built at outline IoU 0.94, 9.1 x 7.0 x 6.8 m.
