@@ -460,7 +460,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         for (int i = 0; i < _boats.Mesh.VisibleInstanceCount && n < _lights.InstanceCount; i++)
         {
             ref Agent b = ref _boats.Agents[i];
-            _lights.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.9f), new Vector3(b.X, 2.6f, b.Z)));
+            _lights.SetInstanceTransform(n, new Transform3D(Basis.Identity.Scaled(Vector3.One * 0.9f), new Vector3(b.X, Tide + 2.6f, b.Z)));
             _lights.SetInstanceColor(n++, lantern);
         }
         for (int which = 0; which < 2; which++)

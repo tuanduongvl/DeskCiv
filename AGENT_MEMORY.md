@@ -2,6 +2,22 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Fable review 11 fixes
+
+- **Changed:**
+  - `WorldView`: the camp-fire `OmniLight3D` is visible only after dark (`_nightGlow > 0.15`, taken from `SetNightGlow`), so by day there is no extra light pass in the compatibility renderer.
+  - `Simulation`:
+    - New `TrainArrivals` counter, incremented once per group that actually spawns at the station. SimTests asserts on it instead of the 64-entry event ring.
+    - The no-hunter check runs on every evaluation in the strike window; it no longer relies on `Tick == HuntStrike`.
+    - When the road link fails, `DikeOnField` retries with the next riverside field, up to 3 fields.
+    - The factory gate and station entrance tiles must be Free, Road or PlannedRoad. New `LinkGate` plans a road on the gate tile and a path to the nearest road, so the mill and station get a street and their gates are never built over.
+  - `Main`: the tide uses continuous UTC hours mod 1242 h, so there is no jump at New Year or a clock change.
+  - `Wildlife`: boat lanterns ride the tide.
+- **Verified:**
+  - SimTests: ALL PASSED. Mill shifts rose on 3 of 4 full seeds (1000: 3178→3464, 16838: 1051→2024, 72271: 3855→4522). All seeds keep every landmark and have train arrivals.
+  - Godot shot, seed 1000, year 320, focus 146,200: a paved street runs past the factory front.
+- **Not done:** Fable's other suggestions: elders settling on the step for longer (an earlier try perturbed the seeds), a wet mudflat band in the ground shader, and a ground glow disc for the fire. The camp-light GPU cost was not measured.
+
 ## 2026-11-27 — Update clip 18 published
 
 - **Done:** 0:40, 3.4 MB, four scenes:

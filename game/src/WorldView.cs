@@ -546,6 +546,7 @@ void fragment() {
     private MultiMesh _cave, _caveMouth, _hearth, _campfire;
     private Vector3? _campAt;
     private OmniLight3D _campLight;
+    private float _nightGlow;
     private float _fireClock;
     private Node3D _glowNode;
     private ImageTexture _wearTexture;
@@ -995,7 +996,8 @@ void fragment() {
             _campLight = new OmniLight3D { LightColor = new Color(1f, 0.62f, 0.3f), OmniRange = 10f, ShadowEnabled = false };
             AddChild(_campLight);
         }
-        _campLight.Visible = true;
+        // Only after dark: a positional light costs an extra pass on everything it touches.
+        _campLight.Visible = _nightGlow > 0.15f;
         _campLight.Position = camp + new Vector3(0, 1.1f, 0);
         _campLight.LightEnergy = 1.6f + 0.35f * MathF.Sin(t * 7.3f) + 0.2f * MathF.Sin(t * 17.1f);
         for (int k = 0; k < 3; k++)
@@ -1918,6 +1920,7 @@ void fragment() {
 
     public void SetNightGlow(float amount)
     {
+        _nightGlow = amount;
         // After dark the fishing boats come in to their moorings and the streets empty.
         if (_wildlife != null) _wildlife.Night = amount > 0.4f;
         _glowMaterial.AlbedoColor = new Color(1f, 0.68f, 0.28f) * Mathf.Clamp(amount, 0.05f, 1f) * 0.4f;

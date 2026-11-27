@@ -154,7 +154,7 @@ Parallel.For(0, fullSeeds.Length, n =>
         for (int kind = 0; kind <= 5; kind++)
             Check(s.Landmarks.Any(l => l.Kind == kind), $"full {fullSeeds[n]}: no landmark of kind {kind}");
         Check(s.ShiftsWorked > 0, $"full {fullSeeds[n]}: nobody ever worked a shift at the mill");
-        Check(s.Events.Any(e => e.Text.StartsWith("Newcomers step off")), $"full {fullSeeds[n]}: nobody ever came by train");
+        Check(s.TrainArrivals > 0, $"full {fullSeeds[n]}: nobody ever came by train");
         int roadTiles = Enumerable.Range(0, s.Tiles.Length).Count(i => s.Tiles[i] == TileKind.Road);
         Check(s.Pipes.Count(v => v >= 1) * 10 >= roadTiles * 7, $"full {fullSeeds[n]}: only {s.Pipes.Count(v => v >= 1)} of {roadTiles} road tiles got water mains");
     }

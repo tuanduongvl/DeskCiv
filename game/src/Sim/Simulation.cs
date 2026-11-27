@@ -46,6 +46,8 @@ public sealed class Simulation
     public int FireBuilding = -1, FiresStarted, FiresPutOut;
     /// <summary>Diagnostic: how many times a mill hand has walked in through the gate (not saved).</summary>
     public int ShiftsWorked;
+    /// <summary>Groups of newcomers who stepped off the train (a statistic, not saved).</summary>
+    public int TrainArrivals;
     public long FireAt = -1, FireEnd = -1;
     /// <summary>The railway: one tile row from a tunnel mouth in the western hills (RailX0) to just past the station (RailX1). -1 when none.</summary>
     public int RailRow = -1, RailX0, RailX1;
@@ -415,7 +417,7 @@ public sealed class Simulation
         if (Hunting && Tick >= HuntStrike && Tick < HuntStrike + 10)
         {
             // Nobody brings down a deer if no hunter turned up for the stalk.
-            if (Tick == HuntStrike && HuntWon)
+            if (HuntWon)
             {
                 bool any = false;
                 foreach (Person p in People) any |= p.Act == Act.Forage && p.A == 0;
@@ -1917,7 +1919,7 @@ public sealed class Simulation
     /// On a bank already lined with houses and fields, the village gives up a riverside field for the next stretch of
     /// dike: the dike takes the water-side row of the field and the rest is open ground again.
     /// </summary>
-    private bool DikeOnField()
+    private bool DikeOnField(List<int> skip = null)
     {
         int fields = 0, size = Rules.Footprint(BType.Dike), fieldSize = Rules.Footprint(BType.Field);
         Building chosen = null;
@@ -1926,6 +1928,7 @@ public sealed class Simulation
         {
             if (b.Type != BType.Field) continue;
             fields++;
+            if (skip != null && skip.Contains(b.Id)) continue;
             if (!b.Built || InPolder(b.TileX, b.TileZ)) continue;
             int fx = b.TileX + (fieldSize - size) / 2, fz = b.TileZ;
             float cx = (fx + size / 2f) * Rules.TileSize - WorldMap.SizeX / 2, cz = (fz + size / 2f) * Rules.TileSize - WorldMap.SizeZ / 2;
@@ -1966,7 +1969,10 @@ public sealed class Simulation
             for (int z = was.TileZ; z < was.TileZ + fieldSize; z++)
             for (int x = was.TileX; x < was.TileX + fieldSize; x++)
                 Tiles[x + z * Rules.TileNx] = TileKind.Field;
-            return false;
+            // Try the next riverside field, so one cut-off field does not block every conversion.
+            skip ??= new List<int>();
+            skip.Add(chosen.Id);
+            return skip.Count < 3 && DikeOnField(skip);
         }
         foreach (Person p in People)
             if (p.Job == chosen.Id) p.Job = -1;
@@ -2360,6 +2366,16 @@ public sealed class Simulation
         Log("The railway reaches the town: the first train pulls into the new station", gx, gz, 3);
     }
 
+    /// <summary>A street from a landmark's gate to the nearest road, so its gate tile is never built over.</summary>
+    private void LinkGate(int gate)
+    {
+        if (Tiles[gate] is not (TileKind.Free or TileKind.Road or TileKind.PlannedRoad)) return;
+        PlanRoad(gate);
+        int[] link = FindPath(gate, -1, true);
+        if (link != null)
+            foreach (int tile in link) PlanRoad(tile);
+    }
+
     private void AddLandmark(int kind, int x, int z, int hx, int hz, float yaw)
     {
         for (int dz = -hz; dz <= hz; dz++)
@@ -2427,12 +2443,16 @@ public sealed class Simulation
                 // The mill hands must be able to reach the gate, so it may not open onto the water's edge.
                 (float gx, float gz) = TileCenter(x + z * Rules.TileNx);
                 gz += (z < cz ? 1 : -1) * 2.3f * Rules.TileSize;
-                if (!Map.Walkable(gx, gz)) continue;
+                if (!Map.Walkable(gx, gz) || Tiles[TileAt(gx, gz)] is not (TileKind.Free or TileKind.Road or TileKind.PlannedRoad)) continue;
                 // ...nor stand across the river from the town, with no bridge to walk over.
                 if (MathF.Sign(gz - Map.RiverCenter(gx)) != MathF.Sign(CenterZ - Map.RiverCenter(CenterX))) continue;
                 (best, bx, bz) = (d, x, z);
             }
-            if (best < int.MaxValue) AddLandmark(3, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
+            if (best < int.MaxValue)
+            {
+                AddLandmark(3, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
+                LinkGate(bx + (bz + (bz < cz ? 2 : -2)) * Rules.TileNx);
+            }
         }
         // A quay from the Renaissance: the strip of bank just downstream of where the trading ship anchors and the crowd
         // watches (CenterX + 25), so nothing else is built where the quay stands.
@@ -2475,7 +2495,7 @@ public sealed class Simulation
                     if (d >= best || !InGrid(x, z + 2) || !InGrid(x, z - 2) || !LotFree(x, z, 3, 1, pass == 0)) continue;
                     // Passengers step out of the entrance, so it must open onto dry ground on the town's side of the river.
                     (float ex, float ez) = TileCenter(x + (z + (z < cz ? 2 : -2)) * Rules.TileNx);
-                    if (!Map.Walkable(ex, ez) || MathF.Sign(ez - Map.RiverCenter(ex)) != MathF.Sign(CenterZ - Map.RiverCenter(CenterX))) continue;
+                    if (!Map.Walkable(ex, ez) || Tiles[TileAt(ex, ez)] is not (TileKind.Free or TileKind.Road or TileKind.PlannedRoad) || MathF.Sign(ez - Map.RiverCenter(ex)) != MathF.Sign(CenterZ - Map.RiverCenter(CenterX))) continue;
                     if (pass < 2 && RailEnd(x + 4, z + (z < cz ? -2 : 2)) < 0) continue;
                     (best, bx, bz, line) = (d, x, z, pass < 2);
                 }
@@ -2483,6 +2503,7 @@ public sealed class Simulation
             if (best < int.MaxValue)
             {
                 AddLandmark(4, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
+                LinkGate(bx + (bz + (bz < cz ? 2 : -2)) * Rules.TileNx);
                 if (line) LayRail(bx, bz, bz + (bz < cz ? -2 : 2), bz < cz ? 1 : -1);
             }
         }
@@ -3219,6 +3240,7 @@ public sealed class Simulation
             if (!Map.Walkable(x, z) || Tiles[TileAt(x, z)] == TileKind.Building) (x, z) = (edgeX, edgeZ);
             Spawn(x, z, Random.R(16, 34), i % 2 == 0, -1);
             Migrants++;
+            if (byTrain && i == 0) TrainArrivals++;
         }
         Log(byTrain ? "Newcomers step off the train at the station" : "A group of newcomers arrives at the estuary", edgeX, edgeZ, 2);
     }
