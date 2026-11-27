@@ -2,6 +2,14 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — mill_t4 retry: sheet saved, build stopped for low memory
+
+- **Done:** a simpler ChatGPT sheet for a 20th-century flour mill: a plain three-storey brick block with a timber hoist on the gable front and no silos. It overwrote `assets-candidates/concepts/buildings/mill-t4.png`; the dropped silo version is still in git history.
+  - Chrome showed a "Confirm Save As" overwrite prompt. `PostMessage` IDYES and WM_CLOSE did nothing. `WScript.Shell` `AppActivate("Confirm Save As")` followed by Alt+Y worked.
+  - Next time, save to a new filename to avoid the prompt.
+- **Stopped:** the `make_building.ps1 -Name mill_t4 -Height 11` background run was stopped by Claude Code because system memory ran low while the session was idle. 17 GB was free afterwards. No `mill_t4` model was written, and the build was not restarted (standing rule: do not restart low-memory kills unless the user asks).
+- **To finish:** `tools\make_building.ps1 -Sheet assets-candidates\concepts\buildings\mill-t4.png -Name mill_t4 -Height 11`, then review the render.
+
 ## 2026-11-27 — Update clip 23 published
 
 - **Done:** about 40 s, 3.3 MB, four scenes:
