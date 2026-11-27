@@ -2,6 +2,16 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Update clip 19 published
+
+- **Done:** 0:34, 2.9 MB, three scenes:
+  - the cave camp at night with the firelight pool
+  - the estuary at low tide with the wet mud strip
+  - the mill street, AD 1962
+
+  Published publicly (not made for kids) as "DeskCiv update 19 – firelight at the cave, wet mud at low tide, streets to the mill": https://youtu.be/Z2EmQi8QPWM. The description lists the firelight pool, the camp light now being night-only, the camera avoiding the cave rock, the wet foreshore, the mill and station gate streets, the dike retry, the UTC tide and the train-arrival counter.
+- **Limitation:** the mud strip is thin at the clip's distance.
+
 ## 2026-11-27 — Camera avoids the cave rock; firelight pool seen
 
 - **Changed:** `Main.ClearAzimuth` now counts Blocked tiles (the hillside cave rock) as occluders, just like buildings. Camera shots of people near the wild camp now pick an angle that is not behind the rock.
