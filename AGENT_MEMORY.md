@@ -2,6 +2,18 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Mill reachable from town; quay finds a strip; tests guard both
+
+- **Cause:** on seed 40595 the factory was placed across the river from the town (gate at z 43, river at about z 87, town centre at z 178). Its gate was also on near-sea-level ground that is not walkable. With no way over, mill hands headed there but their paths failed, so they stood still: `ShiftsWorked` stayed at 0. The quay search (shift ≤ 20, back ≤ 2) also found no free strip, so no quay was ever built.
+- **Changed:**
+  - `Simulation.PlaceLandmarks`, factory: the candidate's gate point must be `Map.Walkable` and on the same side of the river as the town centre.
+  - Quay search widened to shift ≤ 40, back ≤ 4.
+  - `Wander`: the walk to the factory gate uses a 4000-expansion path search; other wandering keeps 300.
+  - `SimTests` full runs now require all six landmark kinds and at least one mill shift.
+- **Verified:**
+  - SimTests: ALL PASSED. All four full seeds now show landmarks 0+5+1+3+4+2. Seed 40595 went from 0 shifts to 2799.
+- **Limitation:** existing saves keep a mill already placed across the river.
+
 ## 2026-11-27 — Old folk on their doorsteps
 
 - **Changed:**

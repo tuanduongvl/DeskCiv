@@ -951,6 +951,7 @@ public sealed class Simulation
             if (Map.Walkable(px, pz) && Tiles[TileAt(px, pz)] is TileKind.Free or TileKind.Road) (cx, cz, radius) = (px, pz, 5);
         }
         // By day the old folk sit out on their doorstep and watch the street.
+        int reach = 300;
         bool doorstep = !Wild && !Night && p.Home >= 0 && p.Age >= 60 && Cosmetic.F() < 0.6f;
         if (doorstep) (cx, cz, radius) = (DoorPoint(Buildings[p.Home]).X, DoorPoint(Buildings[p.Home]).Z, 0.8f);
         if (p.Age >= 14 && p.Age < 60 && p.Job >= 0)
@@ -993,11 +994,13 @@ public sealed class Simulation
                 return;
             }
             (cx, cz, radius) = (gx, gz, hand ? 1.5f : 5);
+            // The mill may stand well out of town: allow a long search so the walk there finds a way.
+            reach = 4000;
         }
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         p.Act = Act.Wander;
         p.Timer = Cosmetic.R(3, 11);
-        if (Map.Walkable(x, z)) GoTo(p, x, z, 300);
+        if (Map.Walkable(x, z)) GoTo(p, x, z, reach);
     }
 
     private bool TryEat(Person p)
@@ -2420,7 +2423,14 @@ public sealed class Simulation
             for (int x = cx - 45; x <= cx + 45; x++)
             {
                 int d = (x - cx) * (x - cx) + (z - cz) * (z - cz);
-                if (d < best && LotFree(x, z, 3, 1, pass == 0)) (best, bx, bz) = (d, x, z);
+                if (d >= best || !InGrid(x, z) || !LotFree(x, z, 3, 1, pass == 0)) continue;
+                // The mill hands must be able to reach the gate, so it may not open onto the water's edge.
+                (float gx, float gz) = TileCenter(x + z * Rules.TileNx);
+                gz += (z < cz ? 1 : -1) * 2.3f * Rules.TileSize;
+                if (!Map.Walkable(gx, gz)) continue;
+                // ...nor stand across the river from the town, with no bridge to walk over.
+                if (MathF.Sign(gz - Map.RiverCenter(gx)) != MathF.Sign(CenterZ - Map.RiverCenter(CenterX))) continue;
+                (best, bx, bz) = (d, x, z);
             }
             if (best < int.MaxValue) AddLandmark(3, bx, bz, 3, 1, bz < cz ? 0 : MathF.PI);
         }
@@ -2436,8 +2446,8 @@ public sealed class Simulation
                     int tx = tile % Rules.TileNx, tz = tile / Rules.TileNx;
                     // Nearest free strip: along the bank first, then a row or two further inland.
                     bool placed = false;
-                    for (int back = 0; back <= 2 && !placed; back++)
-                    for (int shift = 0; shift <= 20 && !placed; shift++)
+                    for (int back = 0; back <= 4 && !placed; back++)
+                    for (int shift = 0; shift <= 40 && !placed; shift++)
                     {
                         int x = tx + (shift % 2 == 0 ? shift / 2 : -(shift + 1) / 2), z = tz + (side > 0 ? back : -back);
                         // Keep clear of the crowd at CenterX + 25: the 18 m quay must start downstream of it.

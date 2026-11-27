@@ -151,6 +151,9 @@ Parallel.For(0, fullSeeds.Length, n =>
         Check(s.Buildings.Where(b => b.Type != BType.Hut && b.Type != BType.Storehouse).All(b => Eras.UnlockEra(b.Type) <= s.Era), $"full {fullSeeds[n]}: locked building");
         for (int i = 0; i < (int)BType.Count; i++)
             Check(s.Count((BType)i, true) > 0, $"full {fullSeeds[n]}: never built {(BType)i}");
+        for (int kind = 0; kind <= 5; kind++)
+            Check(s.Landmarks.Any(l => l.Kind == kind), $"full {fullSeeds[n]}: no landmark of kind {kind}");
+        Check(s.ShiftsWorked > 0, $"full {fullSeeds[n]}: nobody ever worked a shift at the mill");
         int roadTiles = Enumerable.Range(0, s.Tiles.Length).Count(i => s.Tiles[i] == TileKind.Road);
         Check(s.Pipes.Count(v => v >= 1) * 10 >= roadTiles * 7, $"full {fullSeeds[n]}: only {s.Pipes.Count(v => v >= 1)} of {roadTiles} road tiles got water mains");
     }
