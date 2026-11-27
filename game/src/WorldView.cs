@@ -130,6 +130,9 @@ void fragment() {
             c = mix(c, stone, kerb * 0.9);
         }
     }
+    // The foreshore below the high-water line stays wet: dark mud that the falling tide uncovers (not drained polders).
+    float foreshore = (1.0 - smoothstep(0.08, 0.3, world_pos.y)) * step(reclaim, 0.0);
+    c = mix(c, mix(c, vec3(0.3, 0.27, 0.21), 0.55) * 0.72, foreshore * 0.85);
     // Wet ground darkens in rain; drifting cloud shadows dim the sunlit land.
     c = mix(c, c * vec3(0.7, 0.72, 0.76), rain * 0.65);
     float cloud = texture(noise_tex, world_pos.xz / 300.0 + TIME * vec2(0.0035, 0.002)).r;

@@ -2,6 +2,12 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-27 — Wet foreshore at low tide
+
+- **Changed:** `WorldView` terrain shader. Ground below the high-water line is darkened toward wet mud, fading out between 0.08 and 0.3 m. Drained polders are excluded (`reclaim > 0`). Because the water plane covers this band at high tide, the dark mud strip widens and narrows with the tide.
+- **Verified:** `dotnet build` succeeds. Godot shots, seed 1000, year 3, estuary mouth (230,120): at hour 12.4 (high water) only a thin edge shows; at hour 17.2 (low water) a clear dark-brown mud strip runs along both banks.
+- **Limitation:** the terrain shader has specular disabled, so the mud is darker but not glossy.
+
 ## 2026-11-27 — Fable review 11 fixes
 
 - **Changed:**
