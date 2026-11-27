@@ -11,7 +11,8 @@ Hand-off record shared between agents. Newest entries first. Do not overwrite pr
   - mains coverage at least 80%
 - **Open issue 1, seed 31337 has no quay:** this is the same seed the quay fallback fixed earlier; later sim changes moved its town. At year 212 the whole bank within reach of the anchorage (CenterX+25) is fields and roads; the map shows the field ("5") and road ("3") tiles right against the water. No free strip qualifies.
   - Possible fix: let the quay take over a riverside field, the way `DikeOnField` does, or reserve the strip before farming fills the bank.
-- **Open issue 2, seed 101 never builds a TideGate:** not investigated yet. It is likely the same crowded-bank cause as the earlier 72271 case.
+- **Open issue 2, seed 101 never builds a TideGate:** investigated afterwards. Seed 101 has only 1 dike all game, and the TideGate is only wanted once there are 2 or more dikes. Neither `FindBankSite` nor `DikeOnField` places a second dike. The `DikeOnField` field floor is not the cause: a test with 4 + pop/40 changed nothing, so it was reverted. Likely no unbusy field lies within 26 m of the water. Not fixed.
+- **Code-structure note:** the sim cannot remove a building, so a quay taking over a field needs either a conversion scheme like `DikeOnField` or a removal mechanism.
 - **Coverage:** neither seed is in the SimTests full set.
 
 ## 2026-11-28 — Steam trail on the moving train: tried and reverted
