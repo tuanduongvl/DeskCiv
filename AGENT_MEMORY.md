@@ -2,6 +2,10 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 15:45 — Neolithic dugout canoes
+- Files: game/src/MeshKit.cs (new `Dugout()`: hollowed log, kneeling paddler with paddle, small catch, no sail), game/src/Wildlife.cs (`SetEra` swaps the fishing-boat mesh to the dugout before the Bronze Age and back to the boat model after, tracked by `_dugout`; `ReloadModels` respects it; dugout drawn at size 1, no draft offset).
+- Behaviour: the two New Stone Age boats are now dugouts instead of the sailing boat scaled down (the limitation noted for clip 27/28).
+- Verification: build OK; shot seed 1000, year 60, 10:00, --view=200,110,60 shows a sail-less dugout with a paddler. Not checked: the switch back to sailing boats on reaching the Bronze Age in a running session (code path only).
 ## 2026-11-28 15:20 — Cargo barges on the estuary (Fable #16 backlog)
 - Files: game/src/MeshKit.cs (new `Barge()` mesh: flat hull, sacks, barrels, small sail, steering oar), game/src/Wildlife.cs (`_barges` flock, `StepBarges`, count in `ApplyCounts`).
 - Behaviour: from the Renaissance (era 5) on, 1 + huts/40 barges (at most 3) move slowly (1.1 m/s) up and down their own lanes of the channel between upstream of the village and the coast. They stop at night where they are and are hidden when the river freezes.

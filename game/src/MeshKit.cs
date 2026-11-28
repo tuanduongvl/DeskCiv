@@ -936,6 +936,21 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A Neolithic dugout canoe facing local +Z: a hollowed log with a paddler kneeling near the stern, no sail.</summary>
+    public static ArrayMesh Dugout()
+    {
+        var m = new MeshKit();
+        Color log = new(0.36f, 0.25f, 0.15f), inside = new(0.55f, 0.4f, 0.24f), skin = new(0.72f, 0.52f, 0.38f), hide = new(0.48f, 0.36f, 0.24f);
+        m.Box(new Vector3(0, 0.25f, 0), new Vector3(0.95f, 0.5f, 4.6f), log).Box(new Vector3(0, 0.27f, 2.55f), new Vector3(0.6f, 0.4f, 0.6f), log, 0.6f).Box(new Vector3(0, 0.27f, -2.55f), new Vector3(0.6f, 0.4f, 0.6f), log, 0.6f);
+        m.Box(new Vector3(0, 0.49f, 0), new Vector3(0.7f, 0.03f, 4.1f), inside);
+        // Paddler: a kneeling body, head, and a paddle reaching into the water on one side.
+        m.Box(new Vector3(0, 0.75f, -1.2f), new Vector3(0.45f, 0.55f, 0.35f), hide).Box(new Vector3(0, 1.15f, -1.2f), new Vector3(0.24f, 0.26f, 0.24f), skin);
+        m.Beam(new Vector3(0.25f, 1.1f, -1.0f), new Vector3(0.75f, -0.1f, -1.7f), 0.05f, log.Darkened(0.2f));
+        // A small catch in the bow.
+        m.Box(new Vector3(0, 0.58f, 1.3f), new Vector3(0.4f, 0.15f, 0.7f), new Color(0.6f, 0.62f, 0.6f));
+        return m.Build();
+    }
+
     /// <summary>A long, low river barge facing local +Z: a flat hull piled with sacks and barrels, a steering oar and a small sail.</summary>
     public static ArrayMesh Barge()
     {

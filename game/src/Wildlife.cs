@@ -207,10 +207,20 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     }
 
     private int _era, _fields, _fishers, _huts;
+    private bool _dugout;
 
     /// <summary>Farm animals appear with farming and sailing boats with the Bronze Age. Deer and gulls are always wild.</summary>
     public void SetEra(int era)
     {
+        // Neolithic fishers paddle dugouts; sailing boats come with the Bronze Age.
+        if (_boats != null && (era < 2) != _dugout)
+        {
+            _dugout = era < 2;
+            Mesh boat = era < 2 ? MeshKit.Dugout() : (Mesh)Real("boat") ?? MeshKit.Boat();
+            _boats.Mesh.Mesh = boat;
+            ApplyLook(_boats.Material, boat);
+            _boatDraft = era >= 2 && Real("boat") != null ? 0.55f : 0f;
+        }
         _era = era;
         ApplyCounts();
     }
@@ -271,9 +281,10 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         }
         ArrayMesh boat = Real("boat");
         _boatDraft = boat != null ? 0.55f : 0f;
-        _boats.Mesh.Mesh = (Mesh)boat ?? MeshKit.Boat();
+        _boats.Mesh.Mesh = _dugout ? MeshKit.Dugout() : (Mesh)boat ?? MeshKit.Boat();
+        if (_dugout) _boatDraft = 0f;
         ApplyLook(_boats.Material, _boats.Mesh.Mesh);
-        _trader.Mesh.Mesh = _boats.Mesh.Mesh;
+        _trader.Mesh.Mesh = (Mesh)boat ?? MeshKit.Boat();
         ApplyLook(_trader.Material, _trader.Mesh.Mesh);
     }
 
@@ -746,7 +757,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             b.Z = z;
             b.Yaw = heading;
             // Neolithic fishers go out in small boats, about half the size of the later fishing boats.
-            float size = _era < 2 ? 0.6f : 1.15f;
+            float size = _era < 2 ? 1f : 1.15f;
             Write(_boats.Buffer, i, size, heading, b.X, Tide + 0.03f - _boatDraft * size / 1.15f, z, moving, b.Phase);
         }
         _boats.Mesh.Buffer = _boats.Buffer;
