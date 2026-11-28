@@ -936,6 +936,21 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A long, low river barge facing local +Z: a flat hull piled with sacks and barrels, a steering oar and a small sail.</summary>
+    public static ArrayMesh Barge()
+    {
+        var m = new MeshKit();
+        Color hull = new(0.33f, 0.23f, 0.15f), deck = new(0.5f, 0.38f, 0.24f), sack = new(0.78f, 0.7f, 0.5f), barrel = new(0.45f, 0.3f, 0.18f), sail = new(0.82f, 0.62f, 0.45f);
+        m.Box(new Vector3(0, 0.35f, 0), new Vector3(2.6f, 0.7f, 9f), hull).Box(new Vector3(0, 0.4f, 4.9f), new Vector3(2f, 0.55f, 0.9f), hull, 0.75f);
+        m.Box(new Vector3(0, 0.72f, 0), new Vector3(2.3f, 0.05f, 8.4f), deck);
+        foreach (float z in new[] { -2.6f, -1.2f, 1.2f, 2.6f }) m.Box(new Vector3(0, 1.05f, z), new Vector3(1.9f, 0.6f, 1.2f), sack);
+        foreach (float x in new[] { -0.5f, 0.5f }) m.Prism(new Vector3(x, 0.75f, 0), 0.34f, 0.34f, 0.8f, 8, barrel);
+        m.Box(new Vector3(0, 2.4f, 3.6f), new Vector3(0.12f, 3.4f, 0.12f), hull.Darkened(0.2f));
+        m.Panel(new Vector3(0.08f, 1.5f, 2.3f), new Vector3(0.08f, 1.5f, 3.55f), Vector3.Up, 2.2f, sail);
+        m.Beam(new Vector3(0, 1.2f, -4.4f), new Vector3(0, 0.2f, -6f), 0.08f, hull.Darkened(0.2f));
+        return m.Build();
+    }
+
     public static ArrayMesh Person()
     {
         var m = new MeshKit();

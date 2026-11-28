@@ -60,7 +60,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     private readonly float _centerX, _centerZ;
     private readonly Random _random;
     private Flock[] _herds = Array.Empty<Flock>();
-    private Flock _gulls, _boats, _trader, _skaters, _carts, _lorries;
+    private Flock _gulls, _boats, _trader, _skaters, _carts, _lorries, _barges;
     /// <summary>True while a trading ship visits (from the simulation); it sails in, anchors off the village, then leaves.</summary>
     public bool TraderVisiting { get; set; }
     private bool _frozen, _night;
@@ -164,6 +164,17 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         _trader = AddFlock(realBoat ?? MeshKit.Boat(), 1, 2);
         _trader.Agents[0].X = _map.CoastX(_centerZ) + 175;
         _trader.Mesh.VisibleInstanceCount = 0;
+        // From the Renaissance, slow cargo barges carry goods up and down the estuary past the village.
+        _barges = AddFlock(MeshKit.Barge(), 3, 2);
+        _barges.Mesh.VisibleInstanceCount = 0;
+        for (int i = 0; i < _barges.Agents.Length; i++)
+        {
+            ref Agent b = ref _barges.Agents[i];
+            b.X = Mathf.Lerp(_centerX - 80, _map.CoastX(_centerZ) + 100, (i + R()) / _barges.Agents.Length);
+            b.TX = i % 2 == 0 ? 1 : -1;
+            b.HomeZ = i % 2 == 0 ? -0.3f : 0.3f;
+            b.Phase = R(0, 10);
+        }
         // Skaters circle on the frozen river off the village in a harsh winter.
         _skaters = AddFlock(MeshKit.Skater(), 8, 2);
         // Horse carts from the Middle Ages and lorries in the 20th century drive along the streets (style 3: rigid).
@@ -220,6 +231,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         for (int i = 0; i < 3; i++) _herds[i].Mesh.VisibleInstanceCount = farming ? Math.Clamp(wanted[i], 0, _herds[i].Agents.Length) : 0;
         _boats.Mesh.VisibleInstanceCount = _frozen ? 0 : _era >= 2 ? Math.Clamp(_fishers, 1, _boats.Agents.Length) : _era == 1 ? Math.Min(2, _boats.Agents.Length) : 0;
         if (_skaters != null) _skaters.Mesh.VisibleInstanceCount = _frozen ? _skaters.Agents.Length : 0;
+        if (_barges != null) _barges.Mesh.VisibleInstanceCount = _frozen || _era < 5 ? 0 : Math.Min(_barges.Agents.Length, 1 + _huts / 40);
         if (_carts != null)
         {
             // Fewer on the roads in winter; from the Bronze Age a few slow ox carts, horse carts from the Middle Ages.
@@ -431,6 +443,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         foreach (Flock herd in _herds) StepHerd(herd, delta, tiles);
         StepGulls(delta);
         StepBoats(delta);
+        StepBarges(delta);
         StepSkaters(delta);
         StepGeese();
         StepTrader(delta);
@@ -737,6 +750,25 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             Write(_boats.Buffer, i, size, heading, b.X, Tide + 0.03f - _boatDraft * size / 1.15f, z, moving, b.Phase);
         }
         _boats.Mesh.Buffer = _boats.Buffer;
+    }
+
+    /// <summary>Barges drift slowly along their own lane by day and lie still at night, wherever they are.</summary>
+    private void StepBarges(float delta)
+    {
+        if (_barges.Mesh.VisibleInstanceCount == 0) return;
+        float far = _map.CoastX(_centerZ) + 150, near = Math.Max(_centerX - 110, -WorldMap.SizeX / 2 + 30);
+        for (int i = 0; i < _barges.Mesh.VisibleInstanceCount; i++)
+        {
+            ref Agent b = ref _barges.Agents[i];
+            float moving = _night ? 0 : 1;
+            b.X += b.TX * 1.1f * moving * delta;
+            if (b.X > far) b.TX = -1;
+            if (b.X < near) b.TX = 1;
+            float heading = b.TX > 0 ? MathF.PI / 2 : -MathF.PI / 2;
+            float z = _map.RiverCenter(b.X) + (10f + WorldMap.EstuaryWidth(b.X) * 0.8f) * b.HomeZ;
+            Write(_barges.Buffer, i, 1f, heading, b.X, Tide + 0.03f, z, moving, b.Phase);
+        }
+        _barges.Mesh.Buffer = _barges.Buffer;
     }
 
     private static float LerpAngle(float from, float to, float t)
