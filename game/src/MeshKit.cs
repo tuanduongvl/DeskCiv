@@ -77,6 +77,24 @@ public sealed class MeshKit
         return this;
     }
 
+    /// <summary>A round piece from <paramref name="a"/> to <paramref name="b"/> (radius r0 at a, r1 at b), with end caps.</summary>
+    public MeshKit Cylinder(Vector3 a, Vector3 b, float r0, float r1, int sides, Color color, Color? caps = null)
+    {
+        Vector3 axis = (b - a).Normalized();
+        Vector3 u = MathF.Abs(axis.Y) > 0.9f ? axis.Cross(Vector3.Right).Normalized() : axis.Cross(Vector3.Up).Normalized();
+        Vector3 v = axis.Cross(u).Normalized(), inside = (a + b) / 2;
+        Color cap = caps ?? color;
+        for (int i = 0; i < sides; i++)
+        {
+            float a0 = i * MathF.Tau / sides, a1 = (i + 1) * MathF.Tau / sides;
+            Vector3 d0 = u * MathF.Cos(a0) + v * MathF.Sin(a0), d1 = u * MathF.Cos(a1) + v * MathF.Sin(a1);
+            Quad(inside, a + d0 * r0, a + d1 * r0, b + d1 * r1, b + d0 * r1, color);
+            if (r0 > 0.001f) Face(inside, a, a + d0 * r0, a + d1 * r0, cap);
+            if (r1 > 0.001f) Face(inside, b, b + d0 * r1, b + d1 * r1, cap);
+        }
+        return this;
+    }
+
     public MeshKit Gable(Vector3 center, float width, float depth, float height, Color color)
     {
         float w = width / 2, d = depth / 2;
@@ -758,17 +776,35 @@ public sealed class MeshKit
         switch (res)
         {
             case Res.Wood:
-                for (int i = 0; i < 3; i++) m.Box(new Vector3(-0.2f + i * 0.2f, 1.08f + (i == 1 ? 0.14f : 0), 0.42f), new Vector3(0.19f, 0.19f, 1.25f), new Color(0.5f, 0.34f, 0.2f));
+                // Three round logs, two below and one on top, bark brown with pale cut ends.
+                foreach ((float x, float y, float r) in new[] { (-0.11f, 1.06f, 0.1f), (0.11f, 1.06f, 0.11f), (0f, 1.24f, 0.1f) })
+                    m.Cylinder(new Vector3(x, y, -0.2f), new Vector3(x, y, 1.05f), r, r * 0.92f, 8, new Color(0.42f, 0.3f, 0.19f), new Color(0.8f, 0.64f, 0.42f));
                 break;
             case Res.Stone:
-                m.Box(hands, new Vector3(0.52f, 0.34f, 0.42f), Rock).Box(hands + new Vector3(0.08f, 0.24f, 0), new Vector3(0.3f, 0.18f, 0.28f), Rock.Lightened(0.1f));
+                // A rough block: overlapping turned chunks in slightly different greys read as one faceted stone.
+                m.Box(hands, new Vector3(0.46f, 0.3f, 0.38f), Rock, 0.2f).Box(hands + new Vector3(0.05f, 0.08f, -0.04f), new Vector3(0.38f, 0.26f, 0.34f), Rock.Lightened(0.06f), 0.75f);
+                m.Box(hands + new Vector3(-0.08f, 0.16f, 0.05f), new Vector3(0.26f, 0.16f, 0.24f), Rock.Darkened(0.08f), -0.4f);
+                m.Box(hands + new Vector3(0.12f, -0.02f, 0.12f), new Vector3(0.18f, 0.22f, 0.2f), Rock.Lightened(0.12f), 1.1f);
                 break;
             case Res.Berries:
-                m.Prism(hands + Vector3.Down * 0.18f, 0.22f, 0.3f, 0.3f, 9, Thatch).Prism(hands + Vector3.Up * 0.1f, 0.27f, 0.08f, 0.13f, 8, new Color(0.66f, 0.17f, 0.32f));
+                // A basket heaped with single berries (red, dark purple, blue) and a few leaves.
+                m.Prism(hands + Vector3.Down * 0.18f, 0.22f, 0.3f, 0.28f, 10, Thatch.Darkened(0.1f)).Prism(hands + Vector3.Up * 0.08f, 0.31f, 0.31f, 0.04f, 10, Thatch.Darkened(0.35f), false);
+                Color[] berries = { new(0.7f, 0.12f, 0.18f), new(0.32f, 0.1f, 0.3f), new(0.22f, 0.24f, 0.5f), new(0.8f, 0.2f, 0.22f) };
+                for (int i = 0; i < 26; i++)
+                {
+                    float a = i * 2.399963f, r = 0.26f * MathF.Sqrt((i + 0.5f) / 26f), y = 0.1f + 0.1f * (1 - r / 0.26f);
+                    Vector3 at = hands + new Vector3(MathF.Cos(a) * r, y, MathF.Sin(a) * r);
+                    m.Prism(at, 0.045f, 0.03f, 0.05f, 6, berries[i % 4]).Prism(at + Vector3.Up * 0.05f, 0.03f, 0f, 0.025f, 6, berries[i % 4].Lightened(0.08f));
+                }
+                foreach (float a in new[] { 0.6f, 2.8f, 4.6f }) m.Box(hands + new Vector3(MathF.Cos(a) * 0.2f, 0.17f, MathF.Sin(a) * 0.2f), new Vector3(0.14f, 0.015f, 0.07f), new Color(0.26f, 0.46f, 0.2f), a);
                 break;
             case Res.Fish:
-                m.Box(hands, new Vector3(0.5f, 0.1f, 0.34f), new Color(0.48f, 0.34f, 0.2f));
-                for (int i = 0; i < 3; i++) m.Box(hands + new Vector3(-0.15f + i * 0.15f, 0.1f, 0), new Vector3(0.11f, 0.1f, 0.5f), new Color(0.55f, 0.69f, 0.76f));
+                // A shallow wicker basket with three fish laid across it, heads and tails over the rim.
+                m.Prism(hands + Vector3.Down * 0.12f, 0.24f, 0.3f, 0.2f, 10, Thatch.Darkened(0.1f));
+                m.Prism(hands + Vector3.Up * 0.06f, 0.31f, 0.31f, 0.04f, 10, Thatch.Darkened(0.35f), false);
+                m.Fish(hands + new Vector3(0.03f, 0.1f, -0.15f), 1.5f, 0.5f);
+                m.Fish(hands + new Vector3(-0.04f, 0.1f, 0.0f), -1.62f, 0.54f);
+                m.Fish(hands + new Vector3(0.02f, 0.1f, 0.15f), 1.66f, 0.46f);
                 break;
             case Res.Grain:
                 m.Prism(hands + Vector3.Down * 0.2f, 0.25f, 0.32f, 0.36f, 8, new Color(0.84f, 0.7f, 0.33f)).Prism(hands + Vector3.Up * 0.16f, 0.32f, 0.08f, 0.24f, 8, new Color(0.9f, 0.77f, 0.38f));
@@ -784,7 +820,11 @@ public sealed class MeshKit
                 break;
             case Res.Meat:
                 // A haunch of venison with the bone end showing.
-                m.Box(hands, new Vector3(0.38f, 0.3f, 0.72f), new Color(0.5f, 0.24f, 0.18f)).Box(hands + new Vector3(0, 0.04f, 0.46f), new Vector3(0.1f, 0.1f, 0.3f), new Color(0.86f, 0.8f, 0.7f));
+                Color flesh = new(0.55f, 0.22f, 0.17f), fat = new(0.86f, 0.74f, 0.62f), bone = new(0.9f, 0.86f, 0.76f);
+                m.Cylinder(hands + new Vector3(0, 0, -0.34f), hands + new Vector3(0, 0.02f, 0.06f), 0.12f, 0.2f, 9, flesh, fat);
+                m.Cylinder(hands + new Vector3(0, 0.02f, 0.06f), hands + new Vector3(0, 0.04f, 0.3f), 0.2f, 0.07f, 9, flesh.Darkened(0.08f), fat);
+                m.Cylinder(hands + new Vector3(0, 0.04f, 0.28f), hands + new Vector3(0, 0.05f, 0.5f), 0.04f, 0.035f, 6, bone);
+                m.Cylinder(hands + new Vector3(0, 0.05f, 0.48f), hands + new Vector3(0, 0.05f, 0.56f), 0.06f, 0.05f, 6, bone);
                 break;
             case Res.Tools:
                 m.Box(hands, new Vector3(0.5f, 0.12f, 0.4f), Timber);
@@ -796,6 +836,27 @@ public sealed class MeshKit
                 break;
         }
         return m.Build();
+    }
+
+    /// <summary>A fish lying flat, head toward <paramref name="yaw"/>: a body tapering to a forked tail, dark back, silver belly, eyes.</summary>
+    public MeshKit Fish(Vector3 centre, float yaw, float length)
+    {
+        Vector3 along = new(MathF.Sin(yaw), 0, MathF.Cos(yaw)), side = new(along.Z, 0, -along.X);
+        Color back = new(0.36f, 0.45f, 0.5f), belly = new(0.8f, 0.82f, 0.8f), fin = new(0.42f, 0.44f, 0.42f);
+        float[] widths = { 0.07f, 0.11f, 0.12f, 0.1f, 0.075f, 0.05f, 0.035f };
+        for (int k = 0; k < widths.Length; k++)
+        {
+            float t = (0.5f - (k + 0.5f) / widths.Length) * length * 0.82f;
+            float w = widths[k] * length * 1.9f, seg = length * 0.82f / widths.Length * 1.05f;
+            Vector3 c = centre + along * t;
+            Box(c, new Vector3(w, 0.06f * length * 1.9f, seg), belly, yaw);
+            Box(c + Vector3.Up * 0.035f * length * 1.9f, new Vector3(w * 0.7f, 0.03f * length * 1.9f, seg), back, yaw);
+        }
+        Vector3 tail = centre - along * length * 0.45f;
+        Box(tail + side * 0.04f * length, new Vector3(0.025f, 0.02f, 0.16f * length), fin, yaw + 0.55f);
+        Box(tail - side * 0.04f * length, new Vector3(0.025f, 0.02f, 0.16f * length), fin, yaw - 0.55f);
+        Box(centre + along * length * 0.3f + Vector3.Up * 0.03f * length, new Vector3(widths[1] * length * 2.0f, 0.025f, 0.025f), new Color(0.08f, 0.08f, 0.08f), yaw);
+        return this;
     }
 
     public static ArrayMesh Crops()

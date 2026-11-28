@@ -175,6 +175,13 @@ void fragment() {
             _azimuth = _azimuthTarget = Mathf.DegToRad((float)Number(args, "--azimuth", 0));
             _manual = true;
             _manualUntil = double.MaxValue;
+            // --preview-load=Fish puts that carried load, three times life size, at the view's focus (for checking props).
+            if (Option(args, "--preview-load", null) is string load && Enum.TryParse(load, true, out Res res))
+                AddChild(new MeshInstance3D
+                {
+                    Mesh = MeshKit.Load(res), Position = _focus + Vector3.Down * 2.2f, Scale = Vector3.One * 3,
+                    MaterialOverride = new StandardMaterial3D { VertexColorUseAsAlbedo = true },
+                });
         }
         UpdateCamera(0);
         UpdateSun();
