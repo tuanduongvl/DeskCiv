@@ -953,6 +953,7 @@ public sealed class Simulation
             if (Map.Walkable(px, pz) && Tiles[TileAt(px, pz)] is TileKind.Free or TileKind.Road) (cx, cz, radius) = (px, pz, 5);
         }
         // By day the old folk sit out on their doorstep and watch the street.
+        p.Phase = 0;
         int reach = 300;
         bool doorstep = !Wild && !Night && p.Home >= 0 && p.Age >= 60 && Cosmetic.F() < 0.6f;
         if (doorstep) (cx, cz, radius) = (DoorPoint(Buildings[p.Home]).X, DoorPoint(Buildings[p.Home]).Z, 0.8f);
@@ -1001,21 +1002,29 @@ public sealed class Simulation
         }
         // Before piped water (until the Industrial era) a woman with time on her hands often washes clothes at the water's edge
         // below her home: she walks to the bank and kneels there (drawn with the gathering pose).
-        p.Phase = 0;
+        bool washing = false;
         if (!Wild && !Night && Era >= 1 && Era < 6 && p.Female && p.Age >= 16 && p.Age < 60 && p.Home >= 0
             && p.Role is not (Role.Porter or Role.Builder) && Tick >= GatherUntil && Cosmetic.F() < 0.3f
             && WashingSpot(Buildings[p.Home]) is (float wx, float wz))
         {
             (cx, cz, radius) = (wx, wz, 1.2f);
-            p.Phase = WashPhase;
+            washing = true;
             reach = 4000;
         }
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
+        // At the bank she kneels on the spot itself, not a step towards the water.
+        if (washing && !Map.Walkable(x, z)) (x, z) = (cx, cz);
         p.Act = Act.Wander;
         p.Timer = Cosmetic.R(3, 11);
+        // A washer stays at the bank a good while once she gets there (the timer only runs on arrival).
+        if (washing) p.Timer *= 4f;
         // An old villager already on the doorstep stays put rather than shuffling about.
         bool settled = doorstep && cx == DoorPoint(Buildings[p.Home]).X && Dist2(p.X, p.Z, cx, cz) < 1.2f * 1.2f;
-        if (Map.Walkable(x, z) && !settled) GoTo(p, x, z, reach);
+        if (Map.Walkable(x, z) && !settled)
+        {
+            GoTo(p, x, z, reach);
+            if (washing) p.Phase = WashPhase;
+        }
     }
 
     private bool TryEat(Person p)
@@ -1813,6 +1822,7 @@ public sealed class Simulation
                     if (partner.Act is Act.Idle or Act.Wander)
                     {
                         partner.Act = Act.Wander;
+                        partner.Phase = 0;
                         partner.Timer = 60f;
                         GoTo(partner, wx + (partner.Female ? 0.7f : -0.7f), wz);
                     }
@@ -2223,6 +2233,7 @@ public sealed class Simulation
         chosen.Built = false;
         chosen.Progress = 0;
         chosen.Yield = 0;
+        (chosen.Sown, chosen.Growth) = (false, 0);
         for (int z = hz; z < hz + hutSize; z++)
         for (int x = hx; x < hx + hutSize; x++)
         {
@@ -2564,8 +2575,8 @@ public sealed class Simulation
                 bool busy = false;
                 for (int r = 0; r < b.In.Length && !busy; r++) busy = b.In[r] != 0 || b.Out[r] != 0 || b.Stock[r] != 0;
                 foreach (Person p in People)
-                    if (p.A == b.Id || p.B == b.Id || p.Home == b.Id) { busy = true; break; }
-                if (busy) continue;
+                    if ((p.Job == b.Id && p.Act == Act.Work) || p.A == b.Id || p.B == b.Id || p.Home == b.Id) { busy = true; break; }
+                if (busy || b.Yield > 0) continue;
                 // Strip centre, half sizes, step to the water, quay yaw, and the corner left for the house.
                 (int cx2, int cz2, int hx, int hz, int wx, int wz, float yaw, int ux, int uz, int ud)[] sides =
                 {
@@ -2641,8 +2652,8 @@ public sealed class Simulation
         {
             // The free lot nearest the water tower, within 10 tiles.
             int best = int.MaxValue, bx = 0, bz = 0;
-            for (int dz = -10; dz <= 10; dz++)
-            for (int dx = -10; dx <= 10; dx++)
+            for (int dz = -16; dz <= 16; dz++)
+            for (int dx = -16; dx <= 16; dx++)
             {
                 int d = dx * dx + dz * dz;
                 if (d >= 9 && d < best && LotFree(tower.TileX + dx, tower.TileZ + dz, 1, 1, false)) (best, bx, bz) = (d, tower.TileX + dx, tower.TileZ + dz);
@@ -2887,15 +2898,20 @@ public sealed class Simulation
     /// <summary>The last dry ground on the way from a house straight to the river, if the river is within 70 m.</summary>
     private (float X, float Z)? WashingSpot(Building home)
     {
-        float river = Map.RiverCenter(home.X), dir = MathF.Sign(river - home.Z);
+        // Neighbours share a washing place (one every 24 m along the bank), so they kneel there together.
+        float hx = MathF.Floor(home.X / 24f) * 24f + 12f;
+        float river = Map.RiverCenter(hx), dir = MathF.Sign(river - home.Z);
         if (dir == 0) return null;
+        float lastDry = float.NaN;
         // Walk towards the river over dry land (drained polders count as land) to the first open water.
         for (float d = 2; d <= 90; d += 2)
         {
             float z = home.Z + dir * d;
-            int tile = TileAt(home.X, z);
-            if (Map.Height(home.X, z) < WorldMap.WaterLevel + 0.1f && !InPolder(tile % Rules.TileNx, tile / Rules.TileNx))
-                return d <= 4 ? null : (home.X, home.Z + dir * (d - 2.5f));
+            int tile = TileAt(hx, z);
+            if (Map.Height(hx, z) < WorldMap.WaterLevel + 0.1f && !InPolder(tile % Rules.TileNx, tile / Rules.TileNx))
+                return float.IsNaN(lastDry) || d <= 4 ? null : (hx, lastDry);
+            // The last spot she can stand on, short of the water.
+            if (Map.Walkable(hx, z)) lastDry = z;
         }
         return null;
     }

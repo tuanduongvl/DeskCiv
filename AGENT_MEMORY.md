@@ -2,6 +2,23 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Fable review 15 fixes (quay crash guard, washing polish)
+
+- **Changed (Simulation):**
+  - Quay field pass: skips fields with a farmer in Act.Work or ripe grain (Yield > 0). Before this, unassigning a working farmer could index Buildings[-1] in AdvanceWork.
+  - FieldToHut resets Sown and Growth.
+  - Wander resets Phase at its top. A wedding partner forced to Wander gets Phase = 0, so neither keeps a stale wash pose.
+  - Washing:
+    - WashPhase is set only when a GoTo is issued.
+    - The target is the last walkable sample before open water.
+    - Neighbours share a washing place on a 24 m grid along the bank.
+    - A washer stays 4× longer once there.
+    - If the jittered point is not walkable, she uses the spot itself.
+  - Boiler-house search widened from ±10 to ±16 tiles round the water tower. Seed 40595 lost its boiler house when the RNG path shifted; same fragility class as before.
+- **Verified:**
+  - Debug, seed 1000, year 150: about 1.2 washers kneeling and 3.0 walking on average, grouped at a few shared places (top place 200,140).
+  - SimTests: ALL PASSED on 8 full seeds.
+  - Godot shot, --view=200,140,22 --azimuth=180: a file of women walking down to the bank. No one is caught kneeling at the water's edge in that frame.
 ## 2026-11-28 — --azimuth option; washers seen at the bank
 
 - **Changed:** Main: --azimuth=DEG turns a fixed --view around its focus (0 is the usual side). Used for shots of a bank, which the default view sees from behind the houses.
