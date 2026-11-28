@@ -137,7 +137,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         };
         _gulls = AddFlock(MeshKit.Gull(), 18, 1);
         // A skein of geese in a V, crossing high over the estuary in spring (inland) and autumn (out to sea).
-        _geese = AddFlock(MeshKit.Gull(), 11, 1);
+        _geese = AddFlock(MeshKit.Goose(), 11, 1);
         _geese.Mesh.VisibleInstanceCount = 0;
         _lights = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = MeshKit.Spark(), InstanceCount = 5 + 2 * 24, VisibleInstanceCount = 0 };
         AddChild(new MultiMeshInstance3D

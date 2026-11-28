@@ -2,6 +2,9 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 19:30 — Birds and ox carts reshaped (user: flying birds were white blocks)
+- Files: game/src/MeshKit.cs (`Bird(...)` helper: tapered round body, head and neck, pointed beak, fanned tail, each wing four panels narrowing and swept back; `Gull` = white body, pale grey wings with black tips, yellow beak; new `Goose` = brown-grey body, dark long neck, orange beak; `OxCart` rebuilt from round parts: oxen with rounded bodies, shoulder hump, lowered heads, horns and ears, tapered legs, tails, yoke and pole; cart bed with side rails, four sacks, round 14-sided wheels with hubs), game/src/Wildlife.cs (geese use `Goose`), game/src/Main.cs (`--watch-prey` test flag: camera on the hunting ground HuntX/HuntZ).
+- Verification: previews (--preview-mesh=Gull, Goose, OxCart) read as gull, goose and ox cart; a 1920x1080 shot at year 150 (--view=240,140,90) zoomed shows gulls as white birds with dark wingtips over the river. The old ox carts in the same shot were stacked boxes, which prompted the rebuild. Not checked: a goose V-formation in game (autumn only); --watch-prey at year 2 found the hunting ground empty at 45 s.
 ## 2026-11-28 19:05 — Update clip 29 published
 - Published publicly: https://youtu.be/nNVkZsa9244 (1:14). Scenes: thought clouds at the Stone Age camp, x500 seasons, Stone Age loads, field stones and pines, barges, quarry_t3 (--look=Quarry), mill_t4 (--look=Mill).
 - First take had cut-off captions and was re-recorded with shorter ones. The quarry and mill scenes stay wide (the models are small in frame); the description says so and notes clouds showing through roofs.

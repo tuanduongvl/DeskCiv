@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using DeskCiv.Sim;
 using Godot;
@@ -975,10 +975,35 @@ public sealed class MeshKit
 
     public static ArrayMesh Gull()
     {
+        // Herring gull: white body and head, pale grey wings with black tips, yellow beak.
+        return Bird(new Color(0.95f, 0.95f, 0.92f), new Color(0.95f, 0.95f, 0.92f), new Color(0.66f, 0.69f, 0.72f), new Color(0.12f, 0.12f, 0.13f), new Color(0.95f, 0.75f, 0.2f), 1f, 0.12f);
+    }
+
+    /// <summary>Greylag goose: brown-grey body, dark neck, grey wings with darker tips, orange beak, a longer neck.</summary>
+    public static ArrayMesh Goose() =>
+        Bird(new Color(0.55f, 0.5f, 0.44f), new Color(0.3f, 0.28f, 0.25f), new Color(0.5f, 0.48f, 0.45f), new Color(0.28f, 0.27f, 0.26f), new Color(0.92f, 0.55f, 0.25f), 1.15f, 0.3f);
+
+    /// <summary>A flying bird facing local +Z, wings spread along X (the flap shader bends them by |x|).
+    /// Body tapers from breast to tail; each wing is four panels narrowing outward and swept back.</summary>
+    private static ArrayMesh Bird(Color body, Color head, Color wing, Color tip, Color beak, float size, float neck)
+    {
         var m = new MeshKit();
-        Color white = new(0.95f, 0.95f, 0.92f), grey = new(0.62f, 0.65f, 0.68f);
-        m.Box(Vector3.Zero, new Vector3(0.16f, 0.14f, 0.62f), white).Box(new Vector3(0, 0.02f, 0.36f), new Vector3(0.05f, 0.05f, 0.14f), new Color(0.92f, 0.66f, 0.2f));
-        foreach (int s in new[] { -1, 1 }) m.Box(new Vector3(s * 0.56f, 0, 0), new Vector3(1.0f, 0.03f, 0.3f), s > 0 ? grey : grey.Lightened(0.05f));
+        float k = size;
+        m.Cylinder(new Vector3(0, 0, -0.3f * k), new Vector3(0, 0, 0.12f * k), 0.035f * k, 0.085f * k, 7, body);
+        m.Cylinder(new Vector3(0, 0, 0.12f * k), new Vector3(0, 0.02f * k, (0.2f + neck) * k), 0.085f * k, 0.045f * k, 7, head);
+        m.Cylinder(new Vector3(0, 0.02f * k, (0.2f + neck) * k), new Vector3(0, 0.025f * k, (0.26f + neck) * k), 0.05f * k, 0.04f * k, 7, head);
+        m.Cylinder(new Vector3(0, 0.02f * k, (0.26f + neck) * k), new Vector3(0, 0.01f * k, (0.34f + neck) * k), 0.022f * k, 0.004f, 5, beak);
+        // A short fanned tail.
+        m.Box(new Vector3(0, 0, -0.34f * k), new Vector3(0.13f * k, 0.012f, 0.12f * k), wing.Darkened(0.05f));
+        float[] chord = { 0.26f, 0.22f, 0.17f, 0.11f };
+        float[] sweep = { 0f, -0.03f, -0.07f, -0.12f };
+        for (int side = -1; side <= 1; side += 2)
+        for (int p = 0; p < 4; p++)
+        {
+            float x = side * (0.07f + 0.13f * p + 0.065f) * k;
+            Color c = p == 3 ? tip : p == 2 ? wing.Lerp(tip, 0.25f) : wing;
+            m.Box(new Vector3(x, 0.005f * p, (0.03f + sweep[p]) * k), new Vector3(0.135f * k, 0.014f, chord[p] * k), c);
+        }
         return m.Build();
     }
 
@@ -1360,19 +1385,36 @@ public sealed class MeshKit
     public static ArrayMesh OxCart()
     {
         var m = new MeshKit();
-        Color ox = new(0.72f, 0.64f, 0.52f), dark = new(0.22f, 0.16f, 0.11f), horn = new(0.85f, 0.8f, 0.68f), wood = new(0.5f, 0.38f, 0.24f), load = new(0.74f, 0.64f, 0.4f);
-        foreach (float x in new[] { -0.42f, 0.42f })
+        Color ox = new(0.74f, 0.66f, 0.54f), dark = new(0.22f, 0.16f, 0.11f), horn = new(0.88f, 0.84f, 0.72f), wood = new(0.5f, 0.38f, 0.24f), load = new(0.74f, 0.64f, 0.4f);
+        foreach (float x in new[] { -0.4f, 0.4f })
         {
-            m.Box(new Vector3(x, 1.0f, 1.7f), new Vector3(0.6f, 0.65f, 1.6f), ox).Box(new Vector3(x, 1.05f, 2.7f), new Vector3(0.34f, 0.4f, 0.45f), ox);
-            m.Box(new Vector3(x, 1.3f, 2.7f), new Vector3(0.6f, 0.06f, 0.06f), horn);
-            foreach (float lx in new[] { -0.18f, 0.18f })
-            foreach (float z in new[] { 1.15f, 2.25f })
-                m.Box(new Vector3(x + lx, 0.35f, z), new Vector3(0.13f, 0.7f, 0.13f), dark);
+            // Rounded body with a slight hump at the shoulders, the head held low and forward.
+            m.Cylinder(new Vector3(x, 1.0f, 0.95f), new Vector3(x, 1.05f, 2.2f), 0.27f, 0.31f, 9, ox, ox.Darkened(0.08f));
+            m.Cylinder(new Vector3(x, 1.08f, 2.2f), new Vector3(x, 1.0f, 2.55f), 0.3f, 0.2f, 9, ox);
+            m.Cylinder(new Vector3(x, 0.98f, 2.55f), new Vector3(x, 0.86f, 2.95f), 0.17f, 0.12f, 8, ox.Lightened(0.04f), new Color(0.3f, 0.24f, 0.2f));
+            foreach (int s in new[] { -1, 1 })
+            {
+                m.Cylinder(new Vector3(x + s * 0.1f, 1.04f, 2.62f), new Vector3(x + s * 0.26f, 1.16f, 2.66f), 0.03f, 0.012f, 5, horn);
+                m.Cylinder(new Vector3(x + s * 0.13f, 1.1f, 2.6f), new Vector3(x + s * 0.2f, 1.02f, 2.56f), 0.04f, 0.02f, 5, ox.Darkened(0.1f));
+            }
+            foreach (float lx in new[] { -0.15f, 0.15f })
+            foreach (float z in new[] { 1.1f, 2.25f })
+                m.Cylinder(new Vector3(x + lx, 0.85f, z), new Vector3(x + lx, 0.02f, z), 0.07f, 0.045f, 6, ox.Darkened(0.12f), dark);
+            m.Cylinder(new Vector3(x, 1.02f, 0.92f), new Vector3(x, 0.55f, 0.85f), 0.025f, 0.02f, 4, ox.Darkened(0.2f));
         }
-        m.Box(new Vector3(0, 1.4f, 2.35f), new Vector3(1.5f, 0.1f, 0.12f), dark);
-        m.Box(new Vector3(0, 0.95f, 0.85f), new Vector3(0.1f, 0.1f, 2.3f), wood);
-        m.Box(new Vector3(0, 0.95f, -0.8f), new Vector3(1.35f, 0.3f, 1.8f), wood).Box(new Vector3(0, 1.25f, -0.8f), new Vector3(1.15f, 0.35f, 1.4f), load);
-        foreach (float x in new[] { -0.74f, 0.74f }) m.Box(new Vector3(x, 0.55f, -0.8f), new Vector3(0.12f, 1.1f, 0.65f), dark).Box(new Vector3(x, 0.55f, -0.8f), new Vector3(0.12f, 0.65f, 1.1f), dark).Box(new Vector3(x * 1.06f, 0.55f, -0.8f), new Vector3(0.1f, 0.2f, 0.2f), wood);
+        // Yoke across both necks, and the pole back to the cart.
+        m.Cylinder(new Vector3(-0.75f, 1.3f, 2.45f), new Vector3(0.75f, 1.3f, 2.45f), 0.06f, 0.06f, 6, wood.Darkened(0.2f));
+        m.Cylinder(new Vector3(0, 1.22f, 2.45f), new Vector3(0, 0.95f, 0.0f), 0.05f, 0.05f, 6, wood);
+        // Cart: plank bed with low side rails, sacks, and two solid wooden wheels.
+        m.Box(new Vector3(0, 0.95f, -0.8f), new Vector3(1.3f, 0.12f, 1.8f), wood);
+        foreach (int s in new[] { -1, 1 }) m.Box(new Vector3(s * 0.62f, 1.12f, -0.8f), new Vector3(0.06f, 0.24f, 1.8f), wood.Darkened(0.1f));
+        foreach ((float sx, float sz) in new[] { (-0.28f, -0.4f), (0.28f, -0.4f), (-0.28f, -1.15f), (0.28f, -1.15f) })
+            m.Cylinder(new Vector3(sx, 1.0f, sz), new Vector3(sx, 1.42f, sz), 0.22f, 0.16f, 8, load, load.Lightened(0.06f));
+        foreach (int s in new[] { -1, 1 })
+        {
+            m.Cylinder(new Vector3(s * 0.7f, 0.5f, -0.8f), new Vector3(s * 0.82f, 0.5f, -0.8f), 0.5f, 0.5f, 14, dark, wood.Darkened(0.15f));
+            m.Cylinder(new Vector3(s * 0.82f, 0.5f, -0.8f), new Vector3(s * 0.9f, 0.5f, -0.8f), 0.1f, 0.08f, 8, wood);
+        }
         return m.Build();
     }
 

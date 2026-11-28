@@ -42,6 +42,7 @@ public partial class Main : Node3D
     private float? _fixedHour;
     private string _shotPath;
     private double _shotAt;
+    private bool _watchPrey;
     private int _baseSpeed = 1, _shotNumber, _shotFrames, _shotWait, _burst, _burstIndex;
     private float CloseDistance = 30f, _azimuth, _azimuthTarget, _driftAmount = 1, _lift, _liftTarget;
     private const float MinZoom = 10f, MaxZoom = 270f, ManualSeconds = 60f;
@@ -102,6 +103,7 @@ void fragment() {
         if (Enum.TryParse(Option(args, "--watch", ""), true, out Clip watched)) _forcedClip = watched;
         _watchDig = Array.IndexOf(args, "--watch-dig") >= 0;
         _watchHunt = Array.IndexOf(args, "--watch-hunt") >= 0;
+        _watchPrey = Array.IndexOf(args, "--watch-prey") >= 0; // test shots of the hunters and the deer at the hunting ground
         _watchGate = Array.IndexOf(args, "--watch-gate") >= 0; // test shots of the mill gate // test shots of the street being dug for water mains
         if (Enum.TryParse(Option(args, "--look", ""), true, out BType looked)) _lookType = looked; // test shots of one building type
         // --focus=x,z keeps the camera on one world point, for test shots of props that are not buildings.
@@ -537,6 +539,13 @@ void fragment() {
                 _distanceTarget = CloseDistance * 1.25f;
                 _azimuthTarget = ClearAzimuth(s, s.HuntX, s.HuntZ);
                 _focusTimer = 24;
+                return;
+            }
+            if (_watchPrey)
+            {
+                _focusTarget = FocusAt(s.HuntX, s.HuntZ);
+                _distanceTarget = CloseDistance * 1.3f;
+                _focusTimer = 6;
                 return;
             }
             if (_watchHunt || _shotNumber % 3 == 2)
