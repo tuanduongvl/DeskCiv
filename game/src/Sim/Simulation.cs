@@ -946,11 +946,18 @@ public sealed class Simulation
     {
         float cx = Wild ? CampX : CenterX, cz = Wild ? CampZ : CenterZ, radius = Wild ? (Night ? 6 : 14) : 26;
         if (p.Home >= 0) (cx, cz, radius) = (Buildings[p.Home].X, Buildings[p.Home].Z, p.Age < 14 ? 11 : 16);
+        bool summerBank = false;
         // By day the children of a neighbourhood (a 40 m block) play together on one patch of open ground.
         if (!Night && p.Home >= 0 && p.Age is >= 4 and < 14 && Cosmetic.F() < 0.7f)
         {
             float px = MathF.Floor(cx / 40f) * 40f + 20f, pz = MathF.Floor(cz / 40f) * 40f + 20f;
             if (Map.Walkable(px, pz) && Tiles[TileAt(px, pz)] is TileKind.Free or TileKind.Road) (cx, cz, radius) = (px, pz, 5);
+            // On a summer's day the older children go down to the water's edge instead and play on the bank.
+            if (Season == 1 && p.Age >= 7 && Cosmetic.F() < 0.4f && WashingSpot(Buildings[p.Home]) is (float bx, float bz))
+            {
+                (cx, cz, radius) = (bx, bz, 4);
+                summerBank = true;
+            }
         }
         // By day the old folk sit out on their doorstep and watch the street.
         p.Phase = 0;
@@ -1011,6 +1018,7 @@ public sealed class Simulation
             washing = true;
             reach = 4000;
         }
+        if (summerBank) reach = 4000;
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         // At the bank she kneels on the spot itself, not a step towards the water.
         if (washing && !Map.Walkable(x, z)) (x, z) = (cx, cz);

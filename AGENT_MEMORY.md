@@ -2,6 +2,13 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Children play on the bank in summer
+
+- **Changed:** Simulation.Wander. In summer (Season == 1), a child aged 7–13 who would go to the block play patch instead goes, with a 40% Cosmetic draw, to the family's shared washing place on the riverbank (WashingSpot). The child plays there within a 4 m radius, using a 4000-expansion path search.
+- **Verified:**
+  - Debug, seed 1000, summer of year 150: on average about 3.4 children are more than 20 m nearer the river than their homes.
+  - SimTests: ALL PASSED on 8 full seeds.
+  - Not seen on screen.
 ## 2026-11-28 — Fourth seed sweep; mains for very large towns
 
 - **Sweep:** full runs on seeds 7, 77, 2222, 4096, 8191, 13579, 24680 and 55555. Seven are clean, with every landmark, shifts and trains. Seed 77 grew a very large street network (1334 road tiles) and laid mains on only 875 of them, below the 70% check.
