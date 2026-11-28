@@ -235,7 +235,8 @@ public sealed class SimHost
                 frame.Y[s] = MathF.Max(frame.Y[s], _sim.Map.Height(_sim.Buildings[p.Job].X, _sim.Buildings[p.Job].Z) + 0.36f);
             frame.Z[s] = p.Z;
             frame.Kind[s] = p.Indoors ? (byte)0 : p.Age < 14 ? (byte)3 : p.Age >= 60 ? (byte)4 : p.Female ? (byte)2 : (byte)1;
-            frame.Carry[s] = p.CarryN > 0 ? (byte)(p.CarryRes + 1) : (byte)0;
+            // Shore gatherers carry shellfish, though the sim stores them as fish.
+            frame.Carry[s] = p.CarryN <= 0 ? (byte)0 : p.Act == Act.Forage && p.A == 2 ? ShellfishLoad : (byte)(p.CarryRes + 1);
             Clip clip = ClipOf(p);
             // Walkers face the way they actually move along their path. TX/TZ is only the final destination,
             // which on a winding road can lie to the side or behind, so facing it looked like walking backwards.
@@ -301,11 +302,15 @@ public sealed class SimHost
     }
 
     /// <summary>Thought codes, matched by WorldView.ThoughtEmoji. Only villagers busy at something get one.</summary>
+    /// <summary>Carry code for shellfish: one past the last resource.</summary>
+    public const byte ShellfishLoad = (byte)Res.Count + 1;
+
     private byte ThoughtOf(Person p)
     {
         if (p.Indoors) return 0;
         if (p.Hunger > 0.75f) return 1; // hungry
-        if (p.Moving) return 0;
+        // Hunters walking out to the hunt already have the deer in mind.
+        if (p.Moving) return p.Act == Act.Forage && p.A == 0 && p.CarryN == 0 ? (byte)2 : (byte)0;
         switch (p.Act)
         {
             case Act.Forage: return p.A switch { 0 => 2, 1 => 3, 2 => 4, _ => 5 }; // hunt, berries, shellfish, dig

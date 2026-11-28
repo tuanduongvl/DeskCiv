@@ -162,6 +162,17 @@ public sealed class MeshKit
         return this;
     }
 
+    /// <summary>A woven basket with a darker rim, heaped with <paramref name="fill"/> (berries, roots).</summary>
+    private MeshKit Basket(Vector3 at, float radius, float height, Color fill)
+    {
+        Color wicker = new(0.66f, 0.52f, 0.3f);
+        Prism(at, radius * 0.8f, radius, height, 10, wicker);
+        for (int k = 1; k < 4; k++) Prism(at + Vector3.Up * height * k / 4f, radius * (0.8f + 0.2f * k / 4f) + 0.01f, radius * (0.8f + 0.2f * k / 4f) + 0.01f, 0.025f, 10, wicker.Darkened(0.25f), false);
+        Prism(at + Vector3.Up * height, radius + 0.02f, radius + 0.02f, 0.05f, 10, wicker.Darkened(0.35f), false);
+        Prism(at + Vector3.Up * height * 0.85f, radius * 0.95f, radius * 0.2f, radius * 0.4f, 9, fill);
+        return this;
+    }
+
     private MeshKit Sack(Vector3 at, Color color)
     {
         Prism(at, 0.3f, 0.38f, 0.42f, 7, color);
@@ -416,19 +427,27 @@ public sealed class MeshKit
                 m.Beam(new Vector3(-2.6f, 2.35f, 0), new Vector3(2.6f, 2.35f, 0), 0.07f, pole);
                 for (int i = 0; i < 4; i++) m.Box(new Vector3(-1.6f + i * 1.05f, 1.55f, 0), new Vector3(0.82f, 1.55f, 0.06f), i % 2 == 0 ? hide : hideDark);
                 m.Box(new Vector3(-1.5f, 0.18f, 2.2f), new Vector3(1.8f, 0.36f, 1.3f), hideDark).Box(new Vector3(-1.5f, 0.46f, 2.2f), new Vector3(1.4f, 0.2f, 1f), hide);
-                if (!m.TryKit("prop_pot", new Vector3(1.6f, 0, 2.1f))) m.Prism(new Vector3(1.6f, 0, 2.1f), 0.48f, 0.58f, 0.62f, 7, new Color(0.62f, 0.5f, 0.3f));
+                // No pottery yet: food is kept in woven baskets and a tied hide bag.
+                m.Basket(new Vector3(1.6f, 0, 2.1f), 0.5f, 0.55f, new Color(0.62f, 0.16f, 0.28f));
+                m.Prism(new Vector3(0.7f, 0, 2.5f), 0.32f, 0.38f, 0.42f, 8, hideDark).Prism(new Vector3(0.7f, 0.42f, 2.5f), 0.38f, 0.06f, 0.2f, 8, hide);
                 break;
             case BType.Gatherer:
                 m.Beam(new Vector3(-1.7f, 0, -1f), new Vector3(0, 2.1f, -0.2f), 0.06f, pole).Beam(new Vector3(1.7f, 0, -1f), new Vector3(0, 2.1f, -0.2f), 0.06f, pole);
                 m.Box(new Vector3(0, 1.05f, -0.75f), new Vector3(2.7f, 0.08f, 1.9f), hide);
-                m.Prism(new Vector3(-1.1f, 0, 1.2f), 0.42f, 0.56f, 0.56f, 8, new Color(0.62f, 0.5f, 0.3f)).Prism(new Vector3(-1.1f, 0.48f, 1.2f), 0.48f, 0.1f, 0.2f, 7, new Color(0.62f, 0.16f, 0.28f));
-                m.Prism(new Vector3(1.1f, 0, 1.2f), 0.38f, 0.5f, 0.5f, 8, new Color(0.62f, 0.5f, 0.3f)).Prism(new Vector3(1.1f, 0.43f, 1.2f), 0.42f, 0.1f, 0.18f, 7, new Color(0.3f, 0.22f, 0.5f));
+                m.Basket(new Vector3(-1.1f, 0, 1.2f), 0.48f, 0.5f, new Color(0.62f, 0.16f, 0.28f));
+                m.Basket(new Vector3(1.1f, 0, 1.2f), 0.42f, 0.45f, new Color(0.3f, 0.22f, 0.5f));
                 break;
             case BType.Fisher:
                 foreach (float x in new[] { -1.8f, 1.8f }) m.Beam(new Vector3(x, 0, 0), new Vector3(x, 2.1f, 0), 0.07f, pole);
                 m.Beam(new Vector3(-2f, 2.05f, 0), new Vector3(2f, 2.05f, 0), 0.06f, pole);
-                for (int i = 0; i < 6; i++) m.Prism(new Vector3(-1.35f + i * 0.54f, 1.4f, 0), 0.05f, 0.13f, 0.56f, 5, new Color(0.56f, 0.66f, 0.72f));
-                if (!m.TryKit("prop_canoe", new Vector3(0.3f, 0, 2.3f))) m.Box(new Vector3(0.3f, 0.2f, 2.3f), new Vector3(3.6f, 0.36f, 0.86f), new Color(0.36f, 0.25f, 0.15f));
+                // Fish split and hung to dry in the wind and smoke, and a midden of shells beside the rack (no boats yet).
+                for (int i = 0; i < 6; i++) m.Prism(new Vector3(-1.35f + i * 0.54f, 1.4f, 0), 0.04f, 0.12f, 0.56f, 5, new Color(0.62f, 0.5f, 0.36f).Lerp(new Color(0.5f, 0.56f, 0.58f), i % 2 * 0.4f));
+                for (int i = 0; i < 40; i++)
+                {
+                    float a = i * 2.399963f, r = 1.1f * MathF.Sqrt((i + 0.5f) / 40f);
+                    var at = new Vector3(0.3f + MathF.Cos(a) * r * 1.4f, 0.28f * (1 - r / 1.1f), 2.3f + MathF.Sin(a) * r * 0.8f);
+                    m.Prism(at, 0.11f, 0.03f, 0.07f, 5, i % 3 == 0 ? new Color(0.3f, 0.3f, 0.36f) : new Color(0.86f, 0.82f, 0.74f));
+                }
                 break;
             case BType.Woodcutter:
                 if (!m.TryKit("prop_logs", new Vector3(-1.5f, 0, 0))) m.LogPile(new Vector3(-1.5f, 0, 0), 4, 2);
@@ -857,6 +876,44 @@ public sealed class MeshKit
         Box(tail - side * 0.04f * length, new Vector3(0.025f, 0.02f, 0.16f * length), fin, yaw - 0.55f);
         Box(centre + along * length * 0.3f + Vector3.Up * 0.03f * length, new Vector3(widths[1] * length * 2.0f, 0.025f, 0.025f), new Color(0.08f, 0.08f, 0.08f), yaw);
         return this;
+    }
+
+    /// <summary>The wild band's food store: a hide-covered heap weighed down with stones, a drying rack hung with
+    /// strips of meat and split fish, and baskets of berries and shellfish.</summary>
+    public static ArrayMesh FoodCache()
+    {
+        var m = new MeshKit();
+        Color hide = new(0.55f, 0.41f, 0.27f), pole = new(0.33f, 0.24f, 0.15f), meat = new(0.5f, 0.2f, 0.15f), fish = new(0.62f, 0.5f, 0.36f);
+        m.Prism(new Vector3(-1.2f, 0, 0), 1.1f, 0.5f, 0.55f, 9, hide.Darkened(0.15f)).Prism(new Vector3(-1.2f, 0.55f, 0), 0.5f, 0.1f, 0.25f, 9, hide);
+        foreach (float a in new[] { 0.4f, 2.2f, 4.1f }) m.Prism(new Vector3(-1.2f + MathF.Cos(a) * 0.95f, 0, MathF.Sin(a) * 0.95f), 0.16f, 0.1f, 0.2f, 6, Rock);
+        foreach (float x in new[] { 0.4f, 2.4f })
+        {
+            m.Cylinder(new Vector3(x, 0, -0.5f), new Vector3(x + 0.05f, 1.7f, -0.2f), 0.05f, 0.04f, 5, pole);
+            m.Cylinder(new Vector3(x, 0, 0.5f), new Vector3(x + 0.05f, 1.7f, 0.2f), 0.05f, 0.04f, 5, pole);
+        }
+        m.Cylinder(new Vector3(0.35f, 1.62f, 0), new Vector3(2.5f, 1.62f, 0), 0.04f, 0.04f, 5, pole);
+        for (int i = 0; i < 7; i++) m.Box(new Vector3(0.6f + i * 0.28f, 1.3f, 0), new Vector3(i % 3 == 2 ? 0.1f : 0.07f, 0.6f, 0.03f), i % 3 == 2 ? fish : meat.Lightened(i % 2 * 0.08f));
+        m.Basket(new Vector3(1.0f, 0, 1.1f), 0.32f, 0.36f, new Color(0.62f, 0.16f, 0.28f));
+        m.Basket(new Vector3(1.8f, 0, 1.2f), 0.3f, 0.3f, new Color(0.24f, 0.26f, 0.34f));
+        return m.Build();
+    }
+
+    /// <summary>A shallow basket of mussels, cockles and limpets gathered on the shore.</summary>
+    public static ArrayMesh ShellfishLoad()
+    {
+        var m = new MeshKit();
+        Vector3 hands = new(0, 1.02f, 0.46f);
+        m.Prism(hands + Vector3.Down * 0.12f, 0.24f, 0.3f, 0.2f, 10, Thatch.Darkened(0.1f)).Prism(hands + Vector3.Up * 0.06f, 0.31f, 0.31f, 0.04f, 10, Thatch.Darkened(0.35f), false);
+        Color[] shells = { new(0.18f, 0.2f, 0.28f), new(0.86f, 0.8f, 0.7f), new(0.7f, 0.6f, 0.5f), new(0.24f, 0.26f, 0.34f) };
+        for (int i = 0; i < 22; i++)
+        {
+            float a = i * 2.399963f, r = 0.25f * MathF.Sqrt((i + 0.5f) / 22f);
+            Vector3 at = hands + new Vector3(MathF.Cos(a) * r, 0.08f + 0.06f * (1 - r / 0.25f), MathF.Sin(a) * r);
+            // Mussels are long and dark, cockles round and pale.
+            if (i % 2 == 0) m.Box(at, new Vector3(0.05f, 0.03f, 0.1f), shells[i % 4], a);
+            else m.Prism(at, 0.045f, 0.015f, 0.035f, 6, shells[i % 4]);
+        }
+        return m.Build();
     }
 
     public static ArrayMesh Crops()

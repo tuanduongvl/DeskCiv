@@ -471,9 +471,10 @@ void fragment() {
     private float _surge;
     private ShaderMaterial _scatterMaterial;
     private int _scatterBuildings = -1;
-    private readonly MultiMesh[] _loads = new MultiMesh[(int)Res.Count];
-    private readonly float[][] _loadBuffers = new float[(int)Res.Count][];
-    private readonly int[] _loadCounts = new int[(int)Res.Count];
+    // One load per resource, plus shellfish (SimHost.ShellfishLoad), which the sim counts as fish.
+    private readonly MultiMesh[] _loads = new MultiMesh[(int)Res.Count + 1];
+    private readonly float[][] _loadBuffers = new float[(int)Res.Count + 1][];
+    private readonly int[] _loadCounts = new int[(int)Res.Count + 1];
     private ImageTexture _roadTexture;
     private byte[] _roadBytes;
     private int _roadVersion = -1;
@@ -551,7 +552,7 @@ void fragment() {
     private bool _hasRail;
     private Vector3? _fireAt;
     /// <summary>The wild years: the cave in the hillside, its opening (grows as it is dug), and the camp fire.</summary>
-    private MultiMesh _cave, _caveMouth, _hearth, _campfire;
+    private MultiMesh _cave, _caveMouth, _hearth, _campfire, _foodCache;
     private Vector3? _campAt;
     private bool _realCave;
     private MultiMesh _caveSpoil;
@@ -572,7 +573,7 @@ void fragment() {
     {
         new(0.58f, 0.42f, 0.25f), new(0.6f, 0.6f, 0.57f), new(0.62f, 0.18f, 0.32f), new(0.52f, 0.66f, 0.74f),
         new(0.87f, 0.73f, 0.32f), new(0.93f, 0.9f, 0.8f), new(0.74f, 0.5f, 0.25f),
-        new(0.4f, 0.18f, 0.48f), new(0.66f, 0.38f, 0.24f), new(0.58f, 0.6f, 0.63f),
+        new(0.4f, 0.18f, 0.48f), new(0.66f, 0.38f, 0.24f), new(0.58f, 0.6f, 0.63f), new(0.55f, 0.24f, 0.18f), new(0.82f, 0.78f, 0.7f),
     };
 
     public WorldView() { }
@@ -647,6 +648,7 @@ void fragment() {
         _caveMouth = AddInstances(MeshKit.CaveMouth(), vertexColors, false, 1);
         // On the image-made rock, boulders block the mouth at first and shrink away as the band digs the cave out.
         _caveSpoil = AddInstances(MeshKit.Boulders(), vertexColors, false, 1, true);
+        _foodCache = AddInstances(MeshKit.FoodCache(), vertexColors, false, 1, true);
         _hearth = AddInstances(MeshKit.Hearth(), vertexColors, false, 1, true);
         _campfire = AddInstances(MeshKit.Flame(), flameMaterial, false, 3);
         var sparkMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
@@ -689,7 +691,7 @@ void fragment() {
 
         for (int i = 0; i < _loads.Length; i++)
         {
-            _loads[i] = AddInstances(MeshKit.Load((Res)i), vertexColors, true, HeroCapacity);
+            _loads[i] = AddInstances(i == (int)Res.Count ? MeshKit.ShellfishLoad() : MeshKit.Load((Res)i), vertexColors, true, HeroCapacity);
             _loadBuffers[i] = new float[HeroCapacity * 16];
         }
         _barrows = AddInstances(MeshKit.Barrow(), vertexColors, true, HeroCapacity, true);
@@ -1013,6 +1015,18 @@ void fragment() {
             _hearth.SetInstanceTransform(0, new Transform3D(Basis.Identity, camp));
         }
         _hearth.VisibleInstanceCount = _campAt != null ? 1 : 0;
+        // While the band lives wild the storehouse is not drawn; its food is kept in an open cache at the same spot.
+        int caches = 0;
+        if (s.Wild)
+            foreach (BuildingView b in s.Buildings)
+                if (b.Type == BType.Storehouse)
+                {
+                    Ensure(_foodCache, 1);
+                    _foodCache.SetInstanceTransform(0, new Transform3D(new Basis(Vector3.Up, b.Rotation), new Vector3(b.X, _map.Height(b.X, b.Z), b.Z)));
+                    caches = 1;
+                    break;
+                }
+        _foodCache.VisibleInstanceCount = caches;
         _wildlife.SetHunt(s.Hunting, s.HuntX, s.HuntZ, s.HuntStruck, s.HuntWon);
     }
 
