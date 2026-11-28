@@ -2,6 +2,20 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Fable review 16: bank fixes, carts from the Bronze Age
+
+- **Changed:**
+  - Simulation:
+    - Summer-bank children also fall back to the spot itself when the jittered point is not walkable. Before this, about half never set off.
+    - WashingSpot only accepts Free or Road tiles, so no one kneels inside a waterside house, dike or quay.
+    - A gathering or market clears the summer-bank flag.
+  - Wildlife:
+    - Carts now run from era 2. In eras 2–3 there are at most 2 + huts/10 of them, at ox pace (speed 1.3 instead of 2.6).
+    - Road traffic (carts and lorries) is halved in winter. Season became a property that reapplies the counts when it changes.
+- **Verified:**
+  - SimTests: ALL PASSED on 8 full seeds.
+  - A Godot shot at 1,999 BC (seed 1000, `--view=170,160,60`) rendered fine, but no cart was in that frame. With only 2–3 carts town-wide, the early carts are not confirmed on screen.
+- **Not done:** Fable's other ideas: river traffic by era (dugouts, barges) and seasonal grazing treks.
 ## 2026-11-28 — Update clip 27 published
 
 - **Done:** about 26 s, 2.3 MB, seed 1000 at 226 BC, two riverbank scenes shot with `--azimuth=180`:

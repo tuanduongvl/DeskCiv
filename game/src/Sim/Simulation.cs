@@ -986,9 +986,9 @@ public sealed class Simulation
         bool free = p.Age < 14 || p.Age >= 60 || (p.Job < 0 && p.Role is not (Role.Porter or Role.Builder));
         // A house fire brings every neighbour with a moment to spare, adults too: they pass the buckets.
         if (FireEnd >= 0 && Tick < FireEnd && Dist2(p.X, p.Z, GatherX, GatherZ) < 40 * 40) free = true;
-        if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius) = (GatherX, GatherZ, 7);
+        if (Tick < GatherUntil && free && Dist2(p.X, p.Z, GatherX, GatherZ) < 90 * 90) (cx, cz, radius, summerBank) = (GatherX, GatherZ, 7, false);
         // On market day the stalls by the church draw those with time on their hands; working adults stay at work.
-        else if (free && MarketPlace() is (float mx, float mz) && Dist2(p.X, p.Z, mx, mz) < 70 * 70) (cx, cz, radius) = (mx, mz, 8);
+        else if (free && MarketPlace() is (float mx, float mz) && Dist2(p.X, p.Z, mx, mz) < 70 * 70) (cx, cz, radius, summerBank) = (mx, mz, 8, false);
         // By day, adults with nothing to do go to the mill (Industrial era and later). A quarter of them are mill hands:
         // they walk in through the gate, work a shift, and stream out at dusk. The jobless stand about at the gate.
         else if (!Night && p.Age >= 14 && p.Age < 60 && (p.Job < 0 && p.Id % 2 == 0 || p.Id % 4 == 0) && p.Role is not (Role.Porter or Role.Builder)
@@ -1021,7 +1021,7 @@ public sealed class Simulation
         if (summerBank) reach = 4000;
         float x = cx + Cosmetic.R(-radius, radius), z = cz + Cosmetic.R(-radius, radius);
         // At the bank she kneels on the spot itself, not a step towards the water.
-        if (washing && !Map.Walkable(x, z)) (x, z) = (cx, cz);
+        if ((washing || summerBank) && !Map.Walkable(x, z)) (x, z) = (cx, cz);
         p.Act = Act.Wander;
         p.Timer = Cosmetic.R(3, 11);
         // A washer stays at the bank a good while once she gets there (the timer only runs on arrival).
@@ -2919,7 +2919,7 @@ public sealed class Simulation
             if (Map.Height(hx, z) < WorldMap.WaterLevel + 0.1f && !InPolder(tile % Rules.TileNx, tile / Rules.TileNx))
                 return float.IsNaN(lastDry) || d <= 4 ? null : (hx, lastDry);
             // The last spot she can stand on, short of the water.
-            if (Map.Walkable(hx, z)) lastDry = z;
+            if (Map.Walkable(hx, z) && Tiles[TileAt(hx, z)] is TileKind.Free or TileKind.Road) lastDry = z;
         }
         return null;
     }

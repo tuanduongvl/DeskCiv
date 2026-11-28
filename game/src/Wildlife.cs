@@ -74,7 +74,17 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     private MultiMesh _lights;
 
     /// <summary>The season (0 spring ... 3 winter): geese pass over in spring and autumn.</summary>
-    public int Season { get; set; }
+    private int _season;
+    public int Season
+    {
+        get => _season;
+        set
+        {
+            if (_season == value) return;
+            _season = value;
+            ApplyCounts();
+        }
+    }
 
     /// <summary>The street tile being dug for mains (from the sim), or -1: traffic keeps out of the trench.</summary>
     public int DigTile { get; set; } = -1;
@@ -211,8 +221,11 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         if (_skaters != null) _skaters.Mesh.VisibleInstanceCount = _frozen ? _skaters.Agents.Length : 0;
         if (_carts != null)
         {
-            int traffic = (4 + _huts / 5) * (_night ? 3 : 10) / 10;
-            _carts.Mesh.VisibleInstanceCount = _era is >= 4 and < 7 ? Math.Min(traffic, _carts.Agents.Length) : 0;
+            // Fewer on the roads in winter; from the Bronze Age a few slow ox carts, horse carts from the Middle Ages.
+            int traffic = (4 + _huts / 5) * (_night ? 3 : 10) / 10 * (Season == 3 ? 5 : 10) / 10;
+            if (_era is 2 or 3) traffic = Math.Min(traffic, 2 + _huts / 10);
+            _carts.Speed = _era < 4 ? 1.3f : 2.6f;
+            _carts.Mesh.VisibleInstanceCount = _era is >= 2 and < 7 ? Math.Min(traffic, _carts.Agents.Length) : 0;
             _lorries.Mesh.VisibleInstanceCount = _era >= 7 ? Math.Min(traffic, _lorries.Agents.Length) : 0;
         }
     }
