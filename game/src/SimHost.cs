@@ -55,6 +55,8 @@ public sealed class WorldSnapshot
 public sealed class PeopleFrame
 {
     public readonly float[] X = new float[Rules.MaxPeople], Y = new float[Rules.MaxPeople], Z = new float[Rules.MaxPeople], Yaw = new float[Rules.MaxPeople];
+    /// <summary>What a busy villager is thinking about, drawn as an emoji in a thought cloud (0 = nothing).</summary>
+    public readonly byte[] Thought = new byte[Rules.MaxPeople];
     public readonly byte[] Kind = new byte[Rules.MaxPeople], Carry = new byte[Rules.MaxPeople], Anim = new byte[Rules.MaxPeople], Variant = new byte[Rules.MaxPeople];
     public int Slots;
     /// <summary>Longest move between two frames still drawn as walking; longer ones are a reused slot and jump.</summary>
@@ -283,6 +285,7 @@ public sealed class SimHost
             }
             frame.Yaw[s] = _yaw[s];
             frame.Anim[s] = (byte)clip;
+            frame.Thought[s] = ThoughtOf(p);
             frame.Variant[s] = OutfitOf(p);
         }
         frame.Slots = slots;
@@ -294,6 +297,32 @@ public sealed class SimHost
             _current = frame;
             _publishedAt = Stopwatch.GetTimestamp();
             if (snapshot != null) _snapshot = snapshot;
+        }
+    }
+
+    /// <summary>Thought codes, matched by WorldView.ThoughtEmoji. Only villagers busy at something get one.</summary>
+    private byte ThoughtOf(Person p)
+    {
+        if (p.Indoors) return 0;
+        if (p.Hunger > 0.75f) return 1; // hungry
+        if (p.Moving) return 0;
+        switch (p.Act)
+        {
+            case Act.Forage: return p.A switch { 0 => 2, 1 => 3, 2 => 4, _ => 5 }; // hunt, berries, shellfish, dig
+            case Act.Build: return 6;
+            case Act.Road: return 5;
+            case Act.Eat: return 7;
+            case Act.Shift: return 8;
+            case Act.Wander when p.Phase == Simulation.WashPhase: return 9;
+            case Act.Wander when p.Age < 14: return 10;
+            case Act.Work when p.Job >= 0:
+                return _sim.Buildings[p.Job].Type switch
+                {
+                    BType.Field => 11, BType.Vineyard => 12, BType.Woodcutter => 13, BType.Quarry => 14, BType.Fisher => 15,
+                    BType.Gatherer => 3, BType.Mill or BType.Windmill or BType.Watermill => 16, BType.Bakery => 17,
+                    BType.Winery => 18, BType.Smithy => 19, _ => 0,
+                };
+            default: return 0;
         }
     }
 

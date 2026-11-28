@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using DeskCiv.Sim;
 using Godot;
 
@@ -2034,6 +2035,154 @@ void fragment() {
     }
 
     /// <summary>Uploads interpolated people and carried goods.</summary>
+    private readonly float[] _apartX = new float[Rules.MaxPeople], _apartZ = new float[Rules.MaxPeople];
+    private readonly float[] _drawX = new float[Rules.MaxPeople], _drawZ = new float[Rules.MaxPeople];
+    private readonly Dictionary<long, List<int>> _apartGrid = new();
+    private const float ApartRadius = 0.75f, ApartMax = 0.7f;
+
+    /// <summary>Villagers step around each other instead of walking through: anyone closer than
+    /// <see cref="ApartRadius"/> to another is eased sideways, by at most <see cref="ApartMax"/>.
+    /// Drawing only, so the simulation stays the same.</summary>
+    private void KeepApart(PeopleFrame previous, PeopleFrame current, float t, int slots)
+    {
+        foreach (List<int> cell in _apartGrid.Values) cell.Clear();
+        for (int i = 0; i < slots; i++)
+        {
+            if (current.Kind[i] == 0) { _apartX[i] = _apartZ[i] = 0; continue; }
+            float jx = current.X[i] - previous.X[i], jz = current.Z[i] - previous.Z[i];
+            bool known = previous.Kind[i] != 0 && jx * jx + jz * jz < current.MaxStep * current.MaxStep;
+            _drawX[i] = known ? previous.X[i] + jx * t : current.X[i];
+            _drawZ[i] = known ? previous.Z[i] + jz * t : current.Z[i];
+            long key = ((long)MathF.Floor(_drawX[i] / ApartRadius) << 32) ^ (uint)(int)MathF.Floor(_drawZ[i] / ApartRadius);
+            if (!_apartGrid.TryGetValue(key, out List<int> list)) _apartGrid[key] = list = new List<int>(4);
+            list.Add(i);
+        }
+        for (int i = 0; i < slots; i++)
+        {
+            if (current.Kind[i] == 0) continue;
+            float px = 0, pz = 0;
+            int cx = (int)MathF.Floor(_drawX[i] / ApartRadius), cz = (int)MathF.Floor(_drawZ[i] / ApartRadius);
+            for (int dx = -1; dx <= 1; dx++)
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                if (!_apartGrid.TryGetValue(((long)(cx + dx) << 32) ^ (uint)(cz + dz), out List<int> list)) continue;
+                foreach (int j in list)
+                {
+                    if (j == i) continue;
+                    float ox = _drawX[i] - _drawX[j], oz = _drawZ[i] - _drawZ[j], d2 = ox * ox + oz * oz;
+                    if (d2 >= ApartRadius * ApartRadius) continue;
+                    float d = MathF.Sqrt(d2);
+                    // Two people on the same spot part to either side of the way they face.
+                    if (d < 0.02f) { float side = i < j ? 1 : -1, yaw = current.Yaw[i]; ox = MathF.Cos(yaw) * side; oz = -MathF.Sin(yaw) * side; d = 1; }
+                    float push = (ApartRadius - MathF.Min(d, ApartRadius)) * 0.5f;
+                    px += ox / d * push;
+                    pz += oz / d * push;
+                }
+            }
+            float len = MathF.Sqrt(px * px + pz * pz);
+            if (len > ApartMax) { px *= ApartMax / len; pz *= ApartMax / len; }
+            // Ease toward the wanted offset so people sidestep rather than snap.
+            _apartX[i] += (px - _apartX[i]) * 0.15f;
+            _apartZ[i] += (pz - _apartZ[i]) * 0.15f;
+        }
+    }
+
+    /// <summary>Emoji per thought code from SimHost.ThoughtOf.</summary>
+    private static readonly string[] ThoughtEmoji =
+    {
+        "", "🍖", "🦌", "🫐", "🐚", "⛏️", "🔨", "🍲", "🏭", "🧺",
+        "😄", "🌾", "🍇", "🪓", "🪨", "🐟", "🌾", "🍞", "🍷", "⚒️",
+    };
+    private const int ThoughtSlots = 12;
+    private const float ThoughtRange = 75f;
+    private Node3D[] _thoughtNodes;
+    private Label3D[] _thoughtLabels;
+    private readonly (float D, int I, byte T, Vector3 P)[] _thoughtPicks = new (float, int, byte, Vector3)[ThoughtSlots];
+    private int _thoughtCount;
+    private Vector3 _thoughtEye;
+    private float _thoughtClock;
+
+    /// <summary>Keeps the nearest busy villagers to the camera, each showing its cloud for a few seconds at a time.</summary>
+    private void NoteThought(int slot, byte thought, float x, float y, float z)
+    {
+        float d = _thoughtEye.DistanceTo(new Vector3(x, y, z));
+        if (d > ThoughtRange) return;
+        // Clouds come and go: each villager thinks aloud about half the time, at its own moments.
+        if ((_thoughtClock / 7f + slot * 0.61803f) % 1f > 0.5f) return;
+        if (thought >= ThoughtEmoji.Length) return;
+        int at = _thoughtCount;
+        if (at == ThoughtSlots)
+        {
+            at = 0;
+            for (int k = 1; k < ThoughtSlots; k++) if (_thoughtPicks[k].D > _thoughtPicks[at].D) at = k;
+            if (_thoughtPicks[at].D <= d) return;
+        }
+        else _thoughtCount++;
+        _thoughtPicks[at] = (d, slot, thought, new Vector3(x, y, z));
+    }
+
+    private void ShowThoughts()
+    {
+        if (_thoughtNodes == null) MakeThoughtClouds();
+        for (int k = 0; k < ThoughtSlots; k++)
+        {
+            bool on = k < _thoughtCount;
+            _thoughtNodes[k].Visible = on;
+            if (!on) continue;
+            // Farther clouds are drawn larger, so the emoji stays readable from the usual camera height.
+            float grow = Math.Clamp(_thoughtPicks[k].D / 12f, 1f, 4.5f);
+            _thoughtNodes[k].Scale = Vector3.One * grow;
+            _thoughtNodes[k].Position = _thoughtPicks[k].P + Vector3.Up * 0.25f * (grow - 1);
+            _thoughtLabels[k].Text = ThoughtEmoji[_thoughtPicks[k].T];
+        }
+        _thoughtCount = 0;
+        Camera3D camera = GetViewport().GetCamera3D();
+        if (camera != null) _thoughtEye = camera.GlobalPosition;
+        _thoughtClock = (float)(Time.GetTicksMsec() / 1000.0);
+    }
+
+    /// <summary>A white cloud with two trailing puffs, drawn once into a small texture, and an emoji label on it.</summary>
+    private void MakeThoughtClouds()
+    {
+        const int w = 128, h = 120;
+        Image image = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
+        (float X, float Y, float R)[] blobs = { (64, 40, 30), (38, 50, 24), (90, 50, 24), (52, 26, 22), (78, 26, 22), (64, 60, 24), (44, 92, 9), (32, 110, 5) };
+        for (int py = 0; py < h; py++)
+        for (int px = 0; px < w; px++)
+        {
+            float best = 9;
+            foreach (var b in blobs) best = Math.Min(best, (MathF.Sqrt((px - b.X) * (px - b.X) + (py - b.Y) * (py - b.Y)) - b.R) / 2.5f);
+            if (best >= 1) continue;
+            float alpha = Math.Clamp(1 - best, 0, 1);
+            // A soft grey rim keeps the cloud readable against snow and pale walls.
+            float shade = best > -1.2f ? 0.62f : 1f;
+            image.SetPixel(px, py, new Color(shade, shade, shade, alpha * 0.95f));
+        }
+        var texture = ImageTexture.CreateFromImage(image);
+        var font = new SystemFont { FontNames = new[] { "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji" } };
+        _thoughtNodes = new Node3D[ThoughtSlots];
+        _thoughtLabels = new Label3D[ThoughtSlots];
+        for (int k = 0; k < ThoughtSlots; k++)
+        {
+            var node = new Node3D { Visible = false };
+            node.AddChild(new Sprite3D
+            {
+                Texture = texture, PixelSize = 1.15f / w, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Shaded = false,
+                NoDepthTest = true, RenderPriority = 10, Position = new Vector3(0, 0.15f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            });
+            var label = new Label3D
+            {
+                Font = font, FontSize = 56, PixelSize = 0.0085f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true,
+                RenderPriority = 11, OutlineSize = 0, Position = new Vector3(0, 0.33f, 0), Modulate = Colors.White, Shaded = false,
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            };
+            node.AddChild(label);
+            AddChild(node);
+            _thoughtNodes[k] = node;
+            _thoughtLabels[k] = label;
+        }
+    }
+
     public void SyncPeople() => _host.ReadPeople(WritePeople);
 
     private void WritePeople(PeopleFrame previous, PeopleFrame current, float t)
@@ -2050,6 +2199,7 @@ void fragment() {
         Array.Clear(_loadCounts);
         foreach (TexturedRole role in _texturedRoles)
             if (role != null) role.Bodies = role.Tools = 0;
+        KeepApart(previous, current, t, slots);
         for (int i = 0; i < slots; i++)
         {
             byte kind = current.Kind[i];
@@ -2060,6 +2210,9 @@ void fragment() {
             float x = known ? previous.X[i] + (current.X[i] - previous.X[i]) * t : current.X[i];
             float y = known ? previous.Y[i] + (current.Y[i] - previous.Y[i]) * t : current.Y[i];
             float z = known ? previous.Z[i] + (current.Z[i] - previous.Z[i]) * t : current.Z[i];
+            x += _apartX[i];
+            z += _apartZ[i];
+            if (current.Thought[i] != 0) NoteThought(i, current.Thought[i], x, y + (kind == 3 ? 1.55f : 2.25f), z);
             float scale = kind == 3 ? 0.68f : kind == 4 ? 0.96f : 1f;
 
             float vx = x - _viewCenter.X, vz = z - _viewCenter.Z;
@@ -2108,6 +2261,7 @@ void fragment() {
             if (current.Carry[i] > 0)
                 Write(_cargoBuffer, carried++, 1, x, y + 1.72f * scale, z, CargoColors[current.Carry[i] - 1]);
         }
+        ShowThoughts();
         _people.VisibleInstanceCount = 0;
         _people.Buffer = _peopleBuffer;
         _people.VisibleInstanceCount = visible;
