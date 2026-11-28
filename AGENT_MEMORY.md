@@ -2,6 +2,10 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 15:05 — Update clip 28 published
+- Purpose: 3-hourly YouTube update clip. Scenes (tools/record-showcase.ps1, seed 1000): Neolithic boats (year 60), spring vs summer herds (year 150.05 / 150.3, view 170,170,140), ox carts (year 120).
+- Published publicly: https://youtu.be/Yp6hVPTq9RA. No code changes.
+- Verification: frames checked before upload. Spring herd near the folds and the emptier summer village are clear. The Neolithic boat is only a distant speck, and no ox cart is visible in the cart scene; the description says so.
 ## 2026-11-28 — Herds go out to summer pasture
 
 - **Changed:** Wildlife.
