@@ -2,6 +2,10 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — --azimuth option; washers seen at the bank
+
+- **Changed:** Main: --azimuth=DEG turns a fixed --view around its focus (0 is the usual side). Used for shots of a bank, which the default view sees from behind the houses.
+- **Verified:** Godot shot, seed 1000, year 150, hour 11, --view=192,145,24 --azimuth=180 at 70 s: the riverbank is in view, with women walking to the water's edge and one standing right at the bank. No one is caught kneeling in that frame.
 ## 2026-11-28 — Washers now reach the real water's edge
 
 - **Bug:** a debug pass showed washing targets stopped at the first non-walkable ground. That is usually the edge of a drained polder, about 70 m from the river. Many washers also could not path there (300-expansion limit), so they knelt in the middle of town.

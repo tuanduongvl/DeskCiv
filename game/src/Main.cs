@@ -171,7 +171,8 @@ void fragment() {
             string[] parts = view.Split(',');
             _focus = _focusTarget = FocusAt(float.Parse(parts[0], CultureInfo.InvariantCulture), float.Parse(parts[1], CultureInfo.InvariantCulture));
             _distance = _distanceTarget = float.Parse(parts[2], CultureInfo.InvariantCulture);
-            _azimuth = _azimuthTarget = 0;
+            // --azimuth=DEG turns the fixed view around its focus (0 looks from the usual side).
+            _azimuth = _azimuthTarget = Mathf.DegToRad((float)Number(args, "--azimuth", 0));
             _manual = true;
             _manualUntil = double.MaxValue;
         }
