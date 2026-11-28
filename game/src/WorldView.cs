@@ -528,6 +528,10 @@ void fragment() {
     private StandardMaterial3D _lanternMaterial;
     private int _lampPoolNode;
     private readonly float[] _barrowBuffer = new float[HeroCapacity * 16];
+    private readonly float[] _spearBuffer = new float[HeroCapacity * 16];
+    private MultiMesh _spears;
+    private int _spearCount;
+    private bool _spearSeen;
     private ShaderMaterial _terrain;
     private StandardMaterial3D _glowMaterial;
     /// <summary>Flames over a burning house, flickered every frame.</summary>
@@ -695,6 +699,7 @@ void fragment() {
             _loadBuffers[i] = new float[HeroCapacity * 16];
         }
         _barrows = AddInstances(MeshKit.Barrow(), vertexColors, true, HeroCapacity, true);
+        _spears = AddInstances(MeshKit.Spear(), vertexColors, true, HeroCapacity);
         _lampPosts = AddInstances(MeshKit.LampPost(), vertexColors, false, 64, true);
         _lanternMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(0.35f, 0.33f, 0.28f) };
         _lanterns = AddInstances(MeshKit.Lantern(), _lanternMaterial, false, 64);
@@ -2263,6 +2268,9 @@ void fragment() {
                     int tool = kind is 1 or 2 && _shown?.Wild != true ? CharacterKit.ToolFor(clip) : -1;
                     if (tool >= 0) WriteHero(_toolBuffers[tool], _toolCounts[tool]++, size, sin, cos, x, y, z, Colors.White, start, length, phase);
                 }
+                // In the wild years hunters go out with fire-hardened wooden spears.
+                if (_shown?.Wild == true && kind == 1 && current.Thought[i] == 2 && current.Carry[i] == 0)
+                    WriteYawed(_spearBuffer, _spearCount++, CharacterScale * scale, sin, cos, x, y, z);
                 if (current.Carry[i] > 0)
                 {
                     // From the Middle Ages adults push their loads in a wheelbarrow; the goods ride in its tray.
@@ -2289,6 +2297,13 @@ void fragment() {
         for (int i = 0; i < _tools.Length; i++) Upload(_tools[i], _toolBuffers[i], _toolCounts[i]);
         for (int i = 0; i < _loads.Length; i++) Upload(_loads[i], _loadBuffers[i], _loadCounts[i]);
         Upload(_barrows, _barrowBuffer, barrows);
+        Upload(_spears, _spearBuffer, _spearCount);
+        if (_spearCount > 0 && !_spearSeen)
+        {
+            _spearSeen = true;
+            GD.Print($"DeskCiv: hunters out with spears ({_spearCount})");
+        }
+        _spearCount = 0;
         foreach (TexturedRole role in _texturedRoles)
         {
             if (role == null) continue;

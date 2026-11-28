@@ -878,6 +878,16 @@ public sealed class MeshKit
         return this;
     }
 
+    /// <summary>A fire-hardened wooden hunting spear held upright at the right hand, leaning a little forward.</summary>
+    public static ArrayMesh Spear()
+    {
+        var m = new MeshKit();
+        Vector3 butt = new(0.34f, 0.05f, 0.05f), tip = new(0.34f, 2.25f, 0.42f);
+        m.Cylinder(butt, butt.Lerp(tip, 0.88f), 0.028f, 0.024f, 6, new Color(0.55f, 0.42f, 0.27f));
+        m.Cylinder(butt.Lerp(tip, 0.88f), tip, 0.024f, 0.002f, 6, new Color(0.2f, 0.14f, 0.1f));
+        return m.Build();
+    }
+
     /// <summary>The wild band's food store: a hide-covered heap weighed down with stones, a drying rack hung with
     /// strips of meat and split fish, and baskets of berries and shellfish.</summary>
     public static ArrayMesh FoodCache()
