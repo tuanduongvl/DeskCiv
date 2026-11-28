@@ -2,6 +2,10 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Washer seen kneeling at the bank
+
+- **Verified on screen:** a debug pass in fast-forward mode (Night unset, as --start-year runs), seed 1000, year 150, found the busiest kneeling place at 252,152. A Godot shot --view=251,150,18 --azimuth=180 at 120 s shows a woman bent over in the gather pose on the sandy bank, a step from the water. This confirms the washing scene end to end.
+- **Clip recipe:** the same view with lead of about 90 s.
 ## 2026-11-28 — Children play on the bank in summer
 
 - **Changed:** Simulation.Wander. In summer (Season == 1), a child aged 7–13 who would go to the block play patch instead goes, with a 40% Cosmetic draw, to the family's shared washing place on the riverbank (WashingSpot). The child plays there within a 4 m radius, using a 4000-expansion path search.
