@@ -2,6 +2,10 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 16:45 — quarry_t3 sheet made; model build stopped for low memory (pending)
+- Sheet: ChatGPT isometric view, then a 2x2 ortho grid on chroma green. Saved as assets-candidates/concepts/buildings/quarry-t3.png (1880s brick-and-timber stone works: open saw bay with circular saw, iron jib crane, brick chimney, stacked blocks, slate roof).
+- The build `tools\make_building.ps1 -Sheet assets-candidates/concepts/buildings/quarry-t3.png -Name quarry_t3 -Height 9` was stopped by Claude Code because the system was critically low on memory. No model was written. Not restarted (rule: restart only when the user asks), same as mill_t4.
+- Until built, every quarry tier keeps using quarry_t0.
 ## 2026-11-28 16:15 — Ox carts before the Middle Ages
 - Files: game/src/MeshKit.cs (new `OxCart()`: two pale oxen under a yoke, pole, plank cart with load, solid wheels), game/src/Wildlife.cs (`ApplyCounts` swaps the cart mesh to the ox cart for eras 2–3 and back to the horse cart from era 4, tracked by `_oxCarts`).
 - Behaviour: the slow early carts (Bronze and Iron Age) are now pulled by oxen instead of a horse.
