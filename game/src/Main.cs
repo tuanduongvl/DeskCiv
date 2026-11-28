@@ -303,7 +303,8 @@ void fragment() {
             _worldTimer -= delta;
             if (_worldTimer <= 0)
             {
-                _worldTimer = 1;
+                // Sped up, building and the land change faster, so they are redrawn four times a second.
+                _worldTimer = _sim.Speed > 1 ? 0.25 : 1;
                 _view.SyncWorld();
                 WorldSnapshot snapshot = _sim.Snapshot;
                 if (snapshot.RunComplete && !_replaying) BeginReplay(snapshot);
@@ -320,6 +321,7 @@ void fragment() {
             HandleMouse();
             UpdateCamera((float)delta);
             if (!_tray.Paused) _view.SyncPeople();
+            _view.TickSeason((float)delta);
             _sunTimer -= delta;
             if (_sunTimer <= 0)
             {

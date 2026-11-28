@@ -1626,19 +1626,42 @@ void fragment() {
         if (_shown != null) UpdateSeason(_shown);
     }
 
+    /// <summary>The season as drawn, in years (0..1). It follows the simulation but never moves faster than
+    /// one season per <see cref="SeasonSeconds"/>, so the land changes colour gradually even at x500.</summary>
+    private float _seasonPhase = -1;
+    private const float SeasonSeconds = 4f;
+
+    /// <summary>Called every frame: eases the drawn season toward the simulation's and recolours the land.</summary>
+    public void TickSeason(float delta)
+    {
+        if (_shown == null) return;
+        float target = _shown.YearFraction;
+        if (_seasonPhase < 0) _seasonPhase = target;
+        float ahead = target - _seasonPhase;
+        if (ahead < 0) ahead += 1;
+        // A tiny backward difference (a reload or a new world) is not a whole year to run through.
+        if (ahead > 0.97f) { _seasonPhase = target; ahead = 0; }
+        float step = Math.Min(ahead, delta / (SeasonSeconds * 4));
+        if (step <= 0) return;
+        _seasonPhase = (_seasonPhase + step) % 1f;
+        UpdateSeason(_shown);
+    }
+
     private void UpdateSeason(WorldSnapshot s)
     {
-        _wildlife.Season = s.Season;
-        float f = s.YearFraction * 4;
+        if (_seasonPhase < 0) _seasonPhase = s.YearFraction;
+        float f = _seasonPhase * 4;
         int a = (int)f % 4, b = (a + 1) % 4;
-        float t = Mathf.SmoothStep(0.72f, 1f, f - MathF.Floor(f));
+        _wildlife.Season = a;
+        // Each season drifts into the next over its second half, not in a sudden last-quarter swap.
+        float t = Mathf.SmoothStep(0.4f, 1f, f - MathF.Floor(f));
         Vector3[] tints = { new(0.94f, 1.1f, 0.84f), new(1f, 1f, 0.96f), new(1.24f, 0.9f, 0.55f), new(0.82f, 0.82f, 0.78f) };
         float[] snow = { 0, 0, 0, 0.76f };
         Color[] leaves = { new(0.3f, 0.56f, 0.26f), new(0.2f, 0.42f, 0.2f), new(0.68f, 0.42f, 0.16f), new(0.74f, 0.78f, 0.78f) };
         Color[] water = { new(0.2f, 0.45f, 0.58f), new(0.18f, 0.44f, 0.56f), new(0.2f, 0.38f, 0.48f), new(0.56f, 0.68f, 0.76f) };
         // The year's event shows on the land: a drought parches grass and leaves from late spring, and a harsh
         // winter brings snow before the end of autumn and lays it deeper.
-        float yf = s.YearFraction;
+        float yf = _seasonPhase;
         float drought = s.ActiveEvent == 1 ? Mathf.SmoothStep(0.08f, 0.3f, yf) * (1 - Mathf.SmoothStep(0.8f, 0.95f, yf)) : 0;
         float harsh = s.ActiveEvent == 2 ? Mathf.SmoothStep(0.64f, 0.78f, yf) * (1 - Mathf.SmoothStep(0.94f, 1f, yf)) : 0;
         Vector3 tint = tints[a].Lerp(tints[b], t).Lerp(new Vector3(1.32f, 0.98f, 0.52f), drought * 0.7f);
@@ -1659,7 +1682,7 @@ void fragment() {
         _fieldMaterial?.SetShaderParameter("snow", snowLevel);
         bool snowy = snowLevel > 0.35f;
         _scatterNodes[0].Visible = !snowy && _detail < 2;
-        _scatterNodes[1].Visible = s.Season is 0 or 1 && drought < 0.5f && _detail < 2;
+        _scatterNodes[1].Visible = a is 0 or 1 && drought < 0.5f && _detail < 2;
         _scatterNodes[2].Visible = _detail < 2;
     }
 
@@ -2033,7 +2056,7 @@ void fragment() {
             if (kind == 0) continue;
             // A slot freed and reused within one publish (a death then a birth) would streak from the old position.
             float jumpX = current.X[i] - previous.X[i], jumpZ = current.Z[i] - previous.Z[i];
-            bool known = previous.Kind[i] != 0 && jumpX * jumpX + jumpZ * jumpZ < 25f;
+            bool known = previous.Kind[i] != 0 && jumpX * jumpX + jumpZ * jumpZ < current.MaxStep * current.MaxStep;
             float x = known ? previous.X[i] + (current.X[i] - previous.X[i]) * t : current.X[i];
             float y = known ? previous.Y[i] + (current.Y[i] - previous.Y[i]) * t : current.Y[i];
             float z = known ? previous.Z[i] + (current.Z[i] - previous.Z[i]) * t : current.Z[i];

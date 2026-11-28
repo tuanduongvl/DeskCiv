@@ -57,6 +57,8 @@ public sealed class PeopleFrame
     public readonly float[] X = new float[Rules.MaxPeople], Y = new float[Rules.MaxPeople], Z = new float[Rules.MaxPeople], Yaw = new float[Rules.MaxPeople];
     public readonly byte[] Kind = new byte[Rules.MaxPeople], Carry = new byte[Rules.MaxPeople], Anim = new byte[Rules.MaxPeople], Variant = new byte[Rules.MaxPeople];
     public int Slots;
+    /// <summary>Longest move between two frames still drawn as walking; longer ones are a reused slot and jump.</summary>
+    public float MaxStep = 5f;
 }
 
 /// <summary>Runs the simulation on a low-priority thread and publishes immutable views for rendering.</summary>
@@ -72,6 +74,7 @@ public sealed class SimHost
     private PeopleFrame _previous = new(), _current = new(), _spare = new();
     private WorldSnapshot _snapshot;
     private long _publishedAt;
+    private volatile float _publishSeconds = Rules.TickSeconds;
     private Thread _thread;
     private volatile bool _running, _night;
     private volatile bool _saveRequested;
@@ -144,6 +147,7 @@ public sealed class SimHost
     private void Loop()
     {
         long interval = (long)(Rules.TickSeconds * Stopwatch.Frequency);
+        double debt = 0;
         long next = Stopwatch.GetTimestamp();
         long nextSave = next + (long)(SaveSeconds * Stopwatch.Frequency);
         int counter = 0;
@@ -152,14 +156,25 @@ public sealed class SimHost
             if (!Paused)
             {
                 _sim.Night = _night;
-                long budgetEnd = Stopwatch.GetTimestamp() + Stopwatch.Frequency * 70 / 1000;
-                int steps = _speed;
-                for (int i = 0; i < steps; i++)
+                long budgetEnd = Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * (_speed > 1 ? 1.0 / 30 : Rules.TickSeconds) * 0.7);
+                // Sped up, the world is published about 30 times a second instead of 10, so villagers glide
+                // between frames instead of jumping a long way ten times a second.
+                bool fast = _speed > 1;
+                double seconds = fast ? 1.0 / 30 : Rules.TickSeconds;
+                interval = (long)(seconds * Stopwatch.Frequency);
+                _publishSeconds = (float)seconds;
+                debt += _speed * seconds / Rules.TickSeconds;
+                int steps = (int)debt;
+                debt -= steps;
+                int done = 0;
+                for (int i = 0; i < steps; i++, done++)
                 {
                     _sim.Step();
-                    if ((i & 7) == 7 && Stopwatch.GetTimestamp() >= budgetEnd) break;
+                    if ((i & 7) == 7 && Stopwatch.GetTimestamp() >= budgetEnd) { done++; break; }
                 }
-                Publish(++counter % 10 == 0);
+                if (done < steps) debt = 0;
+                _spare.MaxStep = 5f + 2.6f * done * Rules.TickSeconds;
+                Publish(++counter % (fast ? 30 : 10) == 0);
             }
             long now = Stopwatch.GetTimestamp();
             if (now >= nextSave || _saveRequested)
@@ -450,7 +465,7 @@ public sealed class SimHost
         lock (_gate)
         {
             double age = (Stopwatch.GetTimestamp() - _publishedAt) / (double)Stopwatch.Frequency;
-            float t = Paused ? 1f : (float)Math.Clamp(age / Rules.TickSeconds, 0, 1);
+            float t = Paused ? 1f : (float)Math.Clamp(age / _publishSeconds, 0, 1);
             reader(_previous, _current, t);
         }
     }
