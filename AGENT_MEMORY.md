@@ -2,6 +2,10 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 15:20 — Cargo barges on the estuary (Fable #16 backlog)
+- Files: game/src/MeshKit.cs (new `Barge()` mesh: flat hull, sacks, barrels, small sail, steering oar), game/src/Wildlife.cs (`_barges` flock, `StepBarges`, count in `ApplyCounts`).
+- Behaviour: from the Renaissance (era 5) on, 1 + huts/40 barges (at most 3) move slowly (1.1 m/s) up and down their own lanes of the channel between upstream of the village and the coast. They stop at night where they are and are hidden when the river freezes.
+- Verification: build OK; shot at seed 1000, year 230, 11:00, --view=200,140,120 shows two barges among the fishing boats, readable when zoomed. Not checked: night stop, frozen-river hiding, 20th-century look (same barge model in all later eras). Visual only; sim tests not re-run (no sim change).
 ## 2026-11-28 15:05 — Update clip 28 published
 - Purpose: 3-hourly YouTube update clip. Scenes (tools/record-showcase.ps1, seed 1000): Neolithic boats (year 60), spring vs summer herds (year 150.05 / 150.3, view 170,170,140), ox carts (year 120).
 - Published publicly: https://youtu.be/Yp6hVPTq9RA. No code changes.
