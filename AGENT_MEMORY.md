@@ -2,6 +2,13 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Fourth seed sweep; mains for very large towns
+
+- **Sweep:** full runs on seeds 7, 77, 2222, 4096, 8191, 13579, 24680 and 55555. Seven are clean, with every landmark, shifts and trains. Seed 77 grew a very large street network (1334 road tiles) and laid mains on only 875 of them, below the 70% check.
+- **Changed:** Simulation.FinishMainsWork needs 1 dig stint per tile instead of 2 when the town has more than 1100 road tiles (new RoadTileCount). The test seeds stay at or below about 1022 tiles.
+- **Verified:**
+  - Seed 77 now has 1219 of 1334 tiles with mains.
+  - SimTests: ALL PASSED on 8 full seeds.
 ## 2026-11-28 — Update clip 26 published
 
 - **Done:** about 27 s, 2.3 MB, seed 1000 at 227 BC, two river-side scenes made with `--view` and `--azimuth=180` (`lead` 70 and 40). Published publicly (not made for kids) as "DeskCiv update 26 – washing day by the river, seen from the water": https://youtu.be/6gCT6qNn8Ms.

@@ -3206,12 +3206,20 @@ public sealed class Simulation
         return best >= 0 ? best : nearest;
     }
 
+    private int RoadTileCount()
+    {
+        int n = 0;
+        foreach (byte t in Tiles) if (t == TileKind.Road) n++;
+        return n;
+    }
+
     private void FinishMainsWork(int tile)
     {
         int stage = MainsStage;
         if (tile != DigTile || stage == 0 || Pipes[tile] >= stage) return;
         // Two stints of digging per street tile, so a large town's network keeps up with its new streets.
-        if (++DigWork < 2) return;
+        // A very large town (over 1,100 street tiles) lays one tile per stint so its network still keeps up.
+        if (++DigWork < (RoadTileCount() > 1100 ? 1 : 2)) return;
         Pipes[tile] = (byte)stage;
         DigWork = 0;
         DigTile = -1;
