@@ -2,6 +2,12 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Small boats on the river in the New Stone Age
+
+- **Changed:** Wildlife. In era 1 (New Stone Age), 2 fishing boats are shown at 0.6 scale, about half size, with the draft scaled to match. The river was empty before the Bronze Age. From era 2 the boats are unchanged.
+- **Verified:** Godot shot, seed 1000, year 60 (5,413 BC), `--view=200,110,90`: a small boat on the estuary.
+- **Limitation:** it is the same boat model (with a sail) scaled down, not a true dugout.
+- **Not done:** barges for era 5+.
 ## 2026-11-28 — Fable review 16: bank fixes, carts from the Bronze Age
 
 - **Changed:**

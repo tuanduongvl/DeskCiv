@@ -217,7 +217,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         bool farming = _era >= 1;
         int[] wanted = { 4 + 3 * _fields, 1 + _fields, 4 + _huts / 2 };
         for (int i = 0; i < 3; i++) _herds[i].Mesh.VisibleInstanceCount = farming ? Math.Clamp(wanted[i], 0, _herds[i].Agents.Length) : 0;
-        _boats.Mesh.VisibleInstanceCount = _era >= 2 && !_frozen ? Math.Clamp(_fishers, 1, _boats.Agents.Length) : 0;
+        _boats.Mesh.VisibleInstanceCount = _frozen ? 0 : _era >= 2 ? Math.Clamp(_fishers, 1, _boats.Agents.Length) : _era == 1 ? Math.Min(2, _boats.Agents.Length) : 0;
         if (_skaters != null) _skaters.Mesh.VisibleInstanceCount = _frozen ? _skaters.Agents.Length : 0;
         if (_carts != null)
         {
@@ -688,7 +688,9 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             float z = _map.RiverCenter(b.X) + lane;
             b.Z = z;
             b.Yaw = heading;
-            Write(_boats.Buffer, i, 1.15f, heading, b.X, Tide + 0.03f - _boatDraft, z, moving, b.Phase);
+            // Neolithic fishers go out in small boats, about half the size of the later fishing boats.
+            float size = _era < 2 ? 0.6f : 1.15f;
+            Write(_boats.Buffer, i, size, heading, b.X, Tide + 0.03f - _boatDraft * size / 1.15f, z, moving, b.Phase);
         }
         _boats.Mesh.Buffer = _boats.Buffer;
     }
