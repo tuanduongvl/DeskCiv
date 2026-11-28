@@ -2,6 +2,9 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 20:22 — Update clip 30 published
+- Published publicly: https://youtu.be/0RbxxVPznTE. Scenes: the full Stone Age hunt (--start-year=2.38 --view=274,188,22), night fire with embers, berry bushes, food cache, fisher camp with shell midden, Bronze Age ox carts.
+- Frames checked before upload: the hunt reads clearly; the berry bush scene is dominated by the cave rock and no ox cart passes in the last scene. The description says so.
 ## 2026-11-28 20:16 — Livelier fire: tongued flames and night embers (Fable #17 item 5, visual part)
 - Files: game/src/MeshKit.cs (Flame: three crossed sheets, each a row of six flame tongues of uneven height, yellow at the base, orange halfway, fading at the tips; used by the camp fire, house fires and bonfires), game/src/WorldView.cs (_embers: 14 embers rise about 4 m from the camp fire after dark, swirling and fading).
 - Verification: build OK; shots at seed 1000, year 2 (--view=110,178,7 at 10:00 and 9 at 23:00) show the tongued flame and, at night, embers above the fire. Embers are the small square Spark mesh. Fire tending by villagers (sim side) is still open.
