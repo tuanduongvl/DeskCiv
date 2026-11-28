@@ -2,6 +2,10 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 19:05 — Update clip 29 published
+- Published publicly: https://youtu.be/nNVkZsa9244 (1:14). Scenes: thought clouds at the Stone Age camp, x500 seasons, Stone Age loads, field stones and pines, barges, quarry_t3 (--look=Quarry), mill_t4 (--look=Mill).
+- First take had cut-off captions and was re-recorded with shorter ones. The quarry and mill scenes stay wide (the models are small in frame); the description says so and notes clouds showing through roofs.
+- Note: the ChatGPT tab shows a "Create Stonemason Lodge Image" chat from the quarry_t2 prompt the user rejected; that image was not used and no quarry_t2 work was done.
 ## 2026-11-28 18:50 — Stone Age audit: field stones and tree crowns
 - Audit shots (seed 1000, year 2: --watch-hunt, --watch-dig, shore) found: brown lumpy "pebbles" from the scatter kit tinted by the season, and a wide horizontal crown card cutting through pines at mid-height (seen as a disc from a close camera).
 - Files: game/src/MeshKit.cs (`Pebbles`: three rounded warm-grey field stones half sunk, moss on the largest; no longer loads `scatter_pebbles`), game/src/WorldView.cs (stones get their own scatter material, so the season tint no longer turns them orange or green), tools/build_cutout_model.py (tree crowns: three level cards at 35%, 62% and 88% down the crown, each 92% of the crown width at that height and turned 0.7 rad from the last, instead of one full-width card at mid-crown), game/assets/models/tree_pine|tree_broad|tree_birch (rebuilt with `--cross 3`, sizes 10, 9, 9.5 m; local only), game/src/Main.cs (`--preview-mesh=<MeshKit method>` shows any parameterless MeshKit mesh at the focus).
