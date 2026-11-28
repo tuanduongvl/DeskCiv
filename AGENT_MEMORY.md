@@ -2,6 +2,9 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 20:16 — Livelier fire: tongued flames and night embers (Fable #17 item 5, visual part)
+- Files: game/src/MeshKit.cs (Flame: three crossed sheets, each a row of six flame tongues of uneven height, yellow at the base, orange halfway, fading at the tips; used by the camp fire, house fires and bonfires), game/src/WorldView.cs (_embers: 14 embers rise about 4 m from the camp fire after dark, swirling and fading).
+- Verification: build OK; shots at seed 1000, year 2 (--view=110,178,7 at 10:00 and 9 at 23:00) show the tongued flame and, at night, embers above the fire. Embers are the small square Spark mesh. Fire tending by villagers (sim side) is still open.
 ## 2026-11-28 19:54 — Hunt kill scene: hunters butcher the fallen deer (Fable #17 item 3)
 - Files: game/src/Sim/Simulation.cs (Butchering marker in Person.B: after the strike of a won hunt each hunter walks to a 1.3 m ring round the fallen deer, 8 m beyond the meeting point away from the camp, butchers it for 14 s, then carries the meat home), game/src/SimHost.cs (butchers kneel with the Gather clip, facing the carcass), game/src/Wildlife.cs (the carcass stays 34 s instead of 12 before fading; log line "deer down at x,z after N s").
 - Verification: SimTests ALL PASSED (8 seeds, 121 s). Recording at seed 1000, --start-year=2.38, 09:00, --view=274,188,22, 110 s (deer down at 29 s): frames every 4 s show hunters with spears and 🦌 clouds stalking, the deer falling, the hunters gathered and kneeling round it, then walking off each carrying a haunch, and the carcass left behind and fading. The wooden spears are now confirmed on screen.

@@ -537,7 +537,8 @@ void fragment() {
     /// <summary>Flames over a burning house, flickered every frame.</summary>
     private MultiMesh _flames;
     /// <summary>Feasts and era celebrations: a bonfire at the gathering point and, for a new era, fireworks above it.</summary>
-    private MultiMesh _bonfire, _sparks;
+    private MultiMesh _bonfire, _sparks, _embers;
+    private const int Embers = 14;
     /// <summary>Stooks of cut grain on harvested fields until the new year.</summary>
     private MultiMesh _stooks;
     /// <summary>In December (by the PC's clock) a lit fir stands by the church from the Industrial era on.</summary>
@@ -658,6 +659,7 @@ void fragment() {
         _campfire = AddInstances(MeshKit.Flame(), flameMaterial, false, 3);
         var sparkMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
         _sparks = AddInstances(MeshKit.Spark(), sparkMaterial, true, Rockets * SparksPerRocket);
+        _embers = AddInstances(MeshKit.Spark(), sparkMaterial, true, Embers);
         _rails = AddInstances(MeshKit.RailTrack(), vertexColors, false, 64, true);
         _train = AddInstances(MeshKit.Train(), vertexColors, false, 1, true);
         _portal = AddInstances(MeshKit.TunnelPortal(), vertexColors, false, 1, true);
@@ -1057,6 +1059,7 @@ void fragment() {
             if (_campLight != null) _campLight.Visible = false;
             if (_campGlow != null) _campGlow.VisibleInstanceCount = 0;
             _campfire.VisibleInstanceCount = 0;
+            if (_embers != null) _embers.VisibleInstanceCount = 0;
             return;
         }
         Ensure(_campfire, 3);
@@ -1082,6 +1085,19 @@ void fragment() {
             _campfire.SetInstanceTransform(k, new Transform3D(basis, camp + offset));
         }
         _campfire.VisibleInstanceCount = 3;
+        // After dark, embers rise from the camp fire, swirl a little and go out.
+        if (_nightGlow > 0.15f)
+        {
+            for (int k = 0; k < Embers; k++)
+            {
+                float life = (t * 0.55f + k * 0.618034f) % 1f, a = k * 2.399963f + t * 0.8f;
+                var pos = camp + new Vector3(MathF.Cos(a) * (0.2f + life * 0.6f), 0.6f + life * 4.2f, MathF.Sin(a) * (0.2f + life * 0.6f));
+                _embers.SetInstanceTransform(k, new Transform3D(Basis.Identity.Scaled(Vector3.One * (0.22f * (1f - life) + 0.05f)), pos));
+                _embers.SetInstanceColor(k, new Color(1f, 0.55f, 0.15f) * (1f - life) * _nightGlow);
+            }
+            _embers.VisibleInstanceCount = Embers;
+        }
+        else _embers.VisibleInstanceCount = 0;
     }
 
     /// <summary>Flickers the flames on a burning house: each tongue grows and shrinks on its own rhythm.</summary>

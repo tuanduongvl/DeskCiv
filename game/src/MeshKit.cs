@@ -1671,18 +1671,30 @@ public sealed class MeshKit
     /// <summary>A flame: two crossed upright quads, bright yellow at the base fading to nothing at the top (drawn additively).</summary>
     public static ArrayMesh Flame()
     {
+        // Three crossed sheets, each a row of flame tongues of uneven height: hot yellow at the base, orange halfway,
+        // fading to nothing at the tips (drawn additively).
         var vertices = new List<Vector3>();
         var colors = new List<Color>();
         var hot = new Color(1.6f, 1.15f, 0.4f);
         var mid = new Color(1.4f, 0.45f, 0.08f);
-        for (int plane = 0; plane < 2; plane++)
+        float[] xs = { -1.6f, -1.05f, -0.55f, 0f, 0.5f, 1.0f, 1.6f };
+        for (int plane = 0; plane < 3; plane++)
         {
-            Vector3 side = plane == 0 ? new Vector3(1.6f, 0, 0) : new Vector3(0, 0, 1.6f);
-            Vector3 up = new(0, 2.6f, 0), top = new(0, 5.2f, 0);
-            Vector3[] quad = { -side, side, side + up, -side, side + up, -side + up, -side * 0.7f + up, side * 0.7f + up, top };
-            Color[] tint = { hot, hot, mid, hot, mid, mid, mid, mid, Colors.Black };
-            vertices.AddRange(quad);
-            colors.AddRange(tint);
+            float a = plane * MathF.PI / 3;
+            Vector3 side = new(MathF.Cos(a), 0, MathF.Sin(a));
+            float[] tips = { 1.4f, 3.2f, 2.4f, 5.2f, 2.8f, 3.8f, 1.6f };
+            for (int k = 0; k < xs.Length - 1; k++)
+            {
+                // Tongues differ a little from sheet to sheet so the crossed sheets do not line up.
+                float h0 = tips[(k + plane) % tips.Length] * (k == 0 ? 0.6f : 1f), h1 = tips[(k + 1 + plane) % tips.Length] * (k + 1 == xs.Length - 1 ? 0.6f : 1f);
+                float w0 = 1f - MathF.Abs(xs[k]) / 2.2f, w1 = 1f - MathF.Abs(xs[k + 1]) / 2.2f;
+                h0 *= w0 + 0.3f; h1 *= w1 + 0.3f;
+                Vector3 b0 = side * xs[k], b1 = side * xs[k + 1];
+                Vector3 m0 = b0 * 0.85f + Vector3.Up * h0 * 0.45f, m1 = b1 * 0.85f + Vector3.Up * h1 * 0.45f;
+                Vector3 t0 = b0 * 0.55f + Vector3.Up * h0, t1 = b1 * 0.55f + Vector3.Up * h1;
+                vertices.AddRange(new[] { b0, b1, m1, b0, m1, m0, m0, m1, t1, m0, t1, t0 });
+                colors.AddRange(new[] { hot, hot, mid, hot, mid, mid, mid, mid, Colors.Black, mid, Colors.Black, Colors.Black });
+            }
         }
         var arrays = new Godot.Collections.Array();
         arrays.Resize((int)Mesh.ArrayType.Max);
