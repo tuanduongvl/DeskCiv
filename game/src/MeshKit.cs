@@ -1283,6 +1283,26 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A Bronze and Iron Age ox cart facing local +Z: two pale oxen under a yoke, a plank cart on solid disc wheels.</summary>
+    public static ArrayMesh OxCart()
+    {
+        var m = new MeshKit();
+        Color ox = new(0.72f, 0.64f, 0.52f), dark = new(0.22f, 0.16f, 0.11f), horn = new(0.85f, 0.8f, 0.68f), wood = new(0.5f, 0.38f, 0.24f), load = new(0.74f, 0.64f, 0.4f);
+        foreach (float x in new[] { -0.42f, 0.42f })
+        {
+            m.Box(new Vector3(x, 1.0f, 1.7f), new Vector3(0.6f, 0.65f, 1.6f), ox).Box(new Vector3(x, 1.05f, 2.7f), new Vector3(0.34f, 0.4f, 0.45f), ox);
+            m.Box(new Vector3(x, 1.3f, 2.7f), new Vector3(0.6f, 0.06f, 0.06f), horn);
+            foreach (float lx in new[] { -0.18f, 0.18f })
+            foreach (float z in new[] { 1.15f, 2.25f })
+                m.Box(new Vector3(x + lx, 0.35f, z), new Vector3(0.13f, 0.7f, 0.13f), dark);
+        }
+        m.Box(new Vector3(0, 1.4f, 2.35f), new Vector3(1.5f, 0.1f, 0.12f), dark);
+        m.Box(new Vector3(0, 0.95f, 0.85f), new Vector3(0.1f, 0.1f, 2.3f), wood);
+        m.Box(new Vector3(0, 0.95f, -0.8f), new Vector3(1.35f, 0.3f, 1.8f), wood).Box(new Vector3(0, 1.25f, -0.8f), new Vector3(1.15f, 0.35f, 1.4f), load);
+        foreach (float x in new[] { -0.74f, 0.74f }) m.Box(new Vector3(x, 0.55f, -0.8f), new Vector3(0.12f, 1.1f, 0.65f), dark).Box(new Vector3(x, 0.55f, -0.8f), new Vector3(0.12f, 0.65f, 1.1f), dark).Box(new Vector3(x * 1.06f, 0.55f, -0.8f), new Vector3(0.1f, 0.2f, 0.2f), wood);
+        return m.Build();
+    }
+
     /// <summary>A small 20th-century lorry facing local +Z: cab in front, a covered load bed behind.</summary>
     public static ArrayMesh Lorry()
     {

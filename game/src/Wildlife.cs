@@ -207,7 +207,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
     }
 
     private int _era, _fields, _fishers, _huts;
-    private bool _dugout;
+    private bool _dugout, _oxCarts;
 
     /// <summary>Farm animals appear with farming and sailing boats with the Bronze Age. Deer and gulls are always wild.</summary>
     public void SetEra(int era)
@@ -248,6 +248,12 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             int traffic = (4 + _huts / 5) * (_night ? 3 : 10) / 10 * (Season == 3 ? 5 : 10) / 10;
             if (_era is 2 or 3) traffic = Math.Min(traffic, 2 + _huts / 10);
             _carts.Speed = _era < 4 ? 1.3f : 2.6f;
+            // Oxen pull the carts before the Middle Ages, horses after.
+            if ((_era < 4) != _oxCarts)
+            {
+                _oxCarts = _era < 4;
+                _carts.Mesh.Mesh = _oxCarts ? MeshKit.OxCart() : MeshKit.Cart();
+            }
             _carts.Mesh.VisibleInstanceCount = _era is >= 2 and < 7 ? Math.Min(traffic, _carts.Agents.Length) : 0;
             _lorries.Mesh.VisibleInstanceCount = _era >= 7 ? Math.Min(traffic, _lorries.Agents.Length) : 0;
         }

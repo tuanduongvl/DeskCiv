@@ -2,6 +2,10 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 16:15 — Ox carts before the Middle Ages
+- Files: game/src/MeshKit.cs (new `OxCart()`: two pale oxen under a yoke, pole, plank cart with load, solid wheels), game/src/Wildlife.cs (`ApplyCounts` swaps the cart mesh to the ox cart for eras 2–3 and back to the horse cart from era 4, tracked by `_oxCarts`).
+- Behaviour: the slow early carts (Bronze and Iron Age) are now pulled by oxen instead of a horse.
+- Verification: build OK; shot seed 1000, year 120, 12:00, --view=150,160,110 shows an ox cart on the village track (blocky but readable when zoomed). Also verified the dugout change: starting at year 83.97, after the Bronze Age began in the running session the fishing boat in view had a mast (--view=220,110,150, shot at 60 s). Not checked: the horse-cart swap at the Middle Ages in a running session.
 ## 2026-11-28 15:45 — Neolithic dugout canoes
 - Files: game/src/MeshKit.cs (new `Dugout()`: hollowed log, kneeling paddler with paddle, small catch, no sail), game/src/Wildlife.cs (`SetEra` swaps the fishing-boat mesh to the dugout before the Bronze Age and back to the boat model after, tracked by `_dugout`; `ReloadModels` respects it; dugout drawn at size 1, no draft offset).
 - Behaviour: the two New Stone Age boats are now dugouts instead of the sailing boat scaled down (the limitation noted for clip 27/28).
