@@ -2,6 +2,11 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Update clip 26 published
+
+- **Done:** about 27 s, 2.3 MB, seed 1000 at 227 BC, two river-side scenes made with `--view` and `--azimuth=180` (`lead` 70 and 40). Published publicly (not made for kids) as "DeskCiv update 26 – washing day by the river, seen from the water": https://youtu.be/6gCT6qNn8Ms.
+- **Description covers:** the washing improvements, the quay crash guard, the stale-pose and boiler fixes, and the new camera option.
+- **Limitation:** the women are mostly seen walking down to the bank; no clear kneeling is caught. The description says so.
 ## 2026-11-28 — Fable review 15 fixes (quay crash guard, washing polish)
 
 - **Changed (Simulation):**
