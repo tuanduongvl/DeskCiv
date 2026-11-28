@@ -556,7 +556,7 @@ void fragment() {
     private bool _hasRail;
     private Vector3? _fireAt;
     /// <summary>The wild years: the cave in the hillside, its opening (grows as it is dug), and the camp fire.</summary>
-    private MultiMesh _cave, _caveMouth, _hearth, _campfire, _foodCache;
+    private MultiMesh _cave, _caveMouth, _hearth, _campfire, _foodCache, _berryBushes;
     private Vector3? _campAt;
     private bool _realCave;
     private MultiMesh _caveSpoil;
@@ -653,6 +653,7 @@ void fragment() {
         // On the image-made rock, boulders block the mouth at first and shrink away as the band digs the cave out.
         _caveSpoil = AddInstances(MeshKit.Boulders(), vertexColors, false, 1, true);
         _foodCache = AddInstances(MeshKit.FoodCache(), vertexColors, false, 1, true);
+        _berryBushes = AddInstances(MeshKit.BerryBush(), vertexColors, false, 32, true);
         _hearth = AddInstances(MeshKit.Hearth(), vertexColors, false, 1, true);
         _campfire = AddInstances(MeshKit.Flame(), flameMaterial, false, 3);
         var sparkMaterial = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, VertexColorUseAsAlbedo = true, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
@@ -1032,6 +1033,20 @@ void fragment() {
                     break;
                 }
         _foodCache.VisibleInstanceCount = caches;
+        // Wild berry bushes round the camp, where the foragers pick (Simulation.BerrySpots), until farming takes the land.
+        int bushes = 0;
+        if (s.Era <= 1)
+            foreach ((float bx, float bz) in Simulation.BerrySpots(_map, s.CenterX, s.CenterZ))
+            {
+                int tx = Math.Clamp((int)((bx + WorldMap.SizeX / 2) / Rules.TileSize), 0, Rules.TileNx - 1);
+                int tz = Math.Clamp((int)((bz + WorldMap.SizeZ / 2) / Rules.TileSize), 0, Rules.TileNz - 1);
+                if (s.Tiles.Length > 0 && s.Tiles[tx + tz * Rules.TileNx] is TileKind.Building or TileKind.Field or TileKind.Road or TileKind.PlannedRoad) continue;
+                if (bushes >= 32) break;
+                if (InCaveRock(s, bx, bz)) continue;
+                float size = 0.85f + (bushes * 7 % 5) * 0.08f;
+                _berryBushes.SetInstanceTransform(bushes++, new Transform3D(new Basis(Vector3.Up, bushes * 1.7f).Scaled(Vector3.One * size), new Vector3(bx, _map.Height(bx, bz) - 0.05f, bz)));
+            }
+        _berryBushes.VisibleInstanceCount = bushes;
         _wildlife.SetHunt(s.Hunting, s.HuntX, s.HuntZ, s.HuntStruck, s.HuntWon);
     }
 
@@ -1985,6 +2000,14 @@ void fragment() {
         return new Basis(xAxis, up * rise, xAxis.Cross(up));
     }
 
+    /// <summary>True inside the cave rock's footprint (its centre stands 6 m behind the mouth, about 13 m deep).</summary>
+    private static bool InCaveRock(WorldSnapshot s, float x, float z)
+    {
+        if (s.CaveX == 0 && s.CaveZ == 0) return false;
+        float cx = s.CaveX - MathF.Sin(s.CaveYaw) * 6f, cz = s.CaveZ - MathF.Cos(s.CaveYaw) * 6f;
+        return (x - cx) * (x - cx) + (z - cz) * (z - cz) < 7.5f * 7.5f;
+    }
+
     private void UpdateTrees(WorldSnapshot s)
     {
         _treeVersion = s.TreeVersion;
@@ -2006,6 +2029,8 @@ void fragment() {
                     _fallingTrees.Add((xs[i], zs[i], 0, scale, i * 1.7f));
                 continue;
             }
+            // Nothing grows out of the cave rock.
+            if (InCaveRock(s, xs[i], zs[i])) continue;
             var basis = new Basis(Vector3.Up, i * 2.4f).Scaled(new Vector3(scale, scale, scale));
             // Pines on the hills, broadleaf and birch on the lowlands.
             float ground = _map.Height(xs[i], zs[i]);

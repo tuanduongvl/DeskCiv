@@ -908,6 +908,27 @@ public sealed class MeshKit
         return m.Build();
     }
 
+    /// <summary>A wild berry bush about 1 m tall: a lumpy leafy mound dotted with red and dark purple berries.</summary>
+    public static ArrayMesh BerryBush()
+    {
+        var m = new MeshKit();
+        Color leaf = new(0.24f, 0.42f, 0.2f);
+        (Vector3 At, float R)[] lumps = { (Vector3.Zero, 0.75f), (new Vector3(0.5f, 0, 0.3f), 0.5f), (new Vector3(-0.45f, 0, 0.25f), 0.55f), (new Vector3(0.1f, 0, -0.5f), 0.5f) };
+        for (int i = 0; i < lumps.Length; i++)
+        {
+            var (at, r) = lumps[i];
+            Color c = leaf.Lightened(i * 0.04f);
+            m.Prism(at, r * 0.75f, r, r * 0.6f, 9, c.Darkened(0.12f)).Prism(at + Vector3.Up * r * 0.6f, r, r * 0.45f, r * 0.55f, 9, c);
+        }
+        Color[] berries = { new(0.75f, 0.1f, 0.16f), new(0.32f, 0.08f, 0.3f) };
+        for (int i = 0; i < 40; i++)
+        {
+            float a = i * 2.399963f, h = 0.25f + (i * 37 % 11) / 11f * 0.75f, r = 0.75f * MathF.Sqrt(1 - (h - 0.2f) / 1.0f) + 0.08f;
+            m.Prism(new Vector3(MathF.Cos(a) * r, h, MathF.Sin(a) * r * 0.9f), 0.045f, 0.03f, 0.06f, 5, berries[i % 2]);
+        }
+        return m.Build();
+    }
+
     /// <summary>A shallow basket of mussels, cockles and limpets gathered on the shore.</summary>
     public static ArrayMesh ShellfishLoad()
     {

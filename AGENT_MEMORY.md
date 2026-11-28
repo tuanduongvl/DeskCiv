@@ -2,6 +2,9 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 19:21 — Berry bushes for the foragers; no trees on the cave rock (Fable #17 item 7)
+- Files: game/src/Sim/Simulation.cs (BerrySpots(map, cx, cz): up to 28 bush spots on a golden-angle spiral 14–58 m round the centre, on walkable, dry, gentle ground, computed from the map alone with no random draws; berry foragers still draw the same two random numbers, then go to the nearest bush and stand 1.1 m from it on the camp side), game/src/MeshKit.cs (BerryBush: lumpy leafy mound ~1 m tall with 40 red and dark purple berries), game/src/WorldView.cs (bushes drawn in eras 0–1 except on building, field or road tiles; InCaveRock: trees and bushes are not drawn within 7.5 m of the cave rock's centre, which fixes a birch growing out of the rock).
+- Verification: SimTests ALL PASSED (8 seeds, 129.6 s). Seed 80190 shows berries=0 in the wild phase, the same as with the old code (night pattern: nobody berries at night). Shots at year 2 --view=110,170,40 show bushes with berries and the rock without a tree.
 ## 2026-11-28 18:55 — Wild hunters carry wooden spears (Fable #17 item 4)
 - Files: game/src/MeshKit.cs (new Spear(): 2.2 m wooden shaft with a dark fire-hardened point, held upright at the right hand and leaning forward), game/src/WorldView.cs (_spears instances: drawn during the wild years for men whose thought is the hunt (code 2) and who carry nothing; a one-time log line "hunters out with spears").
 - Why a static prop and not a skinned tool: textured villagers use their own skeletons, so a base-kit skinned tool would not follow their hands.

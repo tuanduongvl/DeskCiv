@@ -482,6 +482,20 @@ public sealed class Simulation
     /// gather shellfish on the shore. By night nobody hunts or goes berrying: they dig or gather on the shore near
     /// camp. Returns false now and then, so some stay by the fire.
     /// </summary>
+    /// <summary>Where the wild berry bushes grow round the camp: fixed by the map alone (no random draws),
+    /// so the drawing and the simulation agree and the economy's random sequence is unchanged.</summary>
+    public static List<(float X, float Z)> BerrySpots(WorldMap map, float cx, float cz)
+    {
+        var spots = new List<(float X, float Z)>();
+        for (int k = 0; k < 48 && spots.Count < 28; k++)
+        {
+            float a = k * 2.399963f + 0.7f, r = 14f + 44f * MathF.Sqrt((k + 0.5f) / 48f);
+            float x = cx + MathF.Cos(a) * r, z = cz + MathF.Sin(a) * r;
+            if (map.Walkable(x, z) && map.Height(x, z) > 1.3f && map.Slope(x, z) < 0.4f) spots.Add((x, z));
+        }
+        return spots;
+    }
+
     private bool TryForage(Person p)
     {
         if (Random.F() < 0.15f) return false;
@@ -514,6 +528,16 @@ public sealed class Simulation
         {
             kind = 1;
             (x, z) = (CenterX + Random.R(-55, 55), CenterZ + Random.R(-55, 55));
+            // Pick at the berry bush nearest the chosen point, standing at its edge on the camp side.
+            float best = float.MaxValue;
+            foreach ((float bx, float bz) in BerrySpots(Map, CenterX, CenterZ))
+            {
+                float d = Dist2(x, z, bx, bz);
+                if (d >= best) continue;
+                best = d;
+                float tx = CenterX - bx, tz = CenterZ - bz, tl = MathF.Max(0.1f, MathF.Sqrt(tx * tx + tz * tz));
+                (x, z) = (bx + tx / tl * 1.1f, bz + tz / tl * 1.1f);
+            }
         }
         if (!Map.Walkable(x, z)) return false;
         p.Act = Act.Forage;
