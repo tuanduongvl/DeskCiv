@@ -193,7 +193,8 @@ public sealed class MeshKit
         string name = type.ToString().ToLowerInvariant();
         for (int distance = 0; distance <= 4; distance++)
             foreach (int t in new[] { tier - distance, tier + distance })
-                if (t is >= 0 and <= 4 && LoadModel($"{name}_t{t}") is ArrayMesh mesh) return mesh;
+                // A quarry never borrows a later era's works: the steam stone works would appear in the Middle Ages.
+                if (t is >= 0 and <= 4 && !(type == BType.Quarry && t > tier) && LoadModel($"{name}_t{t}") is ArrayMesh mesh) return mesh;
         return null;
     }
 

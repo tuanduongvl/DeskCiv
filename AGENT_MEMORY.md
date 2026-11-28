@@ -2,6 +2,12 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 16:50 — quarry_t3 and mill_t4 models built (user asked to continue)
+- After the user said to continue, both low-memory-killed builds were rerun one at a time in the foreground with a 5 s RAM log.
+- `quarry_t3` (sheet quarry-t3.png, -Height 9): IoU 0.831, 11.2 x 9.0 x 11.0 m, texture coverage 0.73. Brick-and-timber stone works with slate roof, chimney and iron jib crane; the open saw bay is somewhat messy. Quarries in tiers 3–4 now use it; tiers 0–2 keep quarry_t0 (MeshKit.RealisticModel no longer lets a quarry borrow a later tier's model, which would have put the steam works in tier 2).
+- `mill_t4` (sheet mill-t4.png, -Height 11): IoU 0.937, 8.9 x 11.0 x 10.3 m, coverage 0.83. Four-storey red-brick mill with a timber sack-hoist tower.
+- Memory: each build peaks at about 38 GB commit and leaves 3.9–5.5 GB physical RAM free. The page file is fixed at 2 GB (commit limit ~33.9 GB, grown during the build). Processes at rest: Chrome ~3.5 GB, Claude ~2.1 GB, Zalo ~2 GB, Edge WebView ~1.3 GB; nothing abnormal. A larger page file would make background builds safer.
+- Verification: review renders (tools/character-review) of both models look right. Game shots (seed 1000, --look=Quarry at year 285 = AD 1870, --look=Mill at year 320 = AD 1962) show both models in town at the right scale. Models committed locally only (Hunyuan files are not published).
 ## 2026-11-28 16:45 — quarry_t3 sheet made; model build stopped for low memory (pending)
 - Sheet: ChatGPT isometric view, then a 2x2 ortho grid on chroma green. Saved as assets-candidates/concepts/buildings/quarry-t3.png (1880s brick-and-timber stone works: open saw bay with circular saw, iron jib crane, brick chimney, stacked blocks, slate roof).
 - The build `tools\make_building.ps1 -Sheet assets-candidates/concepts/buildings/quarry-t3.png -Name quarry_t3 -Height 9` was stopped by Claude Code because the system was critically low on memory. No model was written. Not restarted (rule: restart only when the user asks), same as mill_t4.
