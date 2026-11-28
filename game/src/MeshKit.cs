@@ -1304,15 +1304,25 @@ public sealed class MeshKit
 
     public static ArrayMesh Flowers()
     {
-        if (LoadKit("scatter_flowers") is ArrayMesh kit) return kit;
+        // A small clump of meadow flowers: thin stems, two leaves, and open flat flower heads (a ring of petals
+        // round a darker or yellow centre) in buttercup yellow, daisy white and cranesbill purple.
         var m = new MeshKit();
-        Color[] petals = { new(0.95f, 0.86f, 0.32f), new(0.92f, 0.92f, 0.88f), new(0.78f, 0.42f, 0.72f) };
+        Color stem = new(0.3f, 0.5f, 0.22f);
+        (Color Petal, Color Centre)[] kinds =
+        {
+            (new Color(0.96f, 0.84f, 0.22f), new Color(0.85f, 0.62f, 0.12f)),
+            (new Color(0.95f, 0.95f, 0.9f), new Color(0.95f, 0.78f, 0.2f)),
+            (new Color(0.66f, 0.42f, 0.78f), new Color(0.42f, 0.24f, 0.5f)),
+        };
         for (int i = 0; i < 4; i++)
         {
-            float a = i * 1.9f, r = 0.12f + i * 0.08f;
+            float a = i * 1.9f, r = 0.12f + i * 0.08f, h = 0.24f + (i % 3) * 0.05f;
             var p = new Vector3(MathF.Cos(a) * r, 0, MathF.Sin(a) * r);
-            m.Prism(p, 0.025f, 0.018f, 0.34f, 3, new Color(0.3f, 0.5f, 0.22f));
-            m.Prism(p + Vector3.Up * 0.33f, 0.1f, 0.13f, 0.06f, 5, petals[i % 3]);
+            var (petal, centre) = kinds[i % 3];
+            m.Prism(p, 0.012f, 0.008f, h, 3, stem);
+            m.Box(p + new Vector3(0.04f, 0.06f, 0), new Vector3(0.1f, 0.008f, 0.035f), stem.Lightened(0.05f), a);
+            m.Prism(p + Vector3.Up * h, 0.03f, 0.075f, 0.018f, 7, petal);
+            m.Prism(p + Vector3.Up * (h + 0.018f), 0.025f, 0.012f, 0.012f, 5, centre);
         }
         return m.Build();
     }
@@ -1339,8 +1349,11 @@ public sealed class MeshKit
     public static ArrayMesh Puff()
     {
         var m = new MeshKit();
-        m.Prism(Vector3.Down * 0.5f, 0.35f, 0.72f, 0.5f, 7, Colors.White);
-        m.Prism(Vector3.Zero, 0.72f, 0.3f, 0.5f, 7, Colors.White);
+        // A rounded puff: three stacked rings make a ball instead of a hexagonal drum.
+        m.Prism(Vector3.Down * 0.55f, 0.3f, 0.62f, 0.25f, 10, Colors.White);
+        m.Prism(Vector3.Down * 0.3f, 0.62f, 0.72f, 0.3f, 10, Colors.White, false);
+        m.Prism(Vector3.Zero, 0.72f, 0.55f, 0.25f, 10, Colors.White, false);
+        m.Prism(Vector3.Up * 0.25f, 0.55f, 0.15f, 0.25f, 10, Colors.White);
         return m.Build();
     }
 
@@ -1510,13 +1523,25 @@ public sealed class MeshKit
     public static ArrayMesh Hearth()
     {
         var m = new MeshKit();
-        for (int i = 0; i < 9; i++)
+        // A ring of rounded field stones, some soot-blackened on the inside, round a bed of grey ash and glowing embers.
+        for (int i = 0; i < 10; i++)
         {
-            float a = i * MathF.Tau / 9;
-            m.Box(new Vector3(MathF.Cos(a) * 1.15f, 0.13f, MathF.Sin(a) * 1.15f), new Vector3(0.46f, 0.3f, 0.36f), i % 2 == 0 ? Rock : Rock.Darkened(0.15f), a);
+            float a = i * MathF.Tau / 10, r = 0.2f + (i * 7 % 5) * 0.025f;
+            Color c = (i % 3 == 0 ? Rock.Darkened(0.12f) : Rock).Lerp(new Color(0.2f, 0.18f, 0.16f), i % 4 == 1 ? 0.35f : 0f);
+            var at = new Vector3(MathF.Cos(a) * 1.15f, -0.04f, MathF.Sin(a) * 1.15f);
+            m.Prism(at, r, r * 0.85f, 0.16f, 7, c).Prism(at + Vector3.Up * 0.16f, r * 0.85f, r * 0.4f, 0.12f, 7, c.Lightened(0.05f));
         }
-        Color charred = new(0.16f, 0.11f, 0.08f);
-        m.Beam(new Vector3(-0.7f, 0.1f, -0.25f), new Vector3(0.65f, 0.28f, 0.3f), 0.09f, charred).Beam(new Vector3(0.1f, 0.1f, -0.75f), new Vector3(-0.2f, 0.3f, 0.7f), 0.08f, charred);
+        m.Prism(new Vector3(0, -0.02f, 0), 0.95f, 0.85f, 0.05f, 12, new Color(0.34f, 0.32f, 0.3f));
+        foreach ((float x, float z) in new[] { (0.2f, 0.1f), (-0.25f, 0.2f), (0.05f, -0.3f), (-0.1f, -0.05f), (0.35f, -0.2f) })
+            m.Prism(new Vector3(x, 0.02f, z), 0.09f, 0.05f, 0.04f, 5, new Color(1.3f, 0.45f, 0.12f));
+        Color charred = new(0.16f, 0.11f, 0.08f), bark = new(0.36f, 0.26f, 0.17f);
+        // Three logs laid star-wise, their inner ends burnt black.
+        foreach (float a in new[] { 0.3f, 2.4f, 4.4f })
+        {
+            Vector3 outer = new(MathF.Cos(a) * 0.95f, 0.1f, MathF.Sin(a) * 0.95f), inner = new(MathF.Cos(a) * 0.15f, 0.2f, MathF.Sin(a) * 0.15f);
+            m.Cylinder(outer, outer.Lerp(inner, 0.55f), 0.08f, 0.08f, 7, bark, new Color(0.7f, 0.55f, 0.36f));
+            m.Cylinder(outer.Lerp(inner, 0.55f), inner, 0.08f, 0.06f, 7, charred);
+        }
         // Hides pegged out to dry and a heap of firewood beside the hearth.
         m.Box(new Vector3(2.6f, 0.03f, 1.2f), new Vector3(1.6f, 0.04f, 1.1f), new Color(0.55f, 0.42f, 0.3f), 0.4f);
         for (int i = 0; i < 4; i++) m.Beam(new Vector3(-2.4f, 0.12f + i * 0.1f, 1.4f - i * 0.15f), new Vector3(-1.4f, 0.12f + i * 0.1f, 2f - i * 0.1f), 0.07f, new Color(0.42f, 0.3f, 0.2f));

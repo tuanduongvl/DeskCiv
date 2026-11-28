@@ -170,7 +170,8 @@ void vertex() {
 uniform vec3 tone = vec3(0.86, 0.85, 0.82);
 global uniform float daylight;
 // Smoke is unshaded, so it is dimmed by hand at night to match the moonlit scene.
-void fragment() { ALBEDO = mix(tone, vec3(0.93), COLOR.r) * (0.35 + 0.65 * daylight); ALPHA = COLOR.a; }";
+// Edges facing away from the eye fade out, so a puff is a soft round cloud rather than a flat disc.
+void fragment() { ALBEDO = mix(tone, vec3(0.93), COLOR.r) * (0.35 + 0.65 * daylight); ALPHA = COLOR.a * pow(clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 1.6) * 1.5; }";
 
     private const string MovingShader = @"
 shader_type spatial;

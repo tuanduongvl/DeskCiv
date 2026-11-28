@@ -168,6 +168,7 @@ void fragment() {
             _azimuth = 0;
             _focusTimer += 20;
         }
+        if (_watchHunt || _watchPrey) GD.Print($"DeskCiv: cave {first.CaveX:F0},{first.CaveZ:F0} yaw {first.CaveYaw:F2} hunt {first.HuntX:F0},{first.HuntZ:F0}");
         if (Option(args, "--view", null) is string view)
         {
             string[] parts = view.Split(',');
