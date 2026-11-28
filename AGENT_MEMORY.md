@@ -2,7 +2,7 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
-## 2026-11-28 18:35 — Stone Age camp polish: flowers, hearth, smoke
+## 2026-11-28 18:20 — Stone Age camp polish: flowers, hearth, smoke
 - Audit close-ups at the camp (seed 1000, year 2, --view=110,178,9 by day and 12 at 23:00) found cube flowers (scatter kit), a hearth of grey boxes with box logs, and smoke puffs drawn as flat translucent hexagons.
 - Files: game/src/MeshKit.cs (`Flowers`: procedural clumps with thin stems, a leaf, flat open heads with a centre, in buttercup yellow, daisy white and purple; no longer loads `scatter_flowers`. `Hearth`: ten rounded stones, some sooty, round an ash bed with glowing embers, three round logs laid star-wise with burnt inner ends. `Puff`: four stacked 10-sided rings, a rounded ball), game/src/WorldView.cs (smoke shader fades each puff's edges by the view angle, so puffs are soft clouds), game/src/Main.cs (`--watch-hunt`/`--watch-prey` print the cave and hunt coordinates at start).
 - Verification: build OK; reshoots of the camp by day and night show real-looking flowers, the new hearth and soft smoke. Open items: night is still fairly bright (grass stays vivid at 23:00); the flame is two crossed cards; --view=185,262,14 at the hunting ground looked into the sky (camera at the map edge).
