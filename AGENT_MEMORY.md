@@ -2,6 +2,13 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Update clip 27 published
+
+- **Done:** about 26 s, 2.3 MB, seed 1000 at 226 BC, two riverbank scenes shot with `--azimuth=180`:
+  - the washing place at 251,150 (`lead` 110): a woman walks down and bends to wash at the water's edge
+  - a wider bank view (`lead` 90): no washer clearly visible; the description says so
+
+  Published publicly (not made for kids) as "DeskCiv update 27 – kneeling to wash at the water's edge, summer play on the bank": https://youtu.be/bZvpiG9At3Y.
 ## 2026-11-28 — Washer seen kneeling at the bank
 
 - **Verified on screen:** a debug pass in fast-forward mode (Night unset, as --start-year runs), seed 1000, year 150, found the busiest kneeling place at 252,152. A Godot shot --view=251,150,18 --azimuth=180 at 120 s shows a woman bent over in the gather pose on the sandy bank, a step from the water. This confirms the washing scene end to end.
