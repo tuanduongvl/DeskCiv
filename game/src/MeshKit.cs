@@ -1294,9 +1294,20 @@ public sealed class MeshKit
 
     public static ArrayMesh Pebbles()
     {
-        if (LoadKit("scatter_pebbles") is ArrayMesh kit) return kit;
+        // Three weathered field stones half sunk in the grass: rounded tops, warm greys, moss on the largest.
         var m = new MeshKit();
-        m.Prism(Vector3.Zero, 0.46f, 0.27f, 0.3f, 6, Rock).Prism(new Vector3(0.52f, 0, 0.2f), 0.22f, 0.12f, 0.16f, 5, Rock.Darkened(0.14f));
+        (Vector3 At, float R, float H, Color C)[] stones =
+        {
+            (Vector3.Zero, 0.34f, 0.24f, new Color(0.56f, 0.55f, 0.5f)),
+            (new Vector3(0.42f, 0, 0.18f), 0.18f, 0.13f, new Color(0.5f, 0.48f, 0.44f)),
+            (new Vector3(-0.14f, 0, 0.38f), 0.13f, 0.09f, new Color(0.62f, 0.6f, 0.55f)),
+        };
+        foreach (var s in stones)
+        {
+            m.Prism(s.At + Vector3.Down * 0.05f, s.R, s.R * 0.88f, s.H * 0.55f, 7, s.C);
+            m.Prism(s.At + Vector3.Up * s.H * 0.5f, s.R * 0.88f, s.R * 0.45f, s.H * 0.4f, 7, s.C.Lightened(0.06f));
+        }
+        m.Prism(new Vector3(0.05f, 0.22f, -0.04f), 0.17f, 0.06f, 0.05f, 7, new Color(0.34f, 0.42f, 0.22f));
         return m.Build();
     }
 

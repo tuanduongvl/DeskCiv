@@ -775,7 +775,9 @@ void fragment() {
                 items.Add(new Transform3D(new Basis(Vector3.Up, rng.R(0, MathF.Tau)).Scaled(Vector3.One * size), new Vector3(x, h - 0.02f, z)));
             }
             _scatterItems[kind] = items.ToArray();
-            _scatter[kind] = AddInstances(meshes[kind], _scatterMaterial, false, Math.Max(1, items.Count));
+            // Stones keep their own grey whatever the season; grass, flowers and reeds take the season's tint.
+            Material material = kind == 2 ? new ShaderMaterial { Shader = _scatterMaterial.Shader } : _scatterMaterial;
+            _scatter[kind] = AddInstances(meshes[kind], material, false, Math.Max(1, items.Count));
             _scatterNodes[kind] = (MultiMeshInstance3D)GetChild(GetChildCount() - 1);
         }
         UpdateScatter(s);

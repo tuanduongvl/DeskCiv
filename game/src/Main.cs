@@ -175,12 +175,23 @@ void fragment() {
             _azimuth = _azimuthTarget = Mathf.DegToRad((float)Number(args, "--azimuth", 0));
             _manual = true;
             _manualUntil = double.MaxValue;
-            // --preview-load=Fish puts that carried load, three times life size, at the view's focus (for checking props).
-            if (Option(args, "--preview-load", null) is string load && Enum.TryParse(load, true, out Res res))
+            // --preview-load=Fish puts that carried load, three times life size, at the view's focus (for checking props);
+            // --preview-mesh=Pebbles does the same for any parameterless MeshKit mesh, at life size.
+            Mesh preview = null;
+            float previewScale = 3, previewDrop = 2.2f;
+            if (Option(args, "--preview-load", null) is string load && Enum.TryParse(load, true, out Res res)) preview = MeshKit.Load(res);
+            if (Option(args, "--preview-mesh", null) is string name
+                && typeof(MeshKit).GetMethod(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, Type.EmptyTypes) is { } method)
+            {
+                preview = method.Invoke(null, null) as Mesh;
+                previewScale = 1;
+                previewDrop = 0;
+            }
+            if (preview != null)
                 AddChild(new MeshInstance3D
                 {
-                    Mesh = MeshKit.Load(res), Position = _focus + Vector3.Down * 2.2f, Scale = Vector3.One * 3,
-                    MaterialOverride = new StandardMaterial3D { VertexColorUseAsAlbedo = true },
+                    Mesh = preview, Position = _focus + Vector3.Down * previewDrop, Scale = Vector3.One * previewScale,
+                    MaterialOverride = preview.GetSurfaceCount() > 0 && preview.SurfaceGetMaterial(0) != null ? null : new StandardMaterial3D { VertexColorUseAsAlbedo = true },
                 });
         }
         UpdateCamera(0);

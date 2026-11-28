@@ -41,8 +41,14 @@ def tree_atlas(side):
     atlas[:, :n] = np.asarray(Image.fromarray(side).resize((n, SIZE), Image.Resampling.LANCZOS))
     atlas[:n, n:] = top
     atlas[n:, n:] = top  # padding so mipmaps of the top card do not bleed transparent texels
-    crown_height = 1 - (c0 + c1) / 2 / SIZE
-    return atlas, (crown_height, 2 * half / SIZE)
+    # Level cards at three heights down the crown, each as wide as the crown is there, so a pine reads as
+    # tiers of branches from above instead of one wide disc cutting through it at mid-height.
+    first = np.where(widths > 0)[0][0]
+    levels = []
+    for f in (0.35, 0.62, 0.88):
+        row = int(first + (c1 - first) * f)
+        levels.append((1 - row / SIZE, 0.92 * widths[row] / SIZE))
+    return atlas, levels
 
 
 def main():
@@ -92,11 +98,15 @@ def main():
         nor += [turn @ np.array([0, 0.5, 1]) / np.linalg.norm([0, 0.5, 1]) if cross else (0, 0, 1)] * 4
         uv += [(0, 1), (0.5, 1), (0.5, 0), (0, 0)] if cross else [(0, 1), (1, 1), (1, 0), (0, 0)]
         idx += [4 * k + i for i in (0, 2, 1, 0, 3, 2)]
-    if crown:
-        # A level card with the crown seen from above, so the tree does not look like a star from a high camera.
-        height, width = crown[0] * size, crown[1] * size / 2
+    for level, (height, width) in enumerate(crown or []):
+        # Level cards with the crown seen from above, so the tree does not look like a star from a high camera.
+        # Each is turned a little so the tiers do not line up.
+        height, width = height * size, width * size / 2
+        a = 0.7 * level
+        c, s = np.cos(a), np.sin(a)
         k = len(pos)
-        pos += [(-width, height, -width), (width, height, -width), (width, height, width), (-width, height, width)]
+        for x, z in ((-width, -width), (width, -width), (width, width), (-width, width)):
+            pos.append((x * c - z * s, height, x * s + z * c))
         nor += [(0, 1, 0)] * 4
         uv += [(0.5, 0), (1, 0), (1, 0.5), (0.5, 0.5)]
         idx += [k + i for i in (0, 1, 2, 0, 2, 3)]
