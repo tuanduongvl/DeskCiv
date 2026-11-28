@@ -258,6 +258,12 @@ public sealed class SimHost
             {
                 _yaw[s] = MathF.PI;
             }
+            else if (p.Act == Act.Forage && p.A == 0 && p.B == Simulation.Butchering)
+            {
+                // Butchers kneel facing the carcass at the middle of their ring.
+                float ax = _sim.HuntX - _sim.CenterX, az = _sim.HuntZ - _sim.CenterZ, al = MathF.Max(1f, MathF.Sqrt(ax * ax + az * az));
+                _yaw[s] = MathF.Atan2(_sim.HuntX + ax / al * 8 - p.X, _sim.HuntZ + az / al * 8 - p.Z);
+            }
             else if (p.Act == Act.Forage && p.A == 0)
             {
                 // Hunters face the deer, which graze beyond the meeting point, away from the camp.
@@ -342,6 +348,7 @@ public sealed class SimHost
         if (p.Act == Act.Forage)
             return p.Phase != 1 ? Clip.Idle : p.A switch
             {
+                0 when p.B == Simulation.Butchering => Clip.Gather,
                 0 => _sim.Tick >= _sim.HuntStrike - 60 ? Clip.Chop : Clip.Idle,
                 3 => Clip.Mine,
                 _ => Clip.Gather,

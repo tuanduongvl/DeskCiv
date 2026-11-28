@@ -548,6 +548,9 @@ public sealed class Simulation
         return true;
     }
 
+    /// <summary>Marks a hunter (in Person.B) who has gone to the fallen deer to butcher it.</summary>
+    public const int Butchering = -2;
+
     private void AdvanceForage(Person p, float dt)
     {
         if (p.Phase == 0)
@@ -556,6 +559,8 @@ public sealed class Simulation
             // Hunters lie in wait together until the strike; the others work a while at the spot.
             p.Timer = p.A switch
             {
+                // At the carcass the hunters kneel and butcher it before carrying the meat home.
+                0 when p.B == Butchering => 14f,
                 0 => Math.Max(4f, (HuntStrike - Tick) * Rules.TickSeconds),
                 1 => 24f,
                 2 => 30f,
@@ -571,6 +576,19 @@ public sealed class Simulation
             switch (p.A)
             {
                 case 0:
+                    if (HuntWon && p.B != Butchering)
+                    {
+                        // The deer fell 8 m beyond the meeting point, away from the camp (Wildlife.SetHunt): gather round it.
+                        float ax = HuntX - CenterX, az = HuntZ - CenterZ, al = MathF.Max(1f, MathF.Sqrt(ax * ax + az * az));
+                        float a = p.Id * 2.399963f, kx = HuntX + ax / al * 8 + MathF.Cos(a) * 1.3f, kz = HuntZ + az / al * 8 + MathF.Sin(a) * 1.3f;
+                        if (Map.Walkable(kx, kz))
+                        {
+                            p.B = Butchering;
+                            p.Phase = 0;
+                            GoTo(p, kx, kz);
+                            return;
+                        }
+                    }
                     if (HuntWon) (res, n) = ((int)Res.Meat, 4);
                     break;
                 case 1:

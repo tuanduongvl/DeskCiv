@@ -437,6 +437,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             }
             _deerDown = won;
             _downFor = 0;
+            if (won) GD.Print($"DeskCiv: deer down at {deer.Agents[0].X:F0},{deer.Agents[0].Z:F0} after {_clock:F0} s");
         }
         if (!on && _hunt)
         {
@@ -499,7 +500,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             {
                 (a.TX, a.TZ, a.Moving) = (a.X, a.Z, 0);
                 _downFor += delta;
-                float left = Math.Clamp((12f - _downFor) / 3f, 0.001f, 1f);
+                // It lies there while the hunters butcher it, then is gone (carried home in pieces).
+                float left = Math.Clamp((34f - _downFor) / 3f, 0.001f, 1f);
                 WriteLying(flock.Buffer, i, flock.Scale * left, a.Yaw, a.X, _map.Height(a.X, a.Z) + 0.25f * flock.Scale, a.Z);
                 continue;
             }
