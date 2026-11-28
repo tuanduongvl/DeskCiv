@@ -2,6 +2,15 @@
 
 Hand-off record shared between agents. Newest entries first. Do not overwrite prior entries or record secrets.
 
+## 2026-11-28 — Herds go out to summer pasture
+
+- **Changed:** Wildlife.
+  - On every season change (Season setter), the three farm herds switch their home. In summer and early autumn (seasons 1–2) each animal goes to its group's pasture, 60 m further out from the village centre than its fold (LandNear, 15 m). In winter and spring (seasons 0 and 3) it goes back to the fold.
+  - Waits are shortened so the herd sets off soon.
+  - In winter the herds keep the folded roam (×0.25), as they already do at night.
+  - Folds and pastures are computed once, on the first season change; this is render-side only.
+- **Verified:** Godot shots, seed 1000, `--view=170,170,140`, hour 12. At year 150.05 (spring), many sheep and cows graze round the village. At year 150.3 (summer), few remain in town; the herds have moved out.
+- **Not seen:** the herds moving between fold and pasture.
 ## 2026-11-28 — Small boats on the river in the New Stone Age
 
 - **Changed:** Wildlife. In era 1 (New Stone Age), 2 fishing boats are shown at 0.6 scale, about half size, with the draft scaled to match. The river was empty before the Bronze Age. From era 2 the boats are unchanged.

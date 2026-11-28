@@ -83,6 +83,7 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
             if (_season == value) return;
             _season = value;
             ApplyCounts();
+            MoveHerdsForSeason();
         }
     }
 
@@ -284,6 +285,48 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
         return new Flock { Mesh = multi, Material = material, Agents = new Agent[count], Buffer = new float[count * Floats], Scale = 1 };
     }
 
+    // Where each farm animal is kept in winter (its fold near the village) and its summer pasture further out.
+    private (float X, float Z)[][] _folds, _pastures;
+
+    /// <summary>In summer and early autumn the farm herds graze far pastures; in winter and spring they are kept near the village.</summary>
+    private void MoveHerdsForSeason()
+    {
+        if (_herds == null || _herds.Length < 3) return;
+        if (_folds == null)
+        {
+            _folds = new (float, float)[3][];
+            _pastures = new (float, float)[3][];
+            for (int h = 0; h < 3; h++)
+            {
+                Flock flock = _herds[h];
+                _folds[h] = new (float, float)[flock.Agents.Length];
+                _pastures[h] = new (float, float)[flock.Agents.Length];
+                (float X, float Z) lastFold = (float.NaN, 0), lastPasture = (0, 0);
+                for (int i = 0; i < flock.Agents.Length; i++)
+                {
+                    (float fx, float fz) = (flock.Agents[i].HomeX, flock.Agents[i].HomeZ);
+                    _folds[h][i] = (fx, fz);
+                    // One pasture per group (agents of a group share a fold): 60 m further out from the village centre.
+                    if (fx != lastFold.X || fz != lastFold.Z)
+                    {
+                        float dx = fx - _centerX, dz = fz - _centerZ, len = MathF.Max(1f, MathF.Sqrt(dx * dx + dz * dz));
+                        lastPasture = LandNear(fx + dx / len * 60f, fz + dz / len * 60f, 15f);
+                        lastFold = (fx, fz);
+                    }
+                    _pastures[h][i] = lastPasture;
+                }
+            }
+        }
+        bool summer = _season is 1 or 2;
+        for (int h = 0; h < 3; h++)
+            for (int i = 0; i < _herds[h].Agents.Length; i++)
+            {
+                ref Agent a = ref _herds[h].Agents[i];
+                (a.HomeX, a.HomeZ) = summer ? _pastures[h][i] : _folds[h][i];
+                a.Wait = Math.Min(a.Wait, R(0, 6));
+            }
+    }
+
     private Flock Herd(Mesh mesh, int count, int groups, float speed, float roam, float scale, float distance = 75f)
     {
         Flock flock = AddFlock(mesh, count, 0);
@@ -438,7 +481,8 @@ void fragment() { ALBEDO = COLOR.rgb * texture(albedo, UV).rgb; }";
                 if (a.Wait <= 0)
                 {
                     // At night the farm animals bunch up close round their resting place and stand longer between steps.
-                    bool folded = _night && _herds.Length > 3 && flock != _herds[3];
+                    // Kept close at night, and through the winter.
+                    bool folded = (_night || _season == 3) && _herds.Length > 3 && flock != _herds[3];
                     (float x, float z) = LandNear(a.HomeX, a.HomeZ, folded ? flock.Roam * 0.25f : flock.Roam);
                     if (Open(tiles, x, z)) (a.TX, a.TZ) = (x, z);
                     a.Wait = R(3, 13) * (folded ? 3f : 1f);
